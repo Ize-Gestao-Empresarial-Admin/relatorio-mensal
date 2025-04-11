@@ -1,0 +1,12 @@
+{% extends "relatorio_base.html" %}
+{% block content %}
+    <h2>Evolução</h2>
+    <img src="{{ grafico }}" alt="Gráfico R4">
+    <table>
+        <tr><th>Indicador</th><th>Valor</th></tr>
+        {% for chave, valor in dados.items() if chave not in ["Empresa", "Dados 3 Meses", "Percentuais Receita", "Percentuais Lucro Operacional", "Caixa Acumulado"] %}
+            <tr><td>{{ chave }}</td><td>{{ valor|float|round(2) }}</td></tr>
+        {% endfor %}
+    </table>
+    <div class="page-break"></div>
+{% endblock %}

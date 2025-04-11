@@ -1,0 +1,30 @@
+#src/database/db_utils.py
+import pandas as pd
+from sqlalchemy import create_engine
+from typing import List
+from config.settings import DB_CONFIG
+
+class DatabaseConnection:
+    def __init__(self):
+        self.engine = create_engine(
+            f"postgresql://{DB_CONFIG['user']}:{DB_CONFIG['password']}@"
+            f"{DB_CONFIG['host']}:{DB_CONFIG['port']}/{DB_CONFIG['dbname']}"
+        )
+
+    def execute_query(self, query: str) -> pd.DataFrame:
+        """Executa uma query SQL e retorna um DataFrame."""
+        return pd.read_sql_query(query, self.engine)
+
+def buscar_clientes(db: DatabaseConnection) -> list:
+    """Busca todos os clientes no banco."""
+    query = "SELECT nome, id_cliente FROM cliente WHERE ativo = TRUE ORDER BY nome;" # so busca clientes ativos
+    df = db.execute_query(query)
+    return df.to_dict(orient='records') if not df.empty else []
+
+def obter_meses() -> List[tuple]:
+    """Retorna lista de meses."""
+    return [
+        ("Janeiro", 1), ("Fevereiro", 2), ("Março", 3), ("Abril", 4),
+        ("Maio", 5), ("Junho", 6), ("Julho", 7), ("Agosto", 8),
+        ("Setembro", 9), ("Outubro", 10), ("Novembro", 11), ("Dezembro", 12)
+    ]

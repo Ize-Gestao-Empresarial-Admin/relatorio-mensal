@@ -1,0 +1,14 @@
+streamlit
+pandas
+plotly
+psycopg2
+SQLAlchemy
+reportlab
+pillow
+fastapi
+uvicorn
+pytest
+pytest-cov
+dotenv
+pdfkit
+matplotlib

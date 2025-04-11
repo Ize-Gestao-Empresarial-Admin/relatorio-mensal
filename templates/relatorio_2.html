@@ -1,0 +1,18 @@
+{% extends "relatorio_base.html" %}
+{% block content %}
+    <h2>Análise de Lucros</h2>
+    <img src="{{ grafico }}" alt="Gráfico R3">
+    <table>
+        <tr><th>Indicador</th><th>Valor</th></tr>
+        {% for chave, valor in dados.items() if chave not in ["Empresa", "Notas", "Dados 3 Meses"] %}
+            <tr><td>{{ chave }}</td><td>{{ valor|float|round(2) }}</td></tr>
+        {% endfor %}
+    </table>
+    <h3>Notas Automatizadas</h3>
+    <ul>
+        {% for nota in dados["Notas"] %}
+            <li>{{ nota }}</li>
+        {% endfor %}
+    </ul>
+    <div class="page-break"></div>
+{% endblock %}
