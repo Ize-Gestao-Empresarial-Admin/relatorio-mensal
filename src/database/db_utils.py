@@ -1,7 +1,6 @@
-#src/database/db_utils.py
 import pandas as pd
-from sqlalchemy import create_engine
-from typing import List
+from sqlalchemy import create_engine, text
+from typing import Optional, Union, Dict, List, Tuple
 from config.settings import DB_CONFIG
 
 class DatabaseConnection:
@@ -11,9 +10,23 @@ class DatabaseConnection:
             f"{DB_CONFIG['host']}:{DB_CONFIG['port']}/{DB_CONFIG['dbname']}"
         )
 
-    def execute_query(self, query: str) -> pd.DataFrame:
-        """Executa uma query SQL e retorna um DataFrame."""
-        return pd.read_sql_query(query, self.engine)
+    def execute_query(self, query: Union[str, text], params: Optional[Union[Dict, List, Tuple]] = None) -> pd.DataFrame:
+        """Executa uma query SQL e retorna um DataFrame's a DataFrame.
+
+        Args:
+            query: Consulta SQL (string ou objeto SQLAlchemy text).
+            params: Parâmetros da consulta (dicionário, lista ou tupla).
+
+        Returns:
+            DataFrame com os resultados da consulta.
+
+        Raises:
+            ValueError: Se a consulta ou parâmetros forem inválidos.
+        """
+        try:
+            return pd.read_sql_query(query, self.engine, params=params)
+        except Exception as e:
+            raise ValueError(f"Erro ao executar consulta: {str(e)}")
 
 def buscar_clientes(db: DatabaseConnection) -> list:
     """Busca todos os clientes no banco."""

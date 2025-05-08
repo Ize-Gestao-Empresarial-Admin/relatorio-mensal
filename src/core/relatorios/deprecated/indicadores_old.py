@@ -1,6 +1,6 @@
 #src/core/indicadores.py
 from datetime import date
-from typing import List, Dict
+from typing import List, Optional
 from src.database.db_utils import DatabaseConnection
 import pandas as pd
 from sqlalchemy import text
@@ -10,115 +10,31 @@ class Indicadores:
         self.id_cliente = id_cliente
         self.db = db_connection
 
-    def calcular_custos_variaveis_fc(self, mes: date, categoria_nivel_3: str) -> List[Dict[str, any]]:
-        """Calcula os 5 maiores totais de custos variáveis por nivel_2 em um mês.
+    def calcular_nivel_1(self, mes: date, categorias: List[str]) -> float:
+        """Calcula o total para categorias específicas em um mês.
 
         Args:
             mes: Data do mês a ser calculado.
-            categoria_nivel_3: Padrão para filtragem (ex.: '4.%').
+            categorias: Lista de categorias (nivel_1) a serem somadas.
 
         Returns:
-            Lista de dicionários com 'nivel_2' e 'total_categoria' (negativo),
-            ordenada por total_categoria decrescente (valores mais negativos primeiro).
-
-        Raises:
-            ValueError: Se os parâmetros forem inválidos.
-            RuntimeError: Se houver erro na execução da consulta.
+            Total calculado ou 0 se não houver dados.
         """
-        if not isinstance(mes, date):
-            raise ValueError("O parâmetro 'mes' deve ser um objeto date.")
-        if not isinstance(categoria_nivel_3, str):
-            raise ValueError("O parâmetro 'categoria_nivel_3' deve ser uma string.")
-
-        query = text("""
-            SELECT p.nivel_2, SUM(f.valor) AS total_categoria
+        categorias_str = ", ".join(f"'{cat}'" for cat in categorias)
+        query = f"""
+            SELECT SUM(f.valor) as total
             FROM fc f
-            JOIN plano_de_contas p ON f.categoria_nivel_3 = p.categoria_nivel_3 
-                AND f.id_cliente = p.id_cliente
-            WHERE f.categoria_nivel_3 LIKE :categoria_nivel_3
+            WHERE f.nivel_1 IN ({categorias_str})
             AND f.visao = 'Realizado'
-            AND f.id_cliente = :id_cliente
-            AND f.valor < 0  -- Inclui apenas valores negativos
-            AND EXTRACT(YEAR FROM f.data) = :year
-            AND EXTRACT(MONTH FROM f.data) = :month
-            GROUP BY p.nivel_2
-            ORDER BY total_categoria ASC  -- Menores (mais negativos) primeiro
-            LIMIT 5;
-        """)
-
-        params = {
-            "categoria_nivel_3": categoria_nivel_3,
-            "id_cliente": self.id_cliente,
-            "year": mes.year,
-            "month": mes.month
-        }
-
-        try:
-            resultado = self.db.execute_query(query, params)
-            return [
-                {
-                    "nivel_2": row["nivel_2"] or "Desconhecido",
-                    "total_categoria": float(row["total_categoria"]) if row["total_categoria"] is not None else 0
-                }
-                for _, row in resultado.iterrows()
-            ] if not resultado.empty else []
-        except Exception as e:
-            raise RuntimeError(f"Erro ao calcular custos variáveis: {str(e)}")
-
-    def calcular_receitas_fc(self, mes: date, categoria_nivel_3: str) -> List[Dict[str, any]]:
-        """Calcula os 5 maiores totais de receitas por categoria_nivel_3 em um mês.
-
-        Args:
-            mes: Data do mês a ser calculado.
-            categoria_nivel_3: Padrão para filtragem (ex.: '3.%').
-
-        Returns:
-            Lista de dicionários com 'categoria_nivel_3' e 'total_categoria' (positivo),
-            ordenada por total_categoria decrescente.
-
-        Raises:
-            ValueError: Se os parâmetros forem inválidos.
-            RuntimeError: Se houver erro na execução da consulta.
+            AND f.id_cliente = {self.id_cliente}
+            AND EXTRACT(YEAR FROM f.data) = {mes.year}
+            AND EXTRACT(MONTH FROM f.data) = {mes.month};
         """
-        if not isinstance(mes, date):
-            raise ValueError("O parâmetro 'mes' deve ser um objeto date.")
-        if not isinstance(categoria_nivel_3, str):
-            raise ValueError("O parâmetro 'categoria_nivel_3' deve ser uma string.")
+        resultado = self.db.execute_query(query)
+        total = resultado.iloc[0]['total']
+        return total if total is not None else 0
 
-        query = text("""
-            SELECT f.categoria_nivel_3, SUM(f.valor) AS total_categoria
-            FROM fc f
-            WHERE f.categoria_nivel_3 LIKE :categoria_nivel_3
-            AND f.visao = 'Realizado'
-            AND f.id_cliente = :id_cliente
-            AND f.valor > 0  -- Inclui apenas valores positivos
-            AND EXTRACT(YEAR FROM f.data) = :year
-            AND EXTRACT(MONTH FROM f.data) = :month
-            GROUP BY f.categoria_nivel_3
-            ORDER BY total_categoria DESC
-            LIMIT 5;
-        """)
 
-        params = {
-            "categoria_nivel_3": categoria_nivel_3,
-            "id_cliente": self.id_cliente,
-            "year": mes.year,
-            "month": mes.month
-        }
-
-        try:
-            resultado = self.db.execute_query(query, params)
-            return [
-                {
-                    "categoria_nivel_3": row["categoria_nivel_3"],
-                    "total_categoria": float(row["total_categoria"]) if row["total_categoria"] is not None else 0
-                }
-                for _, row in resultado.iterrows()
-            ] if not resultado.empty else []
-        except Exception as e:
-            raise RuntimeError(f"Erro ao calcular receitas: {str(e)}")
-            
-    
     def calcular_categoria_dre(self, mes: date, categorias: List[str]) -> float:
             """Calcula o total para categorias específicas em um mês (DRE).
 

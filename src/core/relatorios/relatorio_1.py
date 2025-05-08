@@ -1,72 +1,81 @@
-# src/core/relatorios/relatorio_1.py
 from datetime import date
-from typing import Optional
+from typing import Optional, Dict, Any
 from src.core.indicadores import Indicadores
 from src.core.analises import AnalisesFinanceiras
 
 class Relatorio1:
-    CATEGORIA_RECEITAS = "3. Receitas"
-    CATEGORIA_CUSTOS_VARIAVEIS = "4. Custos Variáveis"
-    CATEGORIA_DESPESAS_FIXAS = "5. Despesas Fixas"
-    CATEGORIA_INVESTIMENTOS = "6. Investimentos"
-
     def __init__(self, indicadores: Indicadores, nome_cliente: str):
         self.indicadores = indicadores
         self.nome_cliente = nome_cliente
 
-    def gerar_relatorio(self, mes_atual: date, mes_anterior: Optional[date] = None) -> dict:
-        """Gera o relatório financeiro 1."""
-        # Cálculos do mês atual
-        receita_atual = self.indicadores.calcular_nivel_1(mes_atual, [self.CATEGORIA_RECEITAS])
-        custos_variaveis_atual = self.indicadores.calcular_nivel_1(mes_atual, [self.CATEGORIA_CUSTOS_VARIAVEIS])
-        despesas_fixas_atual = self.indicadores.calcular_nivel_1(mes_atual, [self.CATEGORIA_DESPESAS_FIXAS])
-        investimentos_atual = self.indicadores.calcular_nivel_1(mes_atual, [self.CATEGORIA_INVESTIMENTOS])
-        lucro_operacional_atual = self.indicadores.calcular_nivel_1(
-            mes_atual, 
-            categorias=[self.CATEGORIA_RECEITAS, self.CATEGORIA_CUSTOS_VARIAVEIS, self.CATEGORIA_DESPESAS_FIXAS]
-        )
+    def gerar_relatorio(self, mes_atual: date, mes_anterior: Optional[date] = None) -> Dict[str, Any]:
+        """Gera o relatório financeiro 1 com receitas, custos variáveis, suas principais categorias e análises."""
+        
+        # Receitas - Pegar as 5 maiores categorias
+        receitas_resultado = self.indicadores.calcular_receitas_fc(mes_atual, '3.%')
+        receita_atual = sum(r['total_categoria'] for r in receitas_resultado) if receitas_resultado else 0
+        
+        # Custos Variáveis - Pegar as 5 maiores categorias
+        custos_variaveis_resultado = self.indicadores.calcular_custos_variaveis_fc(mes_atual, '4.%')
+        custos_variaveis_atual = sum(r['total_categoria'] for r in custos_variaveis_resultado) if custos_variaveis_resultado else 0
+
+        # Inicializar dicionário de retorno
+        resultado = {
+            "Empresa": self.nome_cliente,
+            "Receita": receita_atual,
+            "Custos Variáveis": custos_variaveis_atual,
+        }
+
+        # Adicionar categorias de receitas com pesos individuais (até 5)
+        for i in range(5):
+            if i < len(receitas_resultado):
+                resultado[f"categoria_peso_{i+1}_receita"] = receitas_resultado[i]['categoria_nivel_3']
+                resultado[f"total_{i+1}_receita"] = receitas_resultado[i]['total_categoria']
+            else:
+                resultado[f"categoria_peso_{i+1}_receita"] = None
+                resultado[f"total_{i+1}_receita"] = 0
+
+        # Adicionar categorias de custos variáveis com pesos individuais (até 5)
+        for i in range(5):
+            if i < len(custos_variaveis_resultado):
+                resultado[f"categoria_peso_{i+1}_custo"] = custos_variaveis_resultado[i]['nivel_2']
+                resultado[f"total_{i+1}_custo"] = custos_variaveis_resultado[i]['total_categoria']
+            else:
+                resultado[f"categoria_peso_{i+1}_custo"] = None
+                resultado[f"total_{i+1}_custo"] = 0
 
         # Cálculos do mês anterior - se fornecido
         if mes_anterior:
-            receita_anterior = self.indicadores.calcular_nivel_1(mes_anterior, [self.CATEGORIA_RECEITAS])
-            custos_variaveis_anterior = self.indicadores.calcular_nivel_1(mes_anterior, [self.CATEGORIA_CUSTOS_VARIAVEIS])
-            despesas_fixas_anterior = self.indicadores.calcular_nivel_1(mes_anterior, [self.CATEGORIA_DESPESAS_FIXAS])
-            investimentos_anterior = self.indicadores.calcular_nivel_1(mes_anterior, [self.CATEGORIA_INVESTIMENTOS])
-            lucro_operacional_anterior = self.indicadores.calcular_nivel_1(
-                mes_anterior, 
-                categorias=[self.CATEGORIA_RECEITAS, self.CATEGORIA_CUSTOS_VARIAVEIS, self.CATEGORIA_DESPESAS_FIXAS]
-            )
+            receitas_anterior_resultado = self.indicadores.calcular_receitas_fc(mes_anterior, '3.%')
+            receita_anterior = sum(r['total_categoria'] for r in receitas_anterior_resultado) if receitas_anterior_resultado else 0
+            
+            custos_variaveis_anterior_resultado = self.indicadores.calcular_custos_variaveis_fc(mes_anterior, '4.%')
+            custos_variaveis_anterior = sum(r['total_categoria'] for r in custos_variaveis_anterior_resultado) if custos_variaveis_anterior_resultado else 0
         else:
-            receita_anterior = custos_variaveis_anterior = despesas_fixas_anterior = investimentos_anterior = lucro_operacional_anterior = 0
+            receita_anterior = custos_variaveis_anterior = 0
 
         # Análise Vertical
         av_receita = 100 if receita_atual else 0
         av_custos_variaveis = round((custos_variaveis_atual / receita_atual) * 100, 2) if receita_atual else 0
-        av_despesas_fixas = round((despesas_fixas_atual / receita_atual) * 100, 2) if receita_atual else 0
-        av_lucro_operacional = round((lucro_operacional_atual / receita_atual) * 100, 2) if receita_atual else 0
 
         # Análise Horizontal
         ah_receita = AnalisesFinanceiras.calcular_analise_horizontal(receita_atual, receita_anterior) if mes_anterior else 0
         ah_custos_variaveis = AnalisesFinanceiras.calcular_analise_horizontal(custos_variaveis_atual, custos_variaveis_anterior) if mes_anterior else 0
-        ah_despesas_fixas = AnalisesFinanceiras.calcular_analise_horizontal(despesas_fixas_atual, despesas_fixas_anterior) if mes_anterior else 0
-        ah_investimentos = AnalisesFinanceiras.calcular_analise_horizontal(investimentos_atual, investimentos_anterior) if mes_anterior else 0
-        ah_lucro_operacional = AnalisesFinanceiras.calcular_analise_horizontal(lucro_operacional_atual, lucro_operacional_anterior) if mes_anterior else 0
 
-        return {
-            "Empresa": self.nome_cliente,
-            "Receita": receita_atual,
-            "Custos Variáveis": custos_variaveis_atual,
-            "Despesas Fixas": despesas_fixas_atual,
-            "Investimentos": investimentos_atual,
-            "Lucro Operacional": lucro_operacional_atual,
+        # Notas Automatizadas sobre Custos Variáveis
+        notas_automatizadas = (
+            "Os custos variáveis são gastos diretamente associados à operação da empresa, como matéria-prima, "
+            "comissões de vendas e custos de produção. Eles tendem a acompanhar o movimento das receitas, "
+            "aumentando quando a receita cresce e diminuindo em períodos de menor atividade."
+        )
+
+        # Adicionar análises ao dicionário
+        resultado.update({
+            "AV Receita": av_receita,
             "AV Custos Variáveis": av_custos_variaveis,
-            "AV Despesas Fixas": av_despesas_fixas,
-            "AV Lucro Operacional": av_lucro_operacional,
             "AH Receita": ah_receita,
             "AH Custos Variáveis": ah_custos_variaveis,
-            "AH Despesas Fixas": ah_despesas_fixas,
-            "AH Lucro Operacional": ah_lucro_operacional
-        }
-        
-        # inserir nota do consultor puxando alguma variavel dinamica (de a 1 a 6)
-        
+            "Notas Automatizadas": notas_automatizadas
+        })
+
+        return resultado

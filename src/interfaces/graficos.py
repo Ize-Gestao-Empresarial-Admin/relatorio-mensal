@@ -1,26 +1,86 @@
-import matplotlib.pyplot as plt
-import seaborn as sns
 import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
 import os
 
 class Graficos:
-    def __init__(self, static_dir="static/graficos"):
-        self.static_dir = os.path.abspath(static_dir)
-        os.makedirs(self.static_dir, exist_ok=True)
+    def __init__(self, static_dir: str):
+        self.static_dir = static_dir
 
     def grafico_r1(self, dados, empresa, mes, ano):
-        categorias = ["Receita", "Custos Variáveis", "Despesas Fixas", "Investimentos", "Lucro Operacional"]
-        valores = [dados.get(cat, 0) for cat in categorias]
-        df = pd.DataFrame({"Categoria": categorias, "Valor": valores})
+        """Gera um gráfico de colunas com as principais categorias de Receitas e Custos Variáveis."""
+        # Extrair categorias e totais do dicionário
+        categorias = []
+        valores = []
+        pesos = []
+        avs = []
+        ahs = []
 
-        plt.figure(figsize=(10, 6))
-        sns.barplot(data=df, x="Categoria", y="Valor", hue="Categoria", palette="viridis", legend=False)
-        plt.title(f"Resultados Mensais - {empresa} - {mes}/{ano}")
+        # Total de receitas e custos para calcular pesos
+        total_receita = dados.get("Receita", 0)
+        total_custos = abs(dados.get("Custos Variáveis", 0))  # Absoluto para pesos
+
+        # Processar Receitas (até 5 categorias)
+        for i in range(1, 6):
+            categoria = dados.get(f"categoria_peso_{i}_receita")
+            total = dados.get(f"total_{i}_receita", 0)
+            if categoria and total > 0:
+                peso = (total / total_receita * 100) if total_receita > 0 else 0
+                av = peso  # AV é o mesmo que peso para receitas (proporção do total)
+                # AH requer comparação com mês anterior, mas não temos os dados do mês anterior para categorias
+                ah = 0  # Simplificação, já que mes_anterior não é passado
+                categorias.append(f"{categoria} (Receita)")
+                valores.append(total)
+                pesos.append(round(peso, 2))
+                avs.append(round(av, 2))
+                ahs.append(round(ah, 2))
+
+        # Processar Custos Variáveis (até 5 categorias)
+        for i in range(1, 6):
+            categoria = dados.get(f"categoria_peso_{i}_custo")
+            total = dados.get(f"total_{i}_custo", 0)
+            if categoria and total < 0:
+                peso = (abs(total) / total_custos * 100) if total_custos > 0 else 0
+                av = (total / total_receita * 100) if total_receita > 0 else 0  # AV em relação à receita
+                ah = 0  # Simplificação, já que mes_anterior não é passado
+                categorias.append(f"{categoria} (Custo)")
+                valores.append(abs(total))  # Usar absoluto para o gráfico
+                pesos.append(round(peso, 2))
+                avs.append(round(av, 2))
+                ahs.append(round(ah, 2))
+
+        # Criar DataFrame
+        df = pd.DataFrame({
+            "Categoria": categorias,
+            "Valor": valores,
+            "Peso (%)": pesos,
+            "AV (%)": avs,
+            "AH (%)": ahs
+        })
+
+        # Gerar gráfico
+        plt.figure(figsize=(12, 6))
+        sns.barplot(data=df, x="Categoria", y="Valor", hue="Categoria", palette="viridis")
+        plt.title(f"Principais Categorias - {empresa} - {mes}/{ano}")
         plt.xlabel("Categorias")
         plt.ylabel("Valores (R$)")
         plt.grid(True)
+
+        # Adicionar valores nas barras
         for index, row in df.iterrows():
-            plt.text(index, row["Valor"], f"R$ {row['Valor']:,.2f}", color='black', ha="center")
+            plt.text(index, row["Valor"], f"R$ {row['Valor']:,.2f}", color='black', ha="center", va="bottom")
+
+        # Criar legenda personalizada
+        legend_labels = [
+            f"{row['Categoria']}: Peso={row['Peso (%)']}%, AV={row['AV (%)']}%, AH={row['AH (%)']}%"
+            for _, row in df.iterrows()
+        ]
+        plt.legend(labels=legend_labels, title="Detalhes", bbox_to_anchor=(1.05, 1), loc='upper left')
+
+        # Ajustar layout para evitar corte
+        plt.tight_layout()
+
+        # Salvar gráfico
         output_path = os.path.join(self.static_dir, f"grafico_r1_{empresa}_{mes}_{ano}.png")
         plt.savefig(output_path, dpi=300, bbox_inches="tight")
         plt.close()

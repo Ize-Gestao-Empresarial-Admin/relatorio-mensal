@@ -16,7 +16,7 @@ from src.core.relatorios.relatorio_5 import Relatorio5
 from src.core.relatorios.relatorio_6 import Relatorio6
 from src.core.relatorios.relatorio_7 import Relatorio7
 from src.database.db_utils import DatabaseConnection, buscar_clientes, obter_meses
-from src.interfaces.pdf_generator import PDFGenerator
+#from src.interfaces.pdf_generator import PDFGenerator
 
 app = FastAPI(
     title="API de Relatórios Financeiros",

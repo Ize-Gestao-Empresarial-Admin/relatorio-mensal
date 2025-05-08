@@ -79,7 +79,7 @@ O sistema segue o **Padrão de Arquitetura em Camadas (Layered Architecture)**, 
 ### Estrutura de Diretórios
 
 ``` python
-arq_relatorio_mensal/
+v2_relatorio_mensal/
 ├── static/                 # Diretório para recursos estáticos
 │   ├── images/             # Subdiretório para imagens
 │   │   ├── logo.png        # Logo da empresa 
