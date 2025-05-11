@@ -1,0 +1,37 @@
+WITH custos AS (
+  SELECT
+    p.nivel_2      AS categoria,
+    SUM(f.valor)   AS valor
+  FROM fc f
+  JOIN plano_de_contas p
+    ON f.id_cliente   = p.id_cliente
+   AND text(f.nivel_3_id)   = p.nivel_3_id
+  WHERE
+    f.id_cliente     = 85
+    AND f.visao       = 'Realizado'
+    AND f.nivel_1     = '4. Custos Variáveis'
+    AND f.data     = '2025-03-01'
+  GROUP BY p.nivel_2
+),
+top3 AS (
+  SELECT
+    categoria,
+    valor
+  FROM custos
+  ORDER BY valor ASC
+  LIMIT 3
+),
+total_top3 AS (
+  SELECT SUM(valor) AS soma_valores
+  FROM top3
+)
+SELECT
+  t.categoria,
+  t.valor,
+  CASE
+    WHEN tt.soma_valores = 0 THEN NULL
+    ELSE (t.valor / tt.soma_valores)*100
+  END AS proporcao
+FROM top3 t
+CROSS JOIN total_top3 tt
+ORDER BY t.valor ASC;

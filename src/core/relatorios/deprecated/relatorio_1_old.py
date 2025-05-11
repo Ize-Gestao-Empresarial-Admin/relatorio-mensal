@@ -2,7 +2,7 @@
 from datetime import date
 from typing import Optional
 from src.core.indicadores import Indicadores
-from src.core.analises import AnalisesFinanceiras
+from src.core.relatorios.deprecated.analises import AnalisesFinanceiras
 
 # na nova refatoracao, os nomes serao categoria_peso_1, categoria_peso_2, etc
 # para colocar os pesos de cada categoria, posso puxar em forma de lista as iteranco com base no que foi retornado no bd, como 1 valor - maior peso, 2 valor - 2 maior peso etc

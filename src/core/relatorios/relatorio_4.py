@@ -1,72 +1,82 @@
 # src/core/relatorios/relatorio_4.py
-from datetime import date, timedelta
-from typing import Optional
+from datetime import date
+from typing import Optional, List, Dict, Any
 from src.core.indicadores import Indicadores
 
 class Relatorio4:
-    CATEGORIAS_RECEITA = ["3. Receitas"]
-    CATEGORIAS_CUSTOS_VARIAVEIS = ["4. Custos Variáveis"]
-    CATEGORIAS_DESPESAS_FIXAS = ["5. Despesas Fixas"]
-    CATEGORIAS_INVESTIMENTOS = ["6. Investimentos"]
-    CATEGORIAS_ENTRADAS_NAO_OPERACIONAIS = ["7.1 Entradas Não Operacionais", "7.1 Entradas não operacionais"]
-    CATEGORIAS_SAIDAS_NAO_OPERACIONAIS = ["7.2 Saídas Não Operacionais", "7.2 Saídas não operacionais"]
-
     def __init__(self, indicadores: Indicadores, nome_cliente: str):
         self.indicadores = indicadores
         self.nome_cliente = nome_cliente
 
-    def _calcular_dados_meses(self, mes_atual: date, meses: int = 3) -> dict:
-        """Calcula dados para os últimos 3 meses fechados antes do mês atual."""
-        dados = {
-            "Receita": [],
-            "Lucro Operacional": [],
-            "Geração de Caixa": [],
-            "Meses": []
-        }
-        for i in range(1, meses + 1):
-            mes = (mes_atual - timedelta(days=31 * i)).replace(day=1)
-            receita = self.indicadores.calcular_nivel_evolucao(mes, self.CATEGORIAS_RECEITA)
-            custos_variaveis = self.indicadores.calcular_nivel_evolucao(mes, self.CATEGORIAS_CUSTOS_VARIAVEIS)
-            despesas_fixas = self.indicadores.calcular_nivel_evolucao(mes, self.CATEGORIAS_DESPESAS_FIXAS)
-            investimentos = self.indicadores.calcular_nivel_evolucao(mes, self.CATEGORIAS_INVESTIMENTOS)
-            entradas_nao_oper = self.indicadores.calcular_nivel_evolucao(mes, self.CATEGORIAS_ENTRADAS_NAO_OPERACIONAIS)
-            saidas_nao_oper = self.indicadores.calcular_nivel_evolucao(mes, self.CATEGORIAS_SAIDAS_NAO_OPERACIONAIS)
+    def gerar_relatorio(self, mes_atual: date, mes_anterior: Optional[date] = None) -> List[Dict[str, Any]]:
+        # Calcular mes_anterior se não fornecido
+        if mes_anterior is None:
+            mes_anterior = date(mes_atual.year if mes_atual.month > 1 else mes_atual.year - 1,
+                                mes_atual.month - 1 if mes_atual.month > 1 else 12, 1)
 
-            lucro_operacional = receita + custos_variaveis + despesas_fixas
-            geracao_caixa = receita + entradas_nao_oper + custos_variaveis + despesas_fixas + investimentos + saidas_nao_oper
+        # Chamar funções de indicadores
+        lucro_liquido_resultado = self.indicadores.calcular_lucro_liquido_fc(mes_atual)
+        entradas_nao_operacionais_resultado = self.indicadores.calcular_entradas_nao_operacionais_fc(mes_atual)
 
-            dados["Receita"].append(receita)
-            dados["Lucro Operacional"].append(lucro_operacional)
-            dados["Geração de Caixa"].append(geracao_caixa)
-            dados["Meses"].append(f"{mes.strftime('%b/%Y')}")
-        return dados
+        # Extrair valores do Lucro Líquido
+        receita_atual = next((r['valor'] for r in lucro_liquido_resultado if r['categoria'] == 'Receita'), 0)
+        custos_variaveis_atual = next((r['valor'] for r in lucro_liquido_resultado if r['categoria'] == 'Custos Variáveis'), 0)
+        despesas_fixas_atual = next((r['valor'] for r in lucro_liquido_resultado if r['categoria'] == 'Despesas Fixas'), 0)
+        investimentos_atual = next((r['valor'] for r in lucro_liquido_resultado if r['categoria'] == 'Investimentos'), 0)
+        lucro_liquido_atual = receita_atual - custos_variaveis_atual - despesas_fixas_atual - investimentos_atual
 
-    def gerar_relatorio(self, mes_atual: date) -> dict:
-        """Gera o relatório financeiro 4 - Evolução."""
-        dados_3_meses = self._calcular_dados_meses(mes_atual)
+        # Análise Vertical (AV) do Lucro Líquido
+        av_lucro_liquido = round((lucro_liquido_atual / receita_atual) * 100, 2) if receita_atual else 0
 
-        # Médias
-        media_receita = sum(dados_3_meses["Receita"]) / 3 if dados_3_meses["Receita"] else 0
-        media_lucro_operacional = sum(dados_3_meses["Lucro Operacional"]) / 3 if dados_3_meses["Lucro Operacional"] else 0
-        media_geracao_caixa = sum(dados_3_meses["Geração de Caixa"]) / 3 if dados_3_meses["Geração de Caixa"] else 0
-
-        # Percentuais de Lucro Operacional em relação à Receita
-        percentuais_receita = [100] * 3  # Receita sempre 100%
-        percentuais_lucro_operacional = [
-            round((lo / r) * 100, 2) if r else 0
-            for lo, r in zip(dados_3_meses["Lucro Operacional"], dados_3_meses["Receita"])
+        # Construir subcategorias para Lucro Líquido
+        lucro_liquido_categorias = [
+            {
+                "subcategoria": r["categoria"],
+                "valor": r["valor"],
+                "av": round(r["av"], 2) if r["av"] is not None else 0,
+                "ah": round(r["ah"], 2) if r["ah"] is not None else 0
+            } for r in lucro_liquido_resultado
         ]
 
-        # Caixa Acumulado
-        caixa_acumulado = [sum(dados_3_meses["Geração de Caixa"][:i+1]) for i in range(3)]
+        # Construir subcategorias para Entradas Não Operacionais (todas disponíveis)
+        entradas_nao_operacionais_categorias = [
+            {
+                "subcategoria": e["categoria_nivel_3"],
+                "valor": e["total_valor"],
+                "av": round(e["av"], 2) if e["av"] is not None else 0,
+                "ah": round(e["ah"], 2) if e["ah"] is not None else 0
+            } for e in entradas_nao_operacionais_resultado
+        ]
 
-        return {
-            "Empresa": self.nome_cliente,
-            "Dados 3 Meses": dados_3_meses,
-            "Media Receita": media_receita,
-            "Media Lucro Operacional": media_lucro_operacional,
-            "Media Geração de Caixa": media_geracao_caixa,
-            "Percentuais Receita": percentuais_receita,
-            "Percentuais Lucro Operacional": percentuais_lucro_operacional,
-            "Caixa Acumulado": caixa_acumulado
+        # Notas automatizadas
+        destaques = [
+            f"Lucro Líquido: AV={round(av_lucro_liquido, 2)}%"
+        ]
+        destaques += [f"{r['categoria']}: AV={round(r['av'], 2)}%" for r in lucro_liquido_resultado if r['av'] is not None]
+        destaques += [f"{e['categoria_nivel_3']}: AV={round(e['av'], 2)}%" for e in entradas_nao_operacionais_resultado if e['av'] is not None]
+        notas_automatizadas = (
+            "O Lucro Líquido é calculado subtraindo Custos Variáveis, Despesas Fixas e Investimentos da Receita, representando o resultado financeiro final. "
+            "As Entradas Não Operacionais incluem rendimentos e outras receitas não ligadas à operação principal. "
+            f"Destaques: {', '.join(destaques)}."
+        )
+
+        # Mensagem padrão
+        if (receita_atual == 0 and custos_variaveis_atual == 0 and 
+            despesas_fixas_atual == 0 and investimentos_atual == 0 and 
+            not entradas_nao_operacionais_resultado):
+            notas_automatizadas = "Não há dados disponíveis para o período selecionado."
+
+        return [
+            {
+            "categoria": "Lucro Líquido",
+            "valor": lucro_liquido_atual,
+            "subcategorias": lucro_liquido_categorias,
+            },
+            {
+            "categoria": "Entradas Não Operacionais",
+            "valor": sum(e["total_valor"] for e in entradas_nao_operacionais_resultado),
+            "subcategorias": entradas_nao_operacionais_categorias,
+            }
+        ], {
+            "notas": notas_automatizadas
         }

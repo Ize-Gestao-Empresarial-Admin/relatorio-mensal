@@ -1,0 +1,500 @@
+****python test_relatorio_1.py***** -- TOTALMENTE CORRETA
+python test_relatorio_1.py
+[
+  [
+    {
+      "categoria": "Receitas",
+      "valor": 1065167.32,
+      "subcategorias": [
+        {
+          "subcategoria": "3.1.1  Comissão Vendas Assessores Internos",
+          "valor": 693118.27,
+          "av": 65.07,
+          "ah": 25.07
+        },
+        {
+          "subcategoria": "3.1.6 Receita vendas Cartas Contempladas",
+          "valor": 216900.0,
+          "av": 20.36,
+          "ah": 103.32
+        },
+        {
+          "subcategoria": "3.1.2 Comissão Vendas Assessores Externos",
+          "valor": 53198.8,
+          "av": 4.99,
+          "ah": -14.05
+        }
+      ]
+    },
+    {
+      "categoria": "Custos Variáveis",
+      "valor": 649662.02,
+      "subcategorias": [
+        {
+          "subcategoria": "4.3 Custos Comerciais",
+          "valor": -588382.03,
+          "av": -55.24,
+          "ah": 13.86
+        },
+        {
+          "subcategoria": "4.1 Custos Tributários e Financeiros",
+          "valor": -32556.02,
+          "av": -3.06,
+          "ah": -36.0
+        },
+        {
+          "subcategoria": "4.2 Custos com Produtos e Serviços",
+          "valor": -28723.97,
+          "av": -2.7,
+          "ah": -42.08
+        }
+      ]
+    }
+  ],
+  {
+    "notas": "Os custos variáveis são gastos diretamente associados à operação da empresa, como matéria-prima, comissões de vendas e custos de produção. Destaques: Receita Total=1065167.32, Custos Variáveis Total=649662.02."
+  }
+]
+
+-------------------------------------------------------------------
+*****python test_relatorio_2.py***** -- TOTALMENTE CORRETA
+python test_relatorio_1.py 
+[
+  [
+    {
+      "categoria": "Receitas",
+      "valor": 1065167.32,
+      "subcategorias": [
+        {
+          "subcategoria": "3.1.1  Comissão Vendas Assessores Internos",
+          "valor": 693118.27,
+          "av": 65.07,
+          "ah": 25.07
+        },
+        {
+          "subcategoria": "3.1.6 Receita vendas Cartas Contempladas",
+          "valor": 216900.0,
+          "av": 20.36,
+          "ah": 103.32
+        },
+        {
+          "subcategoria": "3.1.2 Comissão Vendas Assessores Externos",
+          "valor": 53198.8,
+          "av": 4.99,
+          "ah": -14.05
+        }
+      ]
+    },
+    {
+      "categoria": "Custos Variáveis",
+      "valor": 649662.02,
+      "subcategorias": [
+        {
+          "subcategoria": "4.3 Custos Comerciais",
+          "valor": -588382.03,
+          "av": -55.24,
+          "ah": 13.86
+        },
+        {
+          "subcategoria": "4.1 Custos Tributários e Financeiros",
+          "valor": -32556.02,
+          "av": -3.06,
+          "ah": -36.0
+        },
+        {
+          "subcategoria": "4.2 Custos com Produtos e Serviços",
+          "valor": -28723.97,
+          "av": -2.7,
+          "ah": -42.08
+        }
+      ]
+    }
+  ],
+  {
+    "notas": "Os custos variáveis são gastos diretamente associados à operação da empresa, como matéria-prima, comissões de vendas e custos de produção. Destaques: Receita Total=1065167.32, Custos Variáveis Total=649662.02."
+  }
+]
+(.venv) PS C:\Users\gonca\OneDrive\Área de Trabalho\IZE\Relatório Mensal\code\v2_relatorio_mensal> python test_relatorio_2.py
+[
+  [
+    {
+      "categoria": "Lucro Bruto",
+      "valor": 415505.30000000005,
+      "subcategorias": [
+        {
+          "subcategoria": "Receita",
+          "valor": 1065167.32,
+          "av": 100.0,
+          "ah": 34.99
+        },
+        {
+          "subcategoria": "Custos Variáveis",
+          "valor": 649662.02,
+          "av": 60.99,
+          "ah": 5.26
+        }
+      ]
+    },
+    {
+      "categoria": "Despesas Fixas",
+      "valor": 267445.66,
+      "subcategorias": [
+        {
+          "subcategoria": "5.3 Despesas com Pessoal",
+          "valor": 101793.39,
+          "av": -9.56,
+          "ah": 28.3
+        },
+        {
+          "subcategoria": "5.2 Despesas Administrativas",
+          "valor": 63656.54,
+          "av": -5.98,
+          "ah": 58.03
+        },
+        {
+          "subcategoria": "5.6 Despesas de Marketing",
+          "valor": 48451.02,
+          "av": -4.55,
+          "ah": 14.69
+        }
+      ]
+    }
+  ],
+  {
+    "notas": "O Lucro Bruto é calculado subtraindo os Custos Variáveis da Receita, representando a margem operacional inicial. As Despesas Fixas incluem custos recorrentes não diretamente ligados à produção, como aluguel e salários administrativos. Destaques: Lucro Bruto=415505.30000000005, Despesas Fixas=267445.66."
+  }
+]
+
+-------------------------------------------------------------------------------
+*****python test_relatorio_3.py***** -- TOTALMENTE CORRETA
+
+python test_relatorio_3.py
+[
+  {
+    "categoria": "Lucro Operacional",
+    "valor": 148059.64000000007,
+    "subcategorias": [
+      {
+        "subcategoria": "Receita",
+        "valor": 1065167.32,
+        "av": 100.0,
+        "ah": 34.99
+      },
+      {
+        "subcategoria": "Custos Variáveis",
+        "valor": 649662.02,
+        "av": 60.99,
+        "ah": 5.26
+      },
+      {
+        "subcategoria": "Despesas Fixas",
+        "valor": 267445.66,
+        "av": 25.11,
+        "ah": 23.24
+      }
+    ],
+    "notas": "O Lucro Operacional é calculado subtraindo os Custos Variáveis e Despesas Fixas da Receita, representando a margem após custos operacionais. Investimentos incluem gastos em ativos ou expansões (categorias nivel_2 começando com 6.). Destaques: Receita: AV=100.0%, Custos Variáveis: AV=60.99%, Despesas Fixas: AV=25.11%, 6.3 Investimentos em Desenvolvimento Empresarial: AV=-1.52%, 6.1 Investimentos em Marketing: AV=-2.13%, 6.2 Investimentos em Bens Materiais e Imóveis: AV=-3.13%."
+  },
+  {
+    "categoria": "Investimentos",
+    "valor": -72122.61,
+    "subcategorias": [
+      {
+        "subcategoria": "6.3 Investimentos em Desenvolvimento Empresarial",
+        "valor": -16150.7,
+        "av": -1.52,
+        "ah": 103.23
+      },
+      {
+        "subcategoria": "6.1 Investimentos em Marketing",
+        "valor": -22682.49,
+        "av": -2.13,
+        "ah": 11.59
+      },
+      {
+        "subcategoria": "6.2 Investimentos em Bens Materiais e Imóveis",
+        "valor": -33289.42,
+        "av": -3.13,
+        "ah": 1.08
+      }
+    ],
+    "notas": "O Lucro Operacional é calculado subtraindo os Custos Variáveis e Despesas Fixas da Receita, representando a margem após custos operacionais. Investimentos incluem gastos em ativos ou expansões (categorias nivel_2 começando com 6.). Destaques: Receita: AV=100.0%, Custos Variáveis: AV=60.99%, Despesas Fixas: AV=25.11%, 6.3 Investimentos em Desenvolvimento Empresarial: AV=-1.52%, 6.1 Investimentos em Marketing: AV=-2.13%, 6.2 Investimentos em Bens Materiais e Imóveis: AV=-3.13%."
+  }
+]
+
+-------------------------------------------------------------------------------
+*****python test_relatorio_4.py***** -- TOTALMENTE CORRETA
+python test_relatorio_4.py
+[
+  [
+    {
+      "categoria": "Lucro Líquido",
+      "valor": 75937.03000000007,
+      "subcategorias": [
+        {
+          "subcategoria": "Receita",
+          "valor": 1065167.32,
+          "av": 100.0,
+          "ah": 34.99
+        },
+        {
+          "subcategoria": "Custos Variáveis",
+          "valor": 649662.02,
+          "av": 60.99,
+          "ah": 5.26
+        },
+        {
+          "subcategoria": "Despesas Fixas",
+          "valor": 267445.66,
+          "av": 25.11,
+          "ah": 23.24
+        },
+        {
+          "subcategoria": "Investimentos",
+          "valor": 72122.61,
+          "av": 6.77,
+          "ah": 17.83
+        }
+      ]
+    },
+    {
+      "categoria": "Entradas Não Operacionais",
+      "valor": 17072.620000000003,
+      "subcategorias": [
+        {
+          "subcategoria": "7.1.4 Rendimentos de Aplicações",
+          "valor": 15298.400000000001,
+          "av": 1.44,
+          "ah": 8.09
+        },
+        {
+          "subcategoria": "7.1.6 Outras Entradas não Operacionais",
+          "valor": 1774.22,
+          "av": 0.17,
+          "ah": -68.84
+        }
+      ]
+    }
+  ],
+  {
+    "notas": "O Lucro Líquido é calculado subtraindo Custos Variáveis, Despesas Fixas e Investimentos da Receita, representando o resultado financeiro final. As Entradas Não Operacionais incluem rendimentos e outras receitas não ligadas à operação principal. Destaques: Lucro Líquido: AV=7.13%, Receita: AV=100.0%, Custos Variáveis: AV=60.99%, Despesas Fixas: AV=25.11%, Investimentos: AV=6.77%, 7.1.4 Rendimentos de Aplicações: AV=1.44%, 7.1.6 Outras Entradas não Operacionais: AV=0.17%."
+  }
+]
+
+---------------------------------------------------------
+****python test_relatorio_5.py***** -- TOTALMENTE CORRETA
+
+python test_relatorio_5.py
+{
+  "resultado": [
+    {
+      "categoria": "Saídas Não Operacionais",
+      "valor": 9181.57
+    },
+    {
+      "categoria": "Geração de Caixa",
+      "valor": 83828.07999999999,
+      "subcategorias": [
+        {
+          "subcategoria": "Lucro Líquido",
+          "valor": 75937.02999999998,
+          "av": 7.13,
+          "ah": 171.4
+        },
+        {
+          "subcategoria": "Entradas Não Operacionais",
+          "valor": 17072.620000000003,
+          "av": 1.6,
+          "ah": -13.98
+        },
+        {
+          "subcategoria": "Saídas Não Operacionais",
+          "valor": 9181.57,
+          "av": 0.86,
+          "ah": 20.13
+        }
+      ],
+      "analise_temporal": {
+        "meses": [
+          {
+            "mes": "2025-03",
+            "valor": 83828.08,
+            "ah": -10.97
+          },
+          {
+            "mes": "2025-02",
+            "valor": -94153.04,
+            "ah": -58.6
+          },
+          {
+            "mes": "2025-01",
+            "valor": 227413.03,
+            "ah": 5231.21
+          }
+        ],
+        "media": 72362.69
+      }
+    }
+  ],
+  "notas": {
+    "notas": "A Geração de Caixa é calculada como Receita - Custos Variáveis - Despesas Fixas - Investimentos + Entradas Não Operacionais - Saídas Não Operacionais. Destaques: Lucro Líquido: AV=7.13%, Entradas Não Operacionais: AV=1.6%, Saídas Não Operacionais: AV=0.86%. Média da Geração de Caixa (últimos 3 meses): 72362.69."
+  }
+}
+(.venv) PS C:\Users\gonca\OneDrive\Área de Trabalho\IZE\Relatório Mensal\code\v2_relatorio_mensal> 
+
+
+-------------------------------------
+****python test_relatorio_6.py***** -- TOTALMENTE CORRETA
+
+python test_relatorio_6.py
+{
+  "resultado": [
+    {
+      "indicador": "Faturamento",
+      "valor": 934387.91,
+      "av_dre": 100.0
+    },
+    {
+      "indicador": "Deduções da Receita Bruta",
+      "valor": -37464.58,
+      "av_dre": -4.0
+    },
+    {
+      "indicador": "Custos Variáveis",
+      "valor": -625097.55,
+      "av_dre": -66.9
+    },
+    {
+      "indicador": "Despesas Fixas",
+      "valor": -316992.99,
+      "av_dre": -33.9
+    },
+    {
+      "indicador": "EBITDA",
+      "valor": -45167.21,
+      "av_dre": -4.8
+    },
+    {
+      "indicador": "Custos Variáveis junto de Deduções da Receita",
+      "valor": -662562.13,
+      "av_dre": -70.9
+    },
+    {
+      "indicador": "Custos com Produtos e Serviços",
+      "valor": -28723.97,
+      "av_dre": -3.1
+    },
+    {
+      "indicador": "Lucro Operacional",
+      "valor": -30861.48,
+      "av_dre": -3.3
+    },
+    {
+      "indicador": "Lucro Líquido",
+      "valor": -65518.09,
+      "av_dre": -7.0
+    }
+  ],
+  "notas": {
+    "notas": "Os indicadores são calculados com base nos dados do DRE para o mês selecionado. "
+  }
+}
+
+----------------------------------------------------------
+****python test_relatorio_7.py***** -- TOTALMENTE CORRETA
+
+python test_relatorio_7.py
+[
+  {
+    "categoria": "Assessor que mais vendeu",
+    "valor": 10406636.0
+  },
+  {
+    "categoria": "CAC",
+    "valor": 6038.3628947368425
+  },
+  {
+    "categoria": "CAC/Ticket Médio Clientes",
+    "valor": 0.24557016154029648
+  },
+  {
+    "categoria": "Crescimento do Mês",
+    "valor": 0.3498854235021607
+  },
+  {
+    "categoria": "% da Administradora",
+    "valor": 1.0
+  },
+  {
+    "categoria": "Faturamento",
+    "valor": 934387.91
+  },
+  {
+    "categoria": "Geração de Caixa",
+    "valor": 83828.08000000002
+  },
+  {
+    "categoria": "% Investimentos",
+    "valor": -0.06771012276268483
+  },
+  {
+    "categoria": "Lucro Líquido",
+    "valor": 75937.03000000001
+  },
+  {
+    "categoria": "Margem de Contribuição (Lucro Bruto)",
+    "valor": 415505.30000000005
+  },
+  {
+    "categoria": "PE Líquido",
+    "valor": 1047273.0864979142
+  },
+  {
+    "categoria": "PE Líquido + 10%",
+    "valor": 1536924.8000705827
+  },
+  {
+    "categoria": "PE Líquido + 15%",
+    "valor": 2005839.0377441177
+  },
+  {
+    "categoria": "PE Líquido + 20%",
+    "valor": 2886510.5557940793
+  },
+  {
+    "categoria": "Ponto de Equilíbrio + 10% - Vendas",
+    "valor": 134.08736598871502
+  },
+  {
+    "categoria": "Ponto de Equilíbrio + 15% - Vendas",
+    "valor": 174.99728884334203
+  },
+  {
+    "categoria": "Ponto de Equilíbrio + 20% - Vendas",
+    "valor": 251.8305367362639
+  },
+  {
+    "categoria": "Ponto de Equilíbrio - Vendas",
+    "valor": 91.3682241531453
+  },
+  {
+    "categoria": "Quantidade de Clientes",
+    "valor": 38.0
+  },
+  {
+    "categoria": "Quantidade de Cotas",
+    "valor": 102.0
+  },
+  {
+    "categoria": "Ticket Médio – Clientes",
+    "valor": 24589.15552631579
+  },
+  {
+    "categoria": "Ticket Médio – Cotas",
+    "valor": 9160.665784313725
+  },
+  {
+    "categoria": "Volume de Vendas",
+    "valor": 104.0
+  }
+]

@@ -1,30 +1,37 @@
 # src/core/relatorios/relatorio_7.py
-import os
 from datetime import date
-from typing import Optional
-import logging
-
-logger = logging.getLogger(__name__)
+from typing import Optional, List, Dict, Any
+from src.core.indicadores import Indicadores
 
 class Relatorio7:
-    def __init__(self, indicadores, nome_cliente: str):
+    def __init__(self, indicadores: Indicadores, nome_cliente: str):
         self.indicadores = indicadores
         self.nome_cliente = nome_cliente
-        self.base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../..", "static"))
-        logger.info(f"Diretório base para imagens: {self.base_dir}")
 
-    def gerar_relatorio(self, mes_atual: date, mes_anterior: Optional[date] = None) -> dict:
-        """Gera o relatório com imagens estáticas."""
-        imagem1 = os.path.join(self.base_dir, "relatorio_7_p1.PNG")
-        imagem2 = os.path.join(self.base_dir, "relatorio_7_p2.PNG")
+    def gerar_relatorio(self, mes_atual: date, mes_anterior: Optional[date] = None) -> List[Dict[str, Any]]:
+        """Gera o relatório financeiro 7 com indicadores operacionais e seus valores.
+
+        Args:
+            mes_atual: Data do mês a ser calculado.
+            mes_anterior: Data do mês anterior (não usado, incluído para consistência).
+
+        Returns:
+            Lista de dicionários, cada um com 'categoria' (nome do indicador) e 'valor'.
+        """
+        # Buscar indicadores
+        indicadores_resultado = self.indicadores.calcular_indicadores_operacionais(mes_atual)
         
-        # Verificar se as imagens existem
-        if not os.path.exists(imagem1):
-            logger.warning(f"Imagem não encontrada: {imagem1}")
-        if not os.path.exists(imagem2):
-            logger.warning(f"Imagem não encontrada: {imagem2}")
-        
-        return {
-            "Empresa": self.nome_cliente,
-            "Imagens": [imagem1, imagem2]
+        # Notas automatizadas
+        notas_automatizadas = (
+            "Os indicadores são os mesmos do Dashboard B.I. "
+        )
+
+        # Construir lista de categorias (cada indicador é uma categoria)
+        return [
+            {
+                "categoria": i["indicador"],
+                "valor": i["total_valor"]
+            } for i in indicadores_resultado
+        ], {
+            "notas": notas_automatizadas
         }

@@ -1,0 +1,51 @@
+WITH 
+-- 1) total de receitas do mês atual
+receita_atual AS (
+  SELECT 
+    SUM(valor) AS total
+  FROM fc
+  WHERE id_cliente = 85
+    AND visao      = 'Realizado'
+    AND data       = '2025-03-01'
+    AND nivel_1    = '3. Receitas'
+),
+-- 2) total de receitas do mês anterior (dinâmico via INTERVAL)
+receita_anterior AS (
+  SELECT 
+    categoria_nivel_3,
+    SUM(valor) AS total_prev
+  FROM fc
+  WHERE id_cliente = 85
+    AND visao      = 'Realizado'
+    AND data       = DATE '2025-03-01' - INTERVAL '1 month'
+    AND nivel_1    = '3. Receitas'
+  GROUP BY categoria_nivel_3
+)
+SELECT
+  f.categoria_nivel_3                                  AS categoria_nivel_3,
+  SUM(f.valor)                                         AS total_receita,
+  -- 3) proporção da subcategoria sobre o total de receitas
+  CASE 
+    WHEN ra.total = 0 THEN NULL 
+    ELSE SUM(f.valor) / ra.total * 100
+  END                                                   as av,
+  -- 4) variação mês a mês: (atual / anterior) - 1
+  CASE 
+    WHEN rp.total_prev IS NULL OR rp.total_prev = 0 THEN NULL
+    ELSE (SUM(f.valor) / rp.total_prev - 1)*100
+  END                                                   AS ah
+FROM fc f
+-- junta a receita atual (sempre uma linha)
+CROSS JOIN receita_atual ra
+-- traz, se existir, a receita do mês anterior por categoria
+LEFT JOIN receita_anterior rp 
+  ON rp.categoria_nivel_3 = f.categoria_nivel_3
+WHERE f.id_cliente = 85
+  AND f.visao      = 'Realizado'
+  AND f.data       = '2025-03-01'
+  AND f.nivel_1    = '3. Receitas'
+GROUP BY 
+  f.categoria_nivel_3,
+  ra.total,
+  rp.total_prev
+ORDER BY total_receita DESC;

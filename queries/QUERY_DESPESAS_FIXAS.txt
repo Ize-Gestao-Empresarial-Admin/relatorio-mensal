@@ -1,0 +1,57 @@
+-- despesas fixas nova query
+
+WITH 
+-- Soma da receita do mês atual (2025-03-01)
+receita AS (
+  SELECT 
+    SUM(valor) AS total_receita
+  FROM fc
+  WHERE id_cliente = 85
+    AND visao      = 'Realizado'
+    AND data       = '2025-03-01'
+    AND nivel_1    = '3. Receitas'
+),
+-- Soma dos custos do mês anterior (dinamicamente 1 mês antes de 2025-03-01)
+prev_custos AS (
+  SELECT 
+    p.nivel_2                        AS categoria_nivel_2,
+    -SUM(f.valor)                    AS prev_valor
+  FROM fc f
+  JOIN plano_de_contas p
+    ON f.id_cliente = p.id_cliente
+   AND text(f.nivel_3_id) = p.nivel_3_id
+  WHERE f.id_cliente = 85
+    AND f.visao      = 'Realizado'
+    AND f.nivel_1    = '5. Despesas Fixas'
+    AND f.data       = DATE '2025-03-01' - INTERVAL '1 month'
+  GROUP BY p.nivel_2
+)
+SELECT 
+  p.nivel_2                                AS categoria_nivel_2,
+  -SUM(f.valor)                            AS total_valor,
+  -- proporção sobre a receita
+  CASE 
+    WHEN r.total_receita = 0 THEN NULL 
+    ELSE -SUM(f.valor) / r.total_receita * 100
+  END                                       AS av,
+  -- variação mês-a-mês: (atual / anterior) - 1
+  CASE 
+    WHEN prev.prev_valor IS NULL 
+          OR prev.prev_valor = 0 
+      THEN NULL 
+    ELSE ((-SUM(f.valor) / prev.prev_valor) - 1)*100
+  END                                       AS ah
+FROM fc f
+JOIN plano_de_contas p
+  ON f.id_cliente = p.id_cliente
+ AND text(f.nivel_3_id) = p.nivel_3_id
+CROSS JOIN receita r
+LEFT JOIN prev_custos prev 
+  ON prev.categoria_nivel_2 = p.nivel_2
+WHERE f.id_cliente = 85
+  AND f.visao      = 'Realizado'
+  AND f.nivel_1    = '5. Despesas Fixas'
+  AND f.data       = '2025-03-01'
+GROUP BY p.nivel_2, r.total_receita, prev.prev_valor
+ORDER BY total_valor DESC
+LIMIT 3;

@@ -1,0 +1,71 @@
+WITH
+  totais_atual AS (
+    SELECT 'Receita'        AS categoria, SUM(valor) AS valor
+    FROM fc
+    WHERE id_cliente = 85
+      AND visao      = 'Realizado'
+      AND data       = '2025-03-01'
+      AND nivel_1    = '3. Receitas'
+    UNION ALL
+    SELECT 'Custos Variáveis', SUM(valor)*-1
+    FROM fc
+    WHERE id_cliente = 85
+      AND visao      = 'Realizado'
+      AND data       = '2025-03-01'
+      AND nivel_1    = '4. Custos Variáveis'
+    UNION ALL
+    SELECT 'Despesas Fixas', SUM(valor)*-1
+    FROM fc
+    WHERE id_cliente = 85
+      AND visao      = 'Realizado'
+      AND data       = '2025-03-01'
+      AND nivel_1    = '5. Despesas Fixas'
+  ),
+  totais_anterior AS (
+    SELECT 'Receita'         AS categoria, SUM(valor) AS prev_valor
+    FROM fc
+    WHERE id_cliente = 85
+      AND visao      = 'Realizado'
+      AND data       = DATE '2025-03-01' - INTERVAL '1 month'
+      AND nivel_1    = '3. Receitas'
+    UNION ALL
+    SELECT 'Custos Variáveis', SUM(valor)*-1
+    FROM fc
+    WHERE id_cliente = 85
+      AND visao      = 'Realizado'
+      AND data       = DATE '2025-03-01' - INTERVAL '1 month'
+      AND nivel_1    = '4. Custos Variáveis'
+    UNION ALL
+    SELECT 'Despesas Fixas', SUM(valor)*-1
+    FROM fc
+    WHERE id_cliente = 85
+      AND visao      = 'Realizado'
+      AND data       = DATE '2025-03-01' - INTERVAL '1 month'
+      AND nivel_1    = '5. Despesas Fixas'
+  ),
+  receita_total AS (
+    SELECT valor AS total
+    FROM totais_atual
+    WHERE categoria = 'Receita'
+  )
+SELECT
+  a.categoria,
+  a.valor,
+  CASE
+    WHEN rt.total = 0 THEN NULL
+    ELSE a.valor / rt.total * 100
+  END AS av,
+  CASE
+    WHEN p.prev_valor IS NULL OR p.prev_valor = 0 THEN NULL
+    ELSE (a.valor / p.prev_valor - 1) * 100
+  END AS ah
+FROM totais_atual a
+CROSS JOIN receita_total rt
+LEFT JOIN totais_anterior p
+  ON p.categoria = a.categoria
+ORDER BY 
+  CASE a.categoria
+    WHEN 'Receita'          THEN 1
+    WHEN 'Custos Variáveis' THEN 2
+    WHEN 'Despesas Fixas'   THEN 3
+  END;
