@@ -24,34 +24,61 @@ Este projeto visa automatizar o envio de relatórios financeiros mensais, organi
 
 ### Capa do Relatório - Página 0.5
 
-Capa padrão do relatório mensal (olhar os arquivos de design para identidade de cores da marca)
+- Capa padrão do relatório mensal (olhar os arquivos de design para identidade de cores da marca)
 
 ### Página 1 - Análise do Fluxo de Caixa
 
-- **Componente Gráfico** de colunas com legenda:
-  - Receita
-  - Custo Variável
-  - Despesa Fixa
+- **Componente Gráfico de colunas com legenda:**
+  - Receita (principais categorias de Receitas (maior peso %) e suas AV e AH)
+  - Custo Variável (categorias com maior peso %, AV e AH)
+- **Notas Automatizadas:** Inclui explicação sobre a natureza dos custos variáveis (gastos diretamente associados com a operação da empresa, tendem a acompanhar o movimento das receitas, etc).
+- **Mensagem Padrão:** Se não houver dados, exibir aviso.
+
+### Página 2 - Análise do Fluxo de Caixa
+
+- **Componente Gráfico de colunas com legenda:**
+  - Lucro Bruto (principais categorias do grupo (maior peso %) com AV e AH)
+  - Despesas Fixas (categorias com maior impacto %, AV e AH)
+- **Indicadores principais:**
+  - Lucro Bruto
+  - Despesas Fixas
+- **Notas Automatizadas:** Explicação sobre o Lucro Bruto e Despesas Fixas. Colocar um pequeno parágrafo de com mensagem padrão trazendo os destaques, apontando a AV de cara categoria.
+- **Mensagem Padrão:** Se não houver dados, exibir aviso.
+
+### Página 3 - Análise de Fluxo de Caixa
+
+- **Componente Gráfico de colunas com legenda:**
+  - Lucro operacional
   - Investimentos
-- **Indicadores principais**:
-  - Receita
-  - Custo Variável
-  - Despesa Fixa
-  - Lucro Operacional
-  - Análise vertical (só das despesas e do lucro)
-  - Análise horizontal (Variação)
-- **Notas Automatizadas**: Inclui análise automática dos dados apresentados.
-- **Mensagem Padrão**: Se não houver dados, exibir aviso.
-- **Observação**: Dados podem ser extraídos do B.I. ou Banco de Dados SQL.
+- **Notas Automatizadas:** Explicação sobre o Lucro Operacional e Investimentos.
+- **Mensagem Padrão:** Se não houver dados, exibir aviso.
 
-### Página 2 - Análise por Competência - DRE
+### Página 4 - Análise de Fluxo de Caixa
 
-- **Componente Gráfico** incluindo:
+- **Componente Gráfico de colunas com legenda:**
+  - Lucro Líquido
+  - Entradas não Operacionais
+- **Indicadores Principais:**
+- **Notas automatizadas:** Inclui análise automática dos dados apresentados.
+
+### Página 5 - Fechamento Análise de Fluxo de Caixa
+
+- **Componente Gráfico de colunas com legenda:**
+  - Saídas Não operacionais
+  - Geração de Caixa
+- **Componente Gráfico de linha do Caixa Acumulado:**
+  - Comparativo de 3 meses
+  - Linha de média da geração de caixa
+  - Cálculo da soma das 3 gerações de caixa (os 3 meses) - acumulado. (Exibe quanto ele conseguiu produzir)
+
+### Página 6 - Análise por Competência - DRE
+
+- **Componente Gráfico incluindo:**
   - Faturamento
   - Dedutíveis (dedução)
   - Variável
   - Despesas fixas
-- **Indicadores Principais**:
+- **Indicadores Principais:**
   - Faturamento
   - Custo variável + dedução da receita
   - Custo com Produto e Serviço
@@ -59,62 +86,24 @@ Capa padrão do relatório mensal (olhar os arquivos de design para identidade d
   - EBITDA
   - Lucro Operacional
   - Lucro Líquido
-  - Cálculo de: Valor + representatividade.
-- **Notas automatizadas**: Inclui análise automática dos dados apresentados.
+- **Cálculo de:** Valor + representatividade.
+- **Notas automatizadas:** Inclui análise automática dos dados apresentados.
 
-### Página 3 - Análise de Lucros
+### Página 7 - Indicadores
 
-- **Componente Gráfico Comparativo** em camadas:
-  - Formato de colunas em camadas.
-  - Comparativo com Ponto de equilíbrio + Lucro Operacional - sempre dos ultimos 3 meses fechados.
-- **Indicadores principais**:
-  - Lucro Bruto
-  - Lucro Operacional
-  - Lucro Líquido
-  - Geração de Caixa
-  - Análise de Representatividade (Vertical) (%)
-  - Análise Horizontal (Variação)
-- **Notas automatizadas**: Inclui análise automática dos dados apresentados.
+- **Indicadores Principais:**
+  - Página de indicadores seja igual ao de indicadores do dashboard do cliente (power b.i) na vertical.
 
-### Página 4 - Evolução - Comparativo da Receita e Geração de Caixa
-
-- **Componente Gráfico de Linha**:
-  - Percentual da Receita (comparativo de 3 meses + média das receitas dos 3 meses)
-  - Lucro Operacional (%)
-  - Linha tracejada para média do valor (lucro e receita)
-  - Tags de valor como base comparativa do resultado
-  - Dados limitados a 3 meses (entrada e saída dinâmica)
-- **Componente Gráfico de linha do Caixa Acumulado**:
-  - Comparativo de 3 meses
-  - Linha de média da geração de caixa
-  - Cálculo da soma das 3 gerações de caixa (acumulado)
-
-### Página 5 - Indicadores
-
-- **Indicadores Principais**:
-  - Página de indicadores igual ao dashboard do cliente (power B.I.) na vertical.
-  - 16 indicadores (padrão)
-  - Ticket Médio, CAC, LTV, M.C%, Indicador Crescimento, Crescimento Ano Anterior, P.E, P.E +15%, NCG, PME, PMR, PMP, Caixa Mínimo, Saldo, Indicador Caixa, Investimentos
-  - Nome do indicador no BD: "Ticket Médio", "CAC", "LTV", "M.C %", "Indicador Crescimento", "Crescimento Ano Anterior", "P.E", "P.E+15%", "NCG", "PME", "PMR", "PMP", "Caixa Mínimo", "Saldo", "Indicador Caixa", "% Investimentos".
-
-### Página 6 (Opcional) - Parecer Técnico
+### Página 8 (Opcional) - Parecer Técnico (Nota do Consultor)
 
 - Criado manualmente pelo consultor para cada cliente.
 - Análise geral de conclusão do relatório.
 
-### Página 7 (última página) - Marketing e Propaganda
+### Página 9 (última página) - Marketing e Propaganda
 
 - Canais de comunicação da IZE.
 
-## Próximos Passos
+## Tecnologias Utilizadas
 
-1. **Definição das tecnologias**:
-     - Backend: Python com arquitetura em camadas e SRP, API com FastAPI
-     - Frontend e Visualização de dados: Streamlit ou Plotly
-     - Banco de Dados: PostgreSQL
-     - Infraestrutura: Docker para escalabilidade
-2. **Desenvolvimento do Protótipo**: Criar versão inicial para testes.
-3. **Ajustes conforme feedback**.
-4. **Lançamento Oficial**: Implementação para os consultores
-
-**Link do briefing original (notion)**: [Briefing Inicial do Projeto](https://www.notion.so/Briefing-Inicial-do-Projeto-19f1c5585bdc80e6b253e786bb347082?pvs=4)
+- Python (back-end)
+- Jinja 2 (template engine)
