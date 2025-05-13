@@ -1,4 +1,3 @@
-# src/core/relatorios/relatorio_3.py
 from datetime import date
 from typing import Optional, List, Dict, Any
 from src.core.indicadores import Indicadores
@@ -25,24 +24,33 @@ class Relatorio3:
         lucro_operacional_atual = receita_atual - custos_variaveis_atual - despesas_fixas_atual
         investimentos_atual = sum(r['valor'] for r in investimentos_resultado) if investimentos_resultado else 0
 
-        # Construir subcategorias para Lucro Operacional
+        # Calcular a soma total das subcategorias de Lucro Operacional
+        lucro_operacional_subcategorias_total = sum(abs(r["valor"]) for r in lucro_operacional_resultado) if lucro_operacional_resultado else 0
+        # Calcular a soma total das subcategorias de Investimentos
+        investimentos_subcategorias_total = sum(abs(r["valor"]) for r in investimentos_resultado[:3]) if investimentos_resultado else 0
+
+        # Construir subcategorias para Lucro Operacional com representatividade
         lucro_operacional_categorias = [
             {
                 "subcategoria": r["categoria"],
                 "valor": r["valor"],
                 "av": round(r["av"], 2) if r["av"] is not None else 0,
-                "ah": round(r["ah"], 2) if r["ah"] is not None else 0
+                "ah": round(r["ah"], 2) if r["ah"] is not None else 0,
+                "representatividade": round((abs(r["valor"]) / lucro_operacional_subcategorias_total) * 100, 2)
+                if lucro_operacional_subcategorias_total != 0 else 0
             } for r in lucro_operacional_resultado
         ]
 
-        # Construir subcategorias para Investimentos (até 3), como na lógica antiga
+        # Construir subcategorias para Investimentos, ordenadas do maior para o menor (em valor absoluto), limitando a 3
         investimentos_categorias = [
             {
                 "subcategoria": i["categoria"],
                 "valor": i["valor"],  # Manter valores negativos, como na antiga
                 "av": round(i["av"], 2) if i["av"] is not None else 0,
-                "ah": round(i["ah"], 2) if i["ah"] is not None else 0
-            } for i in investimentos_resultado[:3]
+                "ah": round(i["ah"], 2) if i["ah"] is not None else 0,
+                "representatividade": round((abs(i["valor"]) / investimentos_subcategorias_total) * 100, 2)
+                if investimentos_subcategorias_total != 0 else 0
+            } for i in sorted(investimentos_resultado, key=lambda x: abs(x["valor"]), reverse=True)[:3]
         ]
 
         # Notas automatizadas, adaptadas da lógica antiga
@@ -64,14 +72,14 @@ class Relatorio3:
 
         return [
             {
-            "categoria": "Lucro Operacional",
-            "valor": lucro_operacional_atual,
-            "subcategorias": lucro_operacional_categorias,
+                "categoria": "Lucro Operacional",
+                "valor": lucro_operacional_atual,
+                "subcategorias": lucro_operacional_categorias,
             },
             {
-            "categoria": "Investimentos",
-            "valor": investimentos_atual,  # Manter valor negativo, como na antiga
-            "subcategorias": investimentos_categorias,
+                "categoria": "Investimentos",
+                "valor": investimentos_atual,  # Manter valor negativo, como na antiga
+                "subcategorias": investimentos_categorias,
             }
         ], {
             "notas": notas_automatizadas

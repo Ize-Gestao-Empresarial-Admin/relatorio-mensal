@@ -1,0 +1,125 @@
+{% extends "base/layout.html" %}
+
+{% block content %}
+<div class="box-frame">
+  <div class="section">
+    <div class="section-title">Receitas</div>
+      {% set rec_colors = ['#007F4F','#33B283','#7FCEB1'] %}
+      <div class="bar-container">
+      {% for cat in receita_categories %}
+          <div class="bar-segment"
+              style="width: {{ cat.barra_rep }}%; background-color: {{ rec_colors[loop.index0 % rec_colors|length] }};">
+          </div>
+      {% endfor %}
+      </div>
+      <div class="bar-total">
+        {{ represent_receita|format_percentage }}
+      </div>
+      <div class="value">{{ receita|format_currency }}</div>
+      <table class="cat-table">
+          <colgroup>
+              <col style="width:5%" />
+              <col style="width:35%" />
+              <col style="width:30%" />
+              <col style="width:15%" />
+              <col style="width:15%" />
+          </colgroup>
+          <thead>
+              <tr>
+              <th></th>
+              <th>Categoria</th>
+              <th>Valor</th>
+              <th>AV</th>
+              <th>AH</th>
+              </tr>
+          </thead>
+          <tbody>
+          {% for cat in receita_categories %}
+          <tr>
+              <td><div class="legend-box" style="background-color:{{ rec_colors[loop.index0 % rec_colors|length] }};"></div></td>
+              <td>{{ cat.name }}</td>
+              <td>{{ cat.value|format_currency }}</td>
+              <td>{{ cat.representatividade|format_percentage }}</td>
+              <td>
+                  {% if cat.variacao >= 0 %}
+                      <span class="var-up"> 
+                      <img src="{{ url_for('static', filename='icons/SETA-UP-VERDE.svg') }}" alt="↑"/>
+                      {{ cat.variacao|format_percentage }}
+                      </span>
+                  {% else %}
+                      <span class="var-down">
+                      <img src="{{ url_for('static', filename='icons/SETA-DOWN-LARANJA.svg') }}" alt="↓"/>
+                      {{ cat.variacao|format_percentage }}
+                      </span>
+                  {% endif %}
+              </td>
+          </tr>
+          {% endfor %}
+          </tbody>
+      </table>
+  </div>
+  <hr class="section-separator"/>
+  <div class="section">
+    <div class="section-title">Custos Variáveis</div>
+      {% set cost_colors = ['#E75F00','#FF8733','#FFB37F'] %}
+      <div class="bar-container">
+      {% for cat in custo_categories %}
+          <div class="bar-segment"
+              style="width: {{ cat.barra_rep }}%; background-color: {{ cost_colors[loop.index0 % cost_colors|length] }};">
+          </div>
+      {% endfor %}
+      </div>
+      <div class="bar-total">
+        {{ represent_custos|format_percentage }}
+      </div>
+      <div class="value">{{ custos|format_currency }}</div>
+      <table class="cat-table">
+          <colgroup>
+              <col style="width:5%" />
+              <col style="width:35%" />
+              <col style="width:30%" />
+              <col style="width:15%" />
+              <col style="width:15%" />
+          </colgroup>
+          <thead>
+              <tr>
+              <th></th>
+              <th>Categoria</th>
+              <th>Valor</th>
+              <th>AV</th>
+              <th>AH</th>
+              </tr>
+          </thead>
+          <tbody>
+          {% for cat in custo_categories %}
+          <tr>
+              <td><div class="legend-box" style="background-color:{{ cost_colors[loop.index0 % cost_colors|length] }};"></div></td>
+              <td>{{ cat.name }}</td>
+              <td>{{ cat.value|format_currency }}</td>
+              <td>{{ cat.representatividade|format_percentage }}</td>
+              <td>
+                  {% if cat.variacao >= 0 %}
+                      <span class="var-up"> 
+                      <img src="{{ url_for('static', filename='icons/SETA-UP-LARANJA.svg') }}" alt="↑"/>
+                      {{ cat.variacao|format_percentage }}
+                      </span>
+                  {% else %}
+                      <span class="var-down">
+                      <img src="{{ url_for('static', filename='icons/SETA-DOWN-VERDE.svg') }}" alt="↓"/>
+                      {{ cat.variacao|format_percentage }}
+                      </span>
+                  {% endif %}
+              </td>
+          </tr>
+          {% endfor %}
+          </tbody>
+      </table>
+  </div>
+</div>
+{% if notas %}
+<div class="notes-title">Notas</div>
+<div class="box-frame">
+  <div class="notes-content">{{ notas }}</div>
+</div>
+{% endif %}
+{% endblock %}

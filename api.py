@@ -1,3 +1,5 @@
+# DEVE SER REFEITA PARA REFLETIR AS ALTERACOES DAS ESTRUTURAS DOS RELATORIOS   
+
 from fastapi import FastAPI, HTTPException, Query, Body, Response, Depends
 from fastapi.responses import FileResponse
 from typing import List, Optional, Dict, Any

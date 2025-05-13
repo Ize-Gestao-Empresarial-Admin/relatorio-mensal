@@ -1,4 +1,6 @@
-****python test_relatorio_1.py***** -- TOTALMENTE CORRETA
+AQUI SAO AS SAIDAS DOS ARQUIVOS QUE GERAM OS DADOS DO RELATORIO
+
+***python test_relatorio_1.py***** -- TOTALMENTE CORRETA
 python test_relatorio_1.py
 [
   [

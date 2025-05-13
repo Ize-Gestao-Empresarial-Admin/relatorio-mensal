@@ -1,0 +1,1 @@
+Temporaria. está aqui pra realizarmos a migração dos arquivos criados por ela para a o projeto em si.
