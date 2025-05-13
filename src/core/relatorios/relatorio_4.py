@@ -28,36 +28,45 @@ class Relatorio4:
         # Análise Vertical (AV) do Lucro Líquido
         av_lucro_liquido = round((lucro_liquido_atual / receita_atual) * 100, 2) if receita_atual else 0
 
-        # Construir subcategorias para Lucro Líquido
+        # Calcular soma total para representatividade (usar valores absolutos para evitar problemas com negativos)
+        lucro_liquido_subcategorias_total = sum(abs(r["valor"]) for r in lucro_liquido_resultado) if lucro_liquido_resultado else 0
+        entradas_nao_operacionais_subcategorias_total = sum(e["total_valor"] for e in entradas_nao_operacionais_resultado) if entradas_nao_operacionais_resultado else 0
+
+        # Construir subcategorias para Lucro Líquido com representatividade
         lucro_liquido_categorias = [
             {
                 "subcategoria": r["categoria"],
                 "valor": r["valor"],
                 "av": round(r["av"], 2) if r["av"] is not None else 0,
-                "ah": round(r["ah"], 2) if r["ah"] is not None else 0
+                "ah": round(r["ah"], 2) if r["ah"] is not None else 0,
+                "representatividade": round((abs(r["valor"]) / lucro_liquido_subcategorias_total) * 100, 2) if lucro_liquido_subcategorias_total != 0 else 0
             } for r in lucro_liquido_resultado
         ]
 
-        # Construir subcategorias para Entradas Não Operacionais (todas disponíveis)
+        # Construir subcategorias para Entradas Não Operacionais com representatividade
         entradas_nao_operacionais_categorias = [
             {
                 "subcategoria": e["categoria_nivel_3"],
                 "valor": e["total_valor"],
                 "av": round(e["av"], 2) if e["av"] is not None else 0,
-                "ah": round(e["ah"], 2) if e["ah"] is not None else 0
+                "ah": round(e["ah"], 2) if e["ah"] is not None else 0,
+                "representatividade": round((e["total_valor"] / entradas_nao_operacionais_subcategorias_total) * 100, 2) if entradas_nao_operacionais_subcategorias_total != 0 else 0
             } for e in entradas_nao_operacionais_resultado
         ]
 
+        # Identificar a subcategoria mais representativa de Entradas Não Operacionais
+        entradas_ordenadas = sorted(entradas_nao_operacionais_categorias, key=lambda x: x['representatividade'], reverse=True)
+        primeira_cat_entradas = entradas_ordenadas[0]['subcategoria'] if entradas_ordenadas else "N/A"
+
+        # Calcular a análise horizontal (AH) para Lucro Líquido (média dos 'ah' das subcategorias)
+        lucro_liquido_ah = round(sum(r.get('ah', 0) for r in lucro_liquido_resultado) / len(lucro_liquido_resultado), 2) if lucro_liquido_resultado else 0
+
+        # Calcular o total de Entradas Não Operacionais
+        entradas_nao_operacionais_total = sum(e["total_valor"] for e in entradas_nao_operacionais_resultado)
+
         # Notas automatizadas
-        destaques = [
-            f"Lucro Líquido: AV={round(av_lucro_liquido, 2)}%"
-        ]
-        destaques += [f"{r['categoria']}: AV={round(r['av'], 2)}%" for r in lucro_liquido_resultado if r['av'] is not None]
-        destaques += [f"{e['categoria_nivel_3']}: AV={round(e['av'], 2)}%" for e in entradas_nao_operacionais_resultado if e['av'] is not None]
         notas_automatizadas = (
-            "O Lucro Líquido é calculado subtraindo Custos Variáveis, Despesas Fixas e Investimentos da Receita, representando o resultado financeiro final. "
-            "As Entradas Não Operacionais incluem rendimentos e outras receitas não ligadas à operação principal. "
-            f"Destaques: {', '.join(destaques)}."
+            "Já o Lucro Líquido, dados os indicadores anteriores, fechou em R$ xx (x% da Receita Total), uma variação de x% em relação ao mês anterior. As entradas não operacionais fecharam com R$ xx (x% da Receita Total), com peso mais concentrado na categoria (1ª categoria mais representativa). \n"
         )
 
         # Mensagem padrão
@@ -68,14 +77,14 @@ class Relatorio4:
 
         return [
             {
-            "categoria": "Lucro Líquido",
-            "valor": lucro_liquido_atual,
-            "subcategorias": lucro_liquido_categorias,
+                "categoria": "Lucro Líquido",
+                "valor": lucro_liquido_atual,
+                "subcategorias": lucro_liquido_categorias,
             },
             {
-            "categoria": "Entradas Não Operacionais",
-            "valor": sum(e["total_valor"] for e in entradas_nao_operacionais_resultado),
-            "subcategorias": entradas_nao_operacionais_categorias,
+                "categoria": "Entradas Não Operacionais",
+                "valor": entradas_nao_operacionais_total,
+                "subcategorias": entradas_nao_operacionais_categorias,
             }
         ], {
             "notas": notas_automatizadas

@@ -54,9 +54,7 @@ class Relatorio2:
         ]
 
         notas_automatizadas = (
-            "O Lucro Bruto é calculado subtraindo os Custos Variáveis da Receita, representando a margem operacional inicial. "
-            "As Despesas Fixas incluem custos recorrentes não diretamente ligados à produção, como aluguel e salários administrativos. "
-            f"Destaques: Lucro Bruto={lucro_bruto_total}, Despesas Fixas={despesas_fixas_total}."
+            "O Lucro Bruto fechou o mês com um resultado de x% (R$ xx,xx) em relação à Receita Total, uma variação de x% em relação ao mês anterior. Quando olhamos para as Despesas Fixas, vemos um resultado de RS xx (x% da Receita Total), variação de x% em relação ao mês anterior, com destaque para (1ª categoria mais representativa).\n"
         )
         if not lucro_bruto and not despesas_fixas:
             notas_automatizadas = "Não há dados disponíveis para o período selecionado."

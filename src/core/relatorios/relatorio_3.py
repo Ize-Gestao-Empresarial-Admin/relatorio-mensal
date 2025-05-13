@@ -60,10 +60,7 @@ class Relatorio3:
             {"categoria": "Despesas Fixas", "av": next((r['av'] for r in lucro_operacional_resultado if r['categoria'] == 'Despesas Fixas'), 0)}
         ]
         notas_automatizadas = (
-            "O Lucro Operacional é calculado subtraindo os Custos Variáveis e Despesas Fixas da Receita, "
-            "representando a margem após custos operacionais. "
-            "Investimentos incluem gastos em ativos ou expansões (categorias nivel_2 começando com 6.). "
-            f"Destaques: {', '.join([f'{cat['categoria']}: AV={round(cat['av'], 2)}%' for cat in categorias_lucro_operacional if cat['av'] is not None] + [f'{r['categoria']}: AV={round(r['av'], 2)}%' for r in investimentos_resultado if r['av'] is not None])}."
+            "O nosso principal indicador de eficiência da empresa, o Lucro Operacional, fechou em x% (R$ xx,xx) em relação à Receita Total, uma variação de x% em relação ao mês anterior. Nos investimento, totalizamos R$ xx, x% em relação ao mês anterior, com protagonismo da categoria (1ª categoria mais representativa).\n"
         )
 
         # Mensagem padrão, como na lógica antiga

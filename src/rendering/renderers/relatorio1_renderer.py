@@ -312,7 +312,7 @@ class Relatorio1Renderer(BaseRenderer):
   <div class="box-frame">
 <div class="section">
     <div class="section-title">Receitas</div>
-        {% set rec_colors = ['#007F4F', '#33B283', '#7FCEB1', '#D3D3D3'] %}  <!-- Adiciona cor cinza para "Outras categorias" -->
+        {% set rec_colors = ['#007F4F', '#33B283', '#7FCEB1', '#ebebeb'] %}  <!-- Adiciona cor cinza para "Outras categorias" -->
         <div class="bar-container">
         {% for cat in data.receita_categories %}
             <div class="bar-segment"
@@ -379,7 +379,7 @@ class Relatorio1Renderer(BaseRenderer):
     <hr class="section-separator"/>
     <div class="section">
     <div class="section-title">Custos Variáveis</div>
-        {% set cost_colors = ['#E75F00', '#FF8733', '#FFB37F', '#D3D3D3'] %}  <!-- Adiciona cor cinza para "Outras categorias" -->
+        {% set cost_colors = ['#E75F00', '#FF8733', '#FFB37F', '#ebebeb'] %}  <!-- Adiciona cor cinza para "Outras categorias" -->
         <div class="bar-container">
         {% for cat in data.custo_categories %}
             <div class="bar-segment"

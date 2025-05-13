@@ -290,7 +290,7 @@ class Relatorio3Renderer(BaseRenderer):
     <div class="box-frame">
         <div class="section">
             <div class="section-title">Lucro Operacional</div>
-            {% set lucro_colors = ['#007F4F', '#33B283', '#7FCEB1'] %}
+            {% set lucro_colors = ['#007F4F', '#33B283', '#7FCEB1', '#ebebeb'] %}
             <div class="bar-container">
             {% for cat in data.lucro_operacional_categories %}
                 <div class="bar-segment"
@@ -347,7 +347,7 @@ class Relatorio3Renderer(BaseRenderer):
         <hr class="section-separator"/>
         <div class="section">
             <div class="section-title">Investimentos</div>
-            {% set invest_colors = ['#E75F00', '#FF8733', '#FFB37F'] %}
+            {% set invest_colors = ['#E75F00', '#FF8733', '#FFB37F', '#ebebeb'] %}
             <div class="bar-container">
             {% for cat in data.investimentos_categories %}
                 <div class="bar-segment"

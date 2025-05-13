@@ -298,7 +298,7 @@ class Relatorio2Renderer(BaseRenderer):
   <div class="box-frame">
     <div class="section">
         <div class="section-title">Lucro Bruto</div>
-        {% set lucro_colors = ['#007F4F', '#33B283', '#7FCEB1', '#D3D3D3'] %}
+        {% set lucro_colors = ['#007F4F', '#33B283', '#7FCEB1', '#ebebeb'] %}
         <div class="bar-container">
         {% for cat in data.lucro_bruto_categories %}
             <div class="bar-segment"
@@ -365,7 +365,7 @@ class Relatorio2Renderer(BaseRenderer):
     <hr class="section-separator"/>
     <div class="section">
         <div class="section-title">Despesas Fixas</div>
-        {% set despesas_colors = ['#E75F00', '#FF8733', '#FFB37F', '#D3D3D3'] %}
+        {% set despesas_colors = ['#E75F00', '#FF8733', '#FFB37F', '#ebebeb'] %}
         <div class="bar-container">
         {% for cat in data.despesas_fixas_categories %}
             <div class="bar-segment"
