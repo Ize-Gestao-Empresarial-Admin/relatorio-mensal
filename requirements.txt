@@ -2,7 +2,7 @@ streamlit
 streamlit-quill
 pandas
 plotly
-psycopg2
+psycopg2-binary
 SQLAlchemy
 reportlab
 pillow
