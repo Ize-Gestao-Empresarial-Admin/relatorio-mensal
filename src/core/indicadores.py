@@ -461,7 +461,7 @@ class Indicadores:
             "mes_anterior": mes_anterior.month if mes_anterior else mes_atual.month
         }
         result = self.db.execute_query(query, params)
-        return result.to_dict('records')
+        return result.to_dict('records') # type: ignore
 
     def calcular_investimentos_fc(self, mes_atual: date, mes_anterior: Optional[date] = None) -> List[Dict[str, Any]]:
           """Calcula até 3 categorias de Investimentos (nivel_2 6.1, 6.2, 6.3), com AV e AH."""
@@ -535,7 +535,7 @@ class Indicadores:
               "mes_anterior": mes_anterior.month if mes_anterior else mes_atual.month
           }
           result = self.db.execute_query(query, params)
-          return result.to_dict('records')
+          return result.to_dict('records') # type: ignore
         
   # Relatorio 4      
     def calcular_lucro_liquido_fc(self, mes: date) -> List[Dict[str, Any]]:
@@ -784,6 +784,89 @@ class Indicadores:
             ] if not result.empty else [{"categoria": "Saídas Não Operacionais", "valor": 0.0}]
         except Exception as e:
             raise RuntimeError(f"Erro ao calcular saídas não operacionais: {str(e)}")
+          
+    def calcular_resultados_nao_operacionais_fc(self, mes: date) -> List[Dict[str, Any]]:
+      """Calcula o Resultado Não Operacional (Entradas - Saídas) do fluxo de caixa por nivel_1 com AV e AH.
+
+      Args:
+          mes: Data do mês a ser calculado.
+
+      Returns:
+          Lista de dicionários com 'nivel_1', 'total_valor', 'av' e 'ah'.
+      """
+      query = text("""
+          WITH 
+            receita_total AS (
+              SELECT 
+                SUM(valor) AS total_receita
+              FROM fc
+              WHERE id_cliente = :id_cliente
+                AND visao = 'Realizado'
+                AND EXTRACT(YEAR FROM data) = :year
+                AND EXTRACT(MONTH FROM data) = :month
+                AND nivel_1 = '3. Receitas'
+            ),
+            prev_resultado AS (
+              SELECT 
+                nivel_1,
+                SUM(valor) AS prev_valor
+              FROM fc
+              WHERE id_cliente = :id_cliente
+                AND visao = 'Realizado'
+                AND EXTRACT(YEAR FROM data) = :prev_year
+                AND EXTRACT(MONTH FROM data) = :prev_month
+                AND nivel_1 IN ('7.1 Entradas Não Operacionais', '7.2 Saídas Não Operacionais')
+              GROUP BY nivel_1
+            ),
+            current_resultado AS (
+              SELECT 
+                nivel_1,
+                SUM(valor) AS total_valor
+              FROM fc
+              WHERE id_cliente = :id_cliente
+                AND visao = 'Realizado'
+                AND EXTRACT(YEAR FROM data) = :year
+                AND EXTRACT(MONTH FROM data) = :month
+                AND nivel_1 IN ('7.1 Entradas Não Operacionais', '7.2 Saídas Não Operacionais')
+              GROUP BY nivel_1
+            )
+          SELECT
+            c.nivel_1 AS nivel_1,
+            c.total_valor,
+            CASE 
+              WHEN rt.total_receita = 0 THEN NULL 
+              ELSE c.total_valor / rt.total_receita * 100
+            END AS av,
+            CASE 
+              WHEN p.prev_valor IS NULL OR p.prev_valor = 0 THEN NULL 
+              ELSE (c.total_valor / p.prev_valor - 1) * 100
+            END AS ah
+          FROM current_resultado c
+          CROSS JOIN receita_total rt
+          LEFT JOIN prev_resultado p 
+            ON p.nivel_1 = c.nivel_1
+          ORDER BY c.total_valor DESC;
+      """)
+      params = {
+          "id_cliente": self.id_cliente,
+          "year": mes.year,
+          "month": mes.month,
+          "prev_year": mes.year if mes.month > 1 else mes.year - 1,
+          "prev_month": mes.month - 1 if mes.month > 1 else 12
+      }
+      try:
+          result = self.db.execute_query(query, params)
+          return [
+              {
+                  "nivel_1": row["nivel_1"],
+                  "total_valor": float(row["total_valor"]) if row["total_valor"] is not None else 0,
+                  "av": float(row["av"]) if row["av"] is not None else 0,
+                  "ah": float(row["ah"]) if row["ah"] is not None else 0
+              }
+              for _, row in result.iterrows()
+          ] if not result.empty else []
+      except Exception as e:
+          raise RuntimeError(f"Erro ao calcular resultado não operacional: {str(e)}")
 
 
     def calcular_geracao_de_caixa_fc(self, mes: date) -> List[Dict[str, Any]]:
@@ -1161,12 +1244,16 @@ class Indicadores:
         query = text("""
             SELECT
                 indicador,
+                bom,
+                ruim,
                 COALESCE(SUM(valor), 0) AS total_valor
             FROM indicador
             WHERE id_cliente = :id_cliente
               AND EXTRACT(YEAR FROM data) = :year
               AND EXTRACT(MONTH FROM data) = :month
-            GROUP BY indicador
+              AND bom IS NOT NULL
+              AND ruim IS NOT NULL
+            GROUP BY indicador, bom, ruim
             ORDER BY indicador;
         """)
         params = {
@@ -1179,7 +1266,9 @@ class Indicadores:
             return [
                 {
                     "indicador": row["indicador"],
-                    "total_valor": float(row["total_valor"]) if row["total_valor"] is not None else 0.0
+                    "total_valor": float(row["total_valor"]) if row["total_valor"] is not None else 0.0,
+                    "bom": float(row["bom"]),
+                    "ruim":float(row["ruim"])
                 }
                 for _, row in result.iterrows()
             ] if not result.empty else []

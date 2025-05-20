@@ -22,7 +22,7 @@ class Relatorio6:
 
         # Notas automatizadas
         notas_automatizadas = (
-            "Os indicadores são calculados com base nos dados do DRE para o mês selecionado. "
+             f"No mês, tivemos um total de vendas no montante de R$ xx, seguido das deduções da receita bruta de R$ xx, Custos Variáveis em R$ xx, Despesas Fixas de R$ xx, fechando o mês com um EBITDA de xx% em relação ao faturamento!. \n"
         )
 
         return indicadores_resultado, {"notas": notas_automatizadas}

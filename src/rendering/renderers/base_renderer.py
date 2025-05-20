@@ -1,3 +1,4 @@
+#src/rendering/renderers/base_renderer.py
 from abc import ABC, abstractmethod
 from typing import Dict, Any, List
 from jinja2 import Environment, FileSystemLoader

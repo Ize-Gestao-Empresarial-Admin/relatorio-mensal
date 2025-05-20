@@ -1,5 +1,7 @@
+#src/rendering/renderers/__init__.py
 from typing import Dict, Optional
 from src.rendering.renderers.base_renderer import BaseRenderer
+from .indice_renderer import IndiceRenderer
 from src.rendering.renderers.relatorio1_renderer import Relatorio1Renderer
 from src.rendering.renderers.relatorio2_renderer import Relatorio2Renderer
 from src.rendering.renderers.relatorio3_renderer import Relatorio3Renderer
@@ -12,6 +14,7 @@ from src.rendering.renderers.relatorio8_renderer import Relatorio8Renderer
 
 # Dicionário de renderizadores disponíveis
 _RENDERERS: Dict[int, BaseRenderer] = {
+    0: IndiceRenderer(),
     1: Relatorio1Renderer(),
     2: Relatorio2Renderer(),
     3: Relatorio3Renderer(),

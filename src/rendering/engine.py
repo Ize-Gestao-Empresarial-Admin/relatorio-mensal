@@ -1,12 +1,78 @@
-# src/rendering/engine.py
 from jinja2 import Environment, FileSystemLoader
 import os
 import tempfile
 import subprocess
 from pathlib import Path
-from typing import List, Dict, Any, Tuple
-from PyPDF2 import PdfReader, PdfWriter
+from typing import List, Tuple, Any
+from pypdf import PdfReader, PdfWriter
 import io
+import logging
+import re
+import glob
+import time
+import shutil
+import uuid
+
+# Configurar logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+class PdfUtils:
+    """Utilitários para manipulação de arquivos PDF."""
+    
+    @staticmethod
+    def read_pdf(pdf_path: str) -> PdfReader:
+        """Lê um arquivo PDF e retorna um PdfReader."""
+        try:
+            with open(pdf_path, "rb") as f:
+                pdf_bytes = f.read()
+            reader = PdfReader(io.BytesIO(pdf_bytes))
+            if len(reader.pages) == 0:
+                logger.warning(f"PDF {pdf_path} está vazio.")
+                return None # type: ignore
+            return reader
+        except Exception as e:
+            logger.error(f"Erro ao ler PDF {pdf_path}: {e}")
+            return None # type: ignore
+
+    @staticmethod
+    def combine_pdfs(pdf_paths: List[str], output_path: str, capa_path: str = None, marketing_paths: List[str] = None) -> None: # type: ignore
+        """Combina múltiplos PDFs em um único arquivo."""
+        writer = PdfWriter()
+
+        # Adicionar capa, se existir
+        if capa_path and os.path.exists(capa_path):
+            capa_reader = PdfUtils.read_pdf(capa_path)
+            if capa_reader:
+                for page in capa_reader.pages:
+                    writer.add_page(page)
+                logger.info(f"Capa adicionada: {capa_path}")
+
+        # Adicionar relatórios
+        for pdf_path in pdf_paths:
+            reader = PdfUtils.read_pdf(pdf_path)
+            if reader:
+                for page in reader.pages:
+                    writer.add_page(page)
+                logger.info(f"Relatório adicionado: {pdf_path}")
+
+        # Adicionar páginas de marketing
+        if marketing_paths:
+            for marketing_path in marketing_paths:
+                if os.path.exists(marketing_path):
+                    reader = PdfUtils.read_pdf(marketing_path)
+                    if reader:
+                        for page in reader.pages:
+                            writer.add_page(page)
+                        logger.info(f"Marketing adicionado: {marketing_path}")
+                else:
+                    logger.warning(f"Arquivo de marketing não encontrado: {marketing_path}")
+
+        # Salvar PDF combinado
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+        with open(output_path, 'wb') as f:
+            writer.write(f)
+        logger.info(f"PDF combinado salvo em: {output_path}")
 
 class RenderingEngine:
     """Motor central de renderização que coordena a geração de relatórios em PDF."""
@@ -18,120 +84,135 @@ class RenderingEngine:
             loader=FileSystemLoader(templates_dir),
             autoescape=True
         )
-    
-    def render_to_pdf(self, relatorios_data: List[Tuple[str, Any]], cliente_nome: str, 
-                      mes_nome: str, ano: int, output_path: str = None) -> str:
-        """
-        Renderiza múltiplos relatórios em um único PDF, com capa e anexos de marketing no final.
+        self.temp_files: List[str] = []
+
+    def _clean_temp_files(self) -> None:
+        """Remove arquivos temporários gerados durante a renderização."""
+        for temp_file in self.temp_files:
+            try:
+                os.unlink(temp_file)
+                logger.debug(f"Removido arquivo temporário: {temp_file}")
+            except Exception as e:
+                logger.warning(f"Erro ao remover arquivo temporário {temp_file}: {e}")
+        self.temp_files.clear()
+
+    def _render_html_to_pdf(self, html: str, rel_name: str) -> str:
+        """Converte HTML para PDF e retorna o caminho do PDF temporário."""
+        # Gerar identificador único para evitar conflitos
+        unique_id = str(uuid.uuid4())
+        html_path = tempfile.NamedTemporaryFile(delete=False, suffix=f'_{rel_name}_{unique_id}.html', mode='w', encoding='utf-8').name
+        pdf_path = tempfile.NamedTemporaryFile(delete=False, suffix=f'_{rel_name}_{unique_id}.pdf').name
         
-        Args:
-            relatorios_data: Lista de tuplas (nome_relatorio, dados)
-            cliente_nome: Nome do cliente
-            mes_nome: Nome do mês
-            ano: Ano do relatório
-            output_path: Caminho para salvar o PDF (opcional)
-            
-        Returns:
-            Caminho do arquivo PDF gerado
-        """
-        from src.rendering.renderers import get_renderer
+        self.temp_files.extend([html_path, pdf_path])
         
-        html_parts = []
+        # Salvar HTML
+        with open(html_path, 'w', encoding='utf-8') as f:
+            f.write(html)
         
-        # Renderiza cada relatório
-        for rel_nome, dados in relatorios_data:
-            # Extrai o número do relatório do nome (ex: "Relatório 7 - ..." -> 7)
-            rel_num = int(rel_nome.split()[1])
-            
-            # Obtém o renderizador apropriado
-            renderer = get_renderer(rel_num)
-            if renderer:
-                html = renderer.render(dados, cliente_nome, mes_nome, ano)
-                html_parts.append(html)
-            else:
-                raise ValueError(f"Renderizador não encontrado para o relatório {rel_num} ({rel_nome})")
+        # Converter para PDF
+        cmd = [
+            'wkhtmltopdf', '--enable-local-file-access', '--page-size', 'A4',
+            '--margin-top', '5mm', '--margin-bottom', '4mm',
+            '--margin-left', '10mm', '--margin-right', '10mm',
+            '--no-footer-line', html_path, pdf_path
+        ]
         
-        # Combina todos os HTMLs
-        if not html_parts:
-            raise ValueError("Nenhum relatório foi renderizado. Verifique os dados ou os renderizadores.")
-        full_html = "\n".join(html_parts)
-        
-        # Define caminho de saída se não fornecido
-        if not output_path:
-            output_path = os.path.join("outputs", f"Relatorio_{cliente_nome.replace(' ', '_')}_{mes_nome}_{ano}.pdf")
-        
-        # Cria diretório de saída se não existir
-        os.makedirs(os.path.dirname(output_path), exist_ok=True)
-        
-        # Salva HTML temporário
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.html', mode='w', encoding='utf-8') as f:
-            html_path = f.name
-            f.write(full_html)
-        
-        # Define caminho temporário para o PDF inicial
-        temp_pdf_path = tempfile.NamedTemporaryFile(delete=False, suffix='.pdf').name
-        
-        # Converte HTML para PDF usando wkhtmltopdf
         try:
-            cmd = ['wkhtmltopdf', '--enable-local-file-access', '--page-size', 'A4', 
-                   '--margin-top', '5mm', '--margin-bottom', '10mm', 
-                   '--margin-left', '10mm', '--margin-right', '10mm',
-                   html_path, temp_pdf_path]
-            
             subprocess.run(cmd, check=True)
-            
-            # Remove arquivo HTML temporário
+            logger.info(f"PDF gerado para {rel_name}: {pdf_path}")
+            return pdf_path
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Erro ao converter HTML para PDF ({rel_name}): {e}")
+            return None # type: ignore
+        finally:
             os.unlink(html_path)
-            
-            # Adicionar capa ao PDF
+            self.temp_files.remove(html_path)
+
+    def render_to_pdf(self, relatorios_data: List[Tuple[str, Any]], cliente_nome: str, 
+                  mes_nome: str, ano: int, output_path: str = None) -> str: # type: ignore
+        from src.rendering.renderers import get_renderer
+
+        try:
+            self._clean_temp_files()
+            pdf_paths = []
+            processed_reports = []
+            relatorios_selecionados = [rel_nome for rel_nome, _ in relatorios_data if rel_nome != "Índice"]
+
+            for index, (rel_nome, dados) in enumerate(relatorios_data):
+                if rel_nome == "Índice":
+                    renderer = get_renderer(0)
+                    if not renderer:
+                        logger.warning("Renderizador do índice não encontrado. Ignorando.")
+                        continue
+                    try:
+                        if not isinstance(dados, dict):
+                            logger.error(f"Dados inválidos para o índice: esperado dicionário, recebido {type(dados)}: {dados}")
+                            raise ValueError(f"Dados inválidos para o índice: esperado dicionário, recebido {type(dados)}")
+                        logger.debug(f"Renderizando índice com dados: {dados}")
+                        html = renderer.render(dados, cliente_nome, mes_nome, ano)
+                        if not isinstance(html, str) or not html.strip():
+                            logger.warning("HTML inválido para o índice. Ignorando.")
+                            continue
+                        pdf_path = self._render_html_to_pdf(html, "Indice")
+                        if pdf_path:
+                            pdf_paths.insert(0, pdf_path)
+                            processed_reports.append("Índice")
+                        else:
+                            logger.error("Falha ao gerar PDF do índice.")
+                    except Exception as e:
+                        logger.error(f"Erro ao processar índice: {str(e)}", exc_info=True)
+                        continue
+                else:
+                    try:
+                        rel_num = int(rel_nome.split()[1])
+                        expected_name = f"Relatório {rel_num}"
+                        if rel_nome != expected_name:
+                            logger.warning(f"Nome do relatório '{rel_nome}' corrigido para '{expected_name}'.")
+                            rel_nome = expected_name
+                    except (IndexError, ValueError) as e:
+                        logger.warning(f"Ignorando relatório '{rel_nome}' devido a nome inválido: {e}")
+                        continue
+
+                    renderer = get_renderer(rel_num)
+                    if not renderer:
+                        logger.info(f"Renderizador não encontrado para relatório {rel_num}. Ignorando.")
+                        continue
+
+                    if not dados or not isinstance(dados, tuple) or len(dados) < 2:
+                        logger.warning(f"Dados inválidos para relatório {rel_num}. Ignorando.")
+                        continue
+
+                    try:
+                        html = renderer.render(dados, cliente_nome, mes_nome, ano)
+                        if not isinstance(html, str) or not html.strip():
+                            logger.warning(f"HTML inválido para relatório {rel_num}. Tipo: {type(html)}, Conteúdo: {html[:100] if isinstance(html, str) else html}")
+                            continue
+                        pdf_path = self._render_html_to_pdf(html, rel_nome)
+                        if pdf_path:
+                            pdf_paths.append(pdf_path)
+                            processed_reports.append(rel_nome)
+                    except Exception as e:
+                        logger.error(f"Erro ao processar relatório {rel_num}: {str(e)}")
+                        continue
+
+            if not pdf_paths:
+                raise ValueError("Nenhum relatório válido foi renderizado.")
+
             capa_path = os.path.abspath("assets/images/capa.pdf")
             marketing_paths = [
                 os.path.abspath("assets/images/pdf_marketing_1.pdf"),
                 os.path.abspath("assets/images/pdf_marketing_2.pdf")
             ]
-            
-            # Ler relatório inicial
-            with open(temp_pdf_path, "rb") as f:
-                pdf_bytes = f.read()
-            relatorio_reader = PdfReader(io.BytesIO(pdf_bytes))
-            
-            # Criar escritor para o PDF final
-            writer = PdfWriter()
-            
-            # Adicionar capa, se existir
-            if os.path.exists(capa_path):
-                with open(capa_path, "rb") as f:
-                    capa_bytes = f.read()
-                capa_reader = PdfReader(io.BytesIO(capa_bytes))
-                for page in capa_reader.pages:
-                    writer.add_page(page)
-            
-            # Adicionar páginas do relatório
-            for page in relatorio_reader.pages:
-                writer.add_page(page)
-            
-            # Adicionar os arquivos de marketing, se existirem
-            for marketing_path in marketing_paths:
-                if os.path.exists(marketing_path):
-                    with open(marketing_path, "rb") as f:
-                        marketing_bytes = f.read()
-                    marketing_reader = PdfReader(io.BytesIO(marketing_bytes))
-                    for page in marketing_reader.pages:
-                        writer.add_page(page)
-            
-            # Salvar PDF resultante
-            with open(output_path, 'wb') as f:
-                writer.write(f)
-            
-            # Remove arquivo PDF temporário
-            os.unlink(temp_pdf_path)
-            
+
+            if not output_path:
+                output_path = os.path.join(
+                    "outputs", 
+                    f"Relatorio_{cliente_nome.replace(' ', '_')}_{mes_nome}_{ano}.pdf"
+                )
+
+            PdfUtils.combine_pdfs(pdf_paths, output_path, capa_path, marketing_paths)
+            logger.info(f"Relatórios processados: {', '.join(processed_reports)}")
             return output_path
-                
-        except Exception as e:
-            # Remove arquivos temporários em caso de erro
-            if os.path.exists(html_path):
-                os.unlink(html_path)
-            if os.path.exists(temp_pdf_path):
-                os.unlink(temp_pdf_path)
-            raise Exception(f"Erro ao gerar PDF: {str(e)}")
+
+        finally:
+            self._clean_temp_files()

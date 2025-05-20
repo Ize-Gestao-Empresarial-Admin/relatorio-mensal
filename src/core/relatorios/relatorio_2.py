@@ -1,4 +1,3 @@
-# src/core/relatorios/relatorio_2.py
 from datetime import date
 from typing import Optional, List, Dict, Any
 from src.core.indicadores import Indicadores
@@ -27,9 +26,9 @@ class Relatorio2:
         despesas_fixas_total = sum(abs(r['valor']) for r in despesas_fixas) if despesas_fixas else 0
 
         # Calcula a soma total das subcategorias de lucro bruto
-        lucro_bruto_subcategorias_total = sum(r["valor"] for r in lucro_bruto[:3]) if lucro_bruto else 0
+        lucro_bruto_subcategorias_total = sum(r["valor"] for r in lucro_bruto) if lucro_bruto else 0
         # Calcula a soma total das subcategorias de despesas fixas
-        despesas_fixas_subcategorias_total = sum(abs(d["valor"]) for d in despesas_fixas[:3]) if despesas_fixas else 0
+        despesas_fixas_subcategorias_total = sum(abs(d["valor"]) for d in despesas_fixas) if despesas_fixas else 0
 
         # Gera a lista de subcategorias de lucro bruto com representatividade
         lucro_bruto_categorias = [
@@ -38,7 +37,7 @@ class Relatorio2:
                 "valor": r["valor"],
                 "av": round(r["av"], 2) if r["av"] is not None else 0,
                 "ah": round(r["ah"], 2) if r["ah"] is not None else 0,
-                "representatividade": round((r["valor"] / lucro_bruto_subcategorias_total) * 100, 2) if lucro_bruto_subcategorias_total != 0 else 0
+                "representatividade": round(abs(r["valor"] / lucro_bruto_subcategorias_total) * 100, 2) if lucro_bruto_subcategorias_total != 0 else 0
             } for r in lucro_bruto[:3]
         ]
 
@@ -54,9 +53,11 @@ class Relatorio2:
         ]
 
         notas_automatizadas = (
-            "O Lucro Bruto fechou o mês com um resultado de x% (R$ xx,xx) em relação à Receita Total, uma variação de x% em relação ao mês anterior. Quando olhamos para as Despesas Fixas, vemos um resultado de RS xx (x% da Receita Total), variação de x% em relação ao mês anterior, com destaque para (1ª categoria mais representativa).\n"
+            f"O Lucro Bruto fechou o mês com um resultado de x% (R$ xx,xx) em relação à Receita Total, uma variação de x% em relação ao mês anterior. Quando olhamos para as Despesas Fixas, vemos um resultado de RS xx (x% da Receita Total), variação de x% em relação ao mês anterior, com destaque para (1ª categoria mais representativa).\n"
         )
-        if not lucro_bruto and not despesas_fixas:
+        # Verifica se as listas estão vazias ou se todos os valores são zero
+        if (not lucro_bruto or all(r.get("valor", 0) == 0 for r in lucro_bruto)) and \
+           (not despesas_fixas or all(d.get("valor", 0) == 0 for d in despesas_fixas)):
             notas_automatizadas = "Não há dados disponíveis para o período selecionado."
 
         return [

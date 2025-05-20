@@ -1,6 +1,8 @@
+#src/database/db_utils.py
 import pandas as pd
 from sqlalchemy import create_engine, text
 from typing import Optional, Union, Dict, List, Tuple
+from datetime import date
 from config.settings import DB_CONFIG
 
 class DatabaseConnection:
@@ -41,3 +43,33 @@ def obter_meses() -> List[tuple]:
         ("Maio", 5), ("Junho", 6), ("Julho", 7), ("Agosto", 8),
         ("Setembro", 9), ("Outubro", 10), ("Novembro", 11), ("Dezembro", 12)
     ]
+    
+def obter_anos(db: DatabaseConnection, id_cliente: int) -> List[int]:
+    """Retorna uma lista de anos distintos disponíveis na tabela fc para o cliente especificado,
+    limitando ao ano atual como máximo.
+
+    Args:
+        db: Instância de DatabaseConnection.
+        id_cliente: ID do cliente para filtrar os anos.
+
+    Returns:
+        Lista de anos ordenada em ordem decrescente, incluindo apenas anos até o atual.
+        Se não houver dados, retorna o ano atual.
+
+    Raises:
+        ValueError: Se id_cliente for inválido.
+    """
+    if not isinstance(id_cliente, int) or id_cliente <= 0:
+        return [date.today().year]
+
+    query = text("""
+        SELECT DISTINCT EXTRACT(YEAR FROM data)::integer AS ano
+        FROM fc
+        WHERE id_cliente = :id_cliente
+        AND EXTRACT(YEAR FROM data) <= :ano_atual
+        ORDER BY ano DESC;
+    """)
+    params = {"id_cliente": id_cliente, "ano_atual": date.today().year}
+    df = db.execute_query(query, params)
+    anos = df['ano'].tolist() if not df.empty else [date.today().year]
+    return anos

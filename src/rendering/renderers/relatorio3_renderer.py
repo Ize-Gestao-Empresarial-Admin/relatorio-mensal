@@ -60,6 +60,9 @@ class Relatorio3Renderer(BaseRenderer):
         lucro_operacional_data = next((item for item in relatorio_data if item['categoria'] == 'Lucro Operacional'), {})
         investimentos_data = next((item for item in relatorio_data if item['categoria'] == 'Investimentos'), {})
 
+        #receita chamada pra realização de operações
+        receita_total = next((subcat['valor'] for subcat in lucro_operacional_data.get('subcategorias', []) if subcat['subcategoria'] == 'Receita'), 0) 
+        
         # Lucro Operacional
         lucro_operacional_categories = []
         lucro_operacional_total = lucro_operacional_data.get('valor', 0)
@@ -117,7 +120,7 @@ class Relatorio3Renderer(BaseRenderer):
             "Periodo": f"{mes_nome}/{ano}",
             "notas": notas,
             "lucro_operacional": lucro_operacional_total,
-            "represent_lucro_operacional": 100.0 if lucro_operacional_total > 0 else 0,  # Lucro Operacional em relação à Receita
+            "represent_lucro_operacional": round((lucro_operacional_total / receita_total) * 100, 2) if receita_total != 0 else 0,
             "lucro_operacional_categories": lucro_operacional_categories,
             "investimentos": investimentos_total,
             "represent_investimentos": (investimentos_total / lucro_operacional_total * 100) if lucro_operacional_total > 0 else 0,
@@ -148,19 +151,46 @@ class Relatorio3Renderer(BaseRenderer):
     <title>Relatório Financeiro - {{ cliente_nome }} - {{ mes_nome }}/{{ ano }}</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
-        body { font-family: 'Inter', sans-serif; padding:20px; }
-        .section-title { font-size:25px; font-weight:bold; margin-top:6px; margin-bottom:40px}
+
+        /* Resetar margens e definir layout base */
+        html, body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+            position: relative;
+            min-height: 100%; /* Garante que o body ocupe a página inteira */
+        }
+
+        /* Contêiner principal para o conteúdo */
+        .main-content {
+            padding: 20px 20px 90px 20px; /* Uniforme, conforme correção */
+            box-sizing: border-box;
+            position: relative;
+        }
+
+        .section-title {
+            font-size: 25px;
+            font-weight: bold;
+            margin-top: 6px;
+            margin-bottom: 40px;
+        }
+
         .notes-title {
             font-size: 18px;
             font-weight: 600;
-            margin: 15px 0 1px 0;
+            margin: 15px 0 8px 0;
             text-align: left;
+            page-break-before: avoid;
         }
+
         .notes-title + .box-frame {
             margin-top: 8px;
-            margin-bottom: 8px;
+            margin-bottom: 50px; /* Espaço suficiente para o footer */
             padding: 15px;
+            page-break-inside: avoid;
+            break-inside: avoid;
         }
+
         .bar-container {
             width: 100%;
             height: 28px;
@@ -168,16 +198,42 @@ class Relatorio3Renderer(BaseRenderer):
             overflow: hidden;
             margin: 2px 0 0 0;
         }
+
         .bar-segment {
             float: left;
             height: 100%;
         }
-        .bar-total { font-size:17px; text-align:right; margin-top:5px; }
-        .value { font-size:25px; margin-top:-30px; margin-bottom:40px; font-weight:580; }
-        hr.section-separator { border: none; border-top: 1px solid #ddd; margin:20px 0; }
-        .report-name { color: #A5A5A5; }
-        .report-period { color: #A5A5A5; }
-        table.cat-table { width:100%; border-collapse: collapse; margin-bottom:30px; border: none; }
+
+        .bar-total {
+            font-size: 17px;
+            text-align: right;
+            margin-top: 5px;
+        }
+
+        .value {
+            font-size: 25px;
+            margin-top: -30px;
+            margin-bottom: 40px;
+            font-weight: 580;
+        }
+
+        hr.section-separator {
+            border: none;
+            border-top: 1px solid #ddd;
+            margin: 20px 0;
+        }
+
+        .report-name, .report-period {
+            color: #A5A5A5;
+        }
+
+        table.cat-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+            border: none;
+        }
+
         table.cat-table th, table.cat-table td {
             border: none;
             padding: 8px;
@@ -187,13 +243,23 @@ class Relatorio3Renderer(BaseRenderer):
             font-weight: 200;
             font-size: 17px;
         }
-        table.cat-table td:nth-child(3) { font-weight: 700; }
-        table.cat-table td:nth-child(4) { font-size: 14px; }
-        table.cat-table td:nth-child(5) { font-size: 14px; }
-        table.cat-table thead { display: table-header-group; }
+
+        table.cat-table td:nth-child(3) {
+            font-weight: 700;
+        }
+
+        table.cat-table td:nth-child(4), table.cat-table td:nth-child(5) {
+            font-size: 14px;
+        }
+
+        table.cat-table thead {
+            display: table-header-group;
+        }
+
         table.cat-table thead th {
             visibility: hidden;
         }
+
         table.cat-table thead th:nth-child(4),
         table.cat-table thead th:nth-child(5) {
             visibility: visible;
@@ -201,34 +267,38 @@ class Relatorio3Renderer(BaseRenderer):
             font-size: 14px;
             font-weight: 600;
         }
-        .legend-box { width:12px; height:12px; border-radius:2px; }
-        .var-up img {
+
+        .legend-box {
+            width: 12px;
+            height: 12px;
+            border-radius: 2px;
+        }
+
+        .var-up img, .var-down img {
             vertical-align: middle;
             width: 10px;
             height: 7px;
             margin-right: 3px;
         }
-        .var-down img {
-            vertical-align: middle;
-            width: 10px;
-            height: 7px;
-            margin-right: 3px;
-        }
-        body {
-            font-family: 'Inter', sans-serif;
-            padding: 20px 20px 20px 20px;
-            position: relative;
-        }
+
         footer {
             position: fixed;
-            bottom: -18mm;
-            left: 0;
-            width: 100%;
+            bottom: 3mm; /* Dentro da margem inferior de 4mm */
+            left: 10mm;
+            right: 10mm;
+            width: calc(100% - 20mm);
             text-align: center;
+            z-index: 9999; /* Garante que fique acima de tudo */
+            height: 20px; /* Altura ajustada */
         }
+
         footer img {
-            height: 40px;
+            height: 20px; /* Dentro da margem, visível */
+            max-width: 100%;
+            display: block;
+            margin: 0 auto;
         }
+
         .header-accent {
             width: 100px;
             height: 6px;
@@ -236,10 +306,12 @@ class Relatorio3Renderer(BaseRenderer):
             margin: 0 0 4px 40px;
             border-radius: 3px 3px 0 0;
         }
+
         .report-header {
             border-top: 1px solid #D9D9D9;
             margin: 0 0 8px 0;
         }
+
         .report-header-info {
             display: flex;
             justify-content: flex-start;
@@ -249,9 +321,11 @@ class Relatorio3Renderer(BaseRenderer):
             margin: 4px 0 16px;
             white-space: nowrap;
         }
+
         .report-header-info .report-period {
             margin-left: auto;
         }
+
         .box-frame {
             page-break-inside: avoid;
             border: 1px solid #D9D9D9;
@@ -260,10 +334,12 @@ class Relatorio3Renderer(BaseRenderer):
             margin-bottom: 18px;
             margin-top: 30px;
         }
+
         .box-frame.blank {
             height: 100px;
             margin: 0 0 24px 0;
         }
+
         .notes-content {
             white-space: pre-wrap;
             text-align: left;
@@ -275,136 +351,138 @@ class Relatorio3Renderer(BaseRenderer):
     </style>
 </head>
 <body>
-    <div class="header-accent"></div>
-    <div class="report-header"></div>
-    <table style="width:100%; border-collapse:collapse; margin:4px 0 16px;">
-        <tr>
-            <td class="report-name" style="padding:0; text-align:left; font-size:14px;">
-                {{ data.nome }}
-            </td>
-            <td class="report-period" style="padding:0; text-align:right; font-size:14px;">
-                {{ data.Periodo }}
-            </td>
-        </tr>
-    </table>
-    <div class="box-frame">
-        <div class="section">
-            <div class="section-title">Lucro Operacional</div>
-            {% set lucro_colors = ['#007F4F', '#33B283', '#7FCEB1', '#ebebeb'] %}
-            <div class="bar-container">
-            {% for cat in data.lucro_operacional_categories %}
-                <div class="bar-segment"
-                    style="width: {{ cat.barra_rep }}%; background-color: {{ lucro_colors[loop.index0 % lucro_colors|length] }};">
-                </div>
-            {% endfor %}
-            </div>
-            <div class="bar-total">
-            {{ '%.0f'|format(data.represent_lucro_operacional) }}%
-            </div>
-            <div class="value">{{ data.lucro_operacional|format_currency }}</div>
-            <table class="cat-table">
-                <colgroup>
-                    <col style="width:5%" />
-                    <col style="width:35%" />
-                    <col style="width:30%" />
-                    <col style="width:15%" />
-                    <col style="width:15%" />
-                </colgroup>
-                <thead>
-                    <tr>
-                        <th></th>
-                        <th>Categoria</th>
-                        <th>Valor</th>
-                        <th>AV</th>
-                        <th>AH</th>
-                    </tr>
-                </thead>
-                <tbody>
+    <div class="main-content">
+        <div class="header-accent"></div>
+        <div class="report-header"></div>
+        <table style="width:100%; border-collapse:collapse; margin:4px 0 16px;">
+            <tr>
+                <td class="report-name" style="padding:0; text-align:left; font-size:14px;">
+                    {{ data.nome }}
+                </td>
+                <td class="report-period" style="padding:0; text-align:right; font-size:14px;">
+                    {{ data.Periodo }}
+                </td>
+            </tr>
+        </table>
+        <div class="box-frame">
+            <div class="section">
+                <div class="section-title">Lucro Operacional</div>
+                {% set lucro_colors = ['#007F4F', '#33B283', '#7FCEB1', '#ebebeb'] %}
+                <div class="bar-container">
                 {% for cat in data.lucro_operacional_categories %}
-                <tr>
-                    <td><div class="legend-box" style="background-color:{{ lucro_colors[loop.index0 % lucro_colors|length] }};"></div></td>
-                    <td>{{ cat.name }}</td>
-                    <td>{{ cat.value|format_currency }}</td>
-                    <td>{{ cat.representatividade|format_percentage }}</td>
-                    <td>
-                        {% if cat.variacao >= 0 %}
-                            <span class="var-up"> 
-                            <img src="data:image/svg+xml;base64,{{ seta_b64 }}" alt="↑"/>
-                            {{ cat.variacao|format_percentage }}
-                            </span>
-                        {% else %}
-                            <span class="var-down">
-                            <img src="data:image/svg+xml;base64,{{ seta_b64_2 }}" alt="↓"/>
-                            {{ cat.variacao|format_percentage }}
-                            </span>
-                        {% endif %}
-                    </td>
-                </tr>
+                    <div class="bar-segment"
+                        style="width: {{ cat.barra_rep }}%; background-color: {{ lucro_colors[loop.index0 % lucro_colors|length] }};">
+                    </div>
                 {% endfor %}
-                </tbody>
-            </table>
-        </div>
-        <hr class="section-separator"/>
-        <div class="section">
-            <div class="section-title">Investimentos</div>
-            {% set invest_colors = ['#E75F00', '#FF8733', '#FFB37F', '#ebebeb'] %}
-            <div class="bar-container">
-            {% for cat in data.investimentos_categories %}
-                <div class="bar-segment"
-                    style="width: {{ cat.barra_rep }}%; background-color: {{ invest_colors[loop.index0 % invest_colors|length] }};">
                 </div>
-            {% endfor %}
-            </div>
-            <div class="bar-total">
-            {{ '%.0f'|format(data.represent_investimentos) }}%
-            </div>
-            <div class="value">{{ data.investimentos|format_currency }}</div>
-            <table class="cat-table">
-                <colgroup>
-                    <col style="width:5%" />
-                    <col style="width:35%" />
-                    <col style="width:30%" />
-                    <col style="width:15%" />
-                    <col style="width:15%" />
-                </colgroup>
-                <thead>
+                <div class="bar-total">
+                {{ '%.0f'|format(data.represent_lucro_operacional) }}%
+                </div>
+                <div class="value">{{ data.lucro_operacional|format_currency }}</div>
+                <table class="cat-table">
+                    <colgroup>
+                        <col style="width:5%" />
+                        <col style="width:35%" />
+                        <col style="width:30%" />
+                        <col style="width:15%" />
+                        <col style="width:15%" />
+                    </colgroup>
+                    <thead>
+                        <tr>
+                            <th></th>
+                            <th>Categoria</th>
+                            <th>Valor</th>
+                            <th>AV</th>
+                            <th>AH</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    {% for cat in data.lucro_operacional_categories %}
                     <tr>
-                        <th></th>
-                        <th>Categoria</th>
-                        <th>Valor</th>
-                        <th>AV</th>
-                        <th>AH</th>
+                        <td><div class="legend-box" style="background-color:{{ lucro_colors[loop.index0 % lucro_colors|length] }};"></div></td>
+                        <td>{{ cat.name }}</td>
+                        <td>{{ cat.value|format_currency }}</td>
+                        <td>{{ cat.representatividade|format_percentage }}</td>
+                        <td>
+                            {% if cat.variacao >= 0 %}
+                                <span class="var-up"> 
+                                <img src="data:image/svg+xml;base64,{{ seta_b64 }}" alt="↑"/>
+                                {{ cat.variacao|format_percentage }}
+                                </span>
+                            {% else %}
+                                <span class="var-down">
+                                <img src="data:image/svg+xml;base64,{{ seta_b64_2 }}" alt="↓"/>
+                                {{ cat.variacao|format_percentage }}
+                                </span>
+                            {% endif %}
+                        </td>
                     </tr>
-                </thead>
-                <tbody>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <hr class="section-separator"/>
+            <div class="section">
+                <div class="section-title">Investimentos</div>
+                {% set invest_colors = ['#E75F00', '#FF8733', '#FFB37F', '#ebebeb'] %}
+                <div class="bar-container">
                 {% for cat in data.investimentos_categories %}
-                <tr>
-                    <td><div class="legend-box" style="background-color:{{ invest_colors[loop.index0 % invest_colors|length] }};"></div></td>
-                    <td>{{ cat.name }}</td>
-                    <td>{{ cat.value|format_currency }}</td>
-                    <td>{{ cat.representatividade|format_percentage }}</td>
-                    <td>
-                        {% if cat.variacao >= 0 %}
-                            <span class="var-up"> 
-                            <img src="data:image/svg+xml;base64,{{ seta_b64_3 }}" alt="↑"/>
-                            {{ cat.variacao|format_percentage }}
-                            </span>
-                        {% else %}
-                            <span class="var-down">
-                            <img src="data:image/svg+xml;base64,{{ seta_b64_4 }}" alt="↓"/>
-                            {{ cat.variacao|format_percentage }}
-                            </span>
-                        {% endif %}
-                    </td>
-                </tr>
+                    <div class="bar-segment"
+                        style="width: {{ cat.barra_rep }}%; background-color: {{ invest_colors[loop.index0 % invest_colors|length] }};">
+                    </div>
                 {% endfor %}
-                </tbody>
-            </table>
+                </div>
+                <div class="bar-total">
+                {{ '%.0f'|format(data.represent_investimentos) }}%
+                </div>
+                <div class="value">{{ data.investimentos|format_currency }}</div>
+                <table class="cat-table">
+                    <colgroup>
+                        <col style="width:5%" />
+                        <col style="width:35%" />
+                        <col style="width:30%" />
+                        <col style="width:15%" />
+                        <col style="width:15%" />
+                    </colgroup>
+                    <thead>
+                        <tr>
+                            <th></th>
+                            <th>Categoria</th>
+                            <th>Valor</th>
+                            <th>AV</th>
+                            <th>AH</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    {% for cat in data.investimentos_categories %}
+                    <tr>
+                        <td><div class="legend-box" style="background-color:{{ invest_colors[loop.index0 % invest_colors|length] }};"></div></td>
+                        <td>{{ cat.name }}</td>
+                        <td>{{ cat.value|format_currency }}</td>
+                        <td>{{ cat.representatividade|format_percentage }}</td>
+                        <td>
+                            {% if cat.variacao >= 0 %}
+                                <span class="var-up"> 
+                                <img src="data:image/svg+xml;base64,{{ seta_b64_3 }}" alt="↑"/>
+                                {{ cat.variacao|format_percentage }}
+                                </span>
+                            {% else %}
+                                <span class="var-down">
+                                <img src="data:image/svg+xml;base64,{{ seta_b64_4 }}" alt="↓"/>
+                                {{ cat.variacao|format_percentage }}
+                                </span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
-    </div>
-    <div class="notes-title">Notas</div>
-    <div class="box-frame">
-        <div class="notes-content">{{ data.notas }}</div>
+        <div class="notes-title">Notas</div>
+        <div class="box-frame">
+            <div class="notes-content">{{ data.notas }}</div>
+        </div>
     </div>
     <footer>
         {{ logo_svg | safe }}

@@ -1,4 +1,5 @@
 streamlit
+streamlit-quill
 pandas
 plotly
 psycopg2
@@ -12,4 +13,4 @@ pytest-cov
 dotenv
 pdfkit
 matplotlib
-PyPDF2  
+PyPDF2

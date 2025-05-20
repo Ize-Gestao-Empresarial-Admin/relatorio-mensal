@@ -1,3 +1,4 @@
+#src/core/relatorios/relatorio_1.py
 from datetime import date
 from typing import Optional, List, Dict, Any
 from src.core.indicadores import Indicadores
@@ -25,7 +26,6 @@ class Relatorio1:
         """
         receitas = self.indicadores.calcular_receitas_fc(mes_atual, '3.%')
         custos = self.indicadores.calcular_custos_variaveis_fc(mes_atual, '4.%')
-
 
         # Calcula totais somando total_categoria
         receita_total = sum(r.get('total_categoria', 0) for r in receitas) if receitas else 0
@@ -76,9 +76,11 @@ class Relatorio1:
 
         # Gera notas automatizadas alinhadas com a saída do teste
         notas_automatizadas = (
-            f"O Lucro Bruto fechou o mês com um resultado de x% (R$ xx,xx) em relação à Receita Total, uma variação de x% em relação ao mês anterior. Quando olhamos para as Despesas Fixas, vemos um resultado de RS xx (x% da Receita Total), variação de x% em relação ao mês anterior, com destaque para (1ª categoria mais representativa). \n"
+            f" No mês, observamos uma receita operacional de R$--, uma variação de (AH da receita total) em relação ao mês anterior, com principal peso na categoria (1ª categoria mais representativa) e (2ª categoria mais representativa). Em relação aos custos variáveis, tivemos um resultados de -R$ --, com destaque para (1ª categoria mais representativa). \n"
         )
-        if not receitas and not custos:
+        # Verifica se as listas estão vazias ou se todos os valores são zero
+        if (not receitas or all(r.get("total_categoria", 0) == 0 for r in receitas)) and \
+           (not custos or all(c.get("total_categoria", 0) == 0 for c in custos)):
             notas_automatizadas = "Não há dados disponíveis para o período selecionado."
 
         return [
@@ -94,4 +96,4 @@ class Relatorio1:
             }
         ], {
             "notas": notas_automatizadas
-        }
+        } # type: ignore

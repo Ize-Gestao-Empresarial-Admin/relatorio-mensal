@@ -1,0 +1,50 @@
+<!-- templates/indice.html usado como base de teste, nao possui CSS, so retorna os dados -->
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Índice</title>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        .section-title { font-size: 1.2em; font-weight: bold; margin-top: 20px; }
+        .section-list { margin-left: 20px; }
+    </style>
+</head>
+<body>
+    <div>{{ logo_svg | safe }}</div>
+    <h1>{{ data.nome }}</h1>
+    <h2>{{ data.Periodo }}</h2>
+
+    {% if data.fluxo_caixa == 'Sim' %}
+    <div class="section-title">01 Fluxo de Caixa</div>
+    <div class="section-list">
+        <p>01 Análise de Fluxo de Caixa 1</p>
+        <p>02 Análise de Fluxo de Caixa 2</p>
+        <p>03 Análise de Fluxo de Caixa 3</p>
+        <p>04 Análise de Fluxo de Caixa 4</p>
+        <p>05 Fechamento de Fluxo de Caixa</p>
+    </div>
+    {% endif %}
+
+    {% if data.dre_gerencial == 'Sim' %}
+    <div class="section-title">02 DRE</div>
+    <div class="section-list">
+        <p>01 Análise por Competência - DRE</p>
+    </div>
+    {% endif %}
+
+    {% if data.indicador == 'Sim' %}
+    <div class="section-title">03 Indicadores</div>
+    <div class="section-list">
+        <p>01 Indicadores</p>
+    </div>
+    {% endif %}
+
+    {% if data.nota_consultor == 'Sim' %}
+    <div class="section-title">04 Nota do Consultor</div>
+    <div class="section-list">
+        <p>01 Parecer Técnico</p>
+    </div>
+    {% endif %}
+</body>
+</html>

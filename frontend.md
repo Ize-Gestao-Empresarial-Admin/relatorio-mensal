@@ -13,7 +13,7 @@ v2_relatorio_mensal/
 │       └── renderers/         # Conversor de dados para templates
 │           ├── __init__.py
 │           ├── base_renderer.py
-│           └── relatorios_renderer.py
+│           └── relatorios_renderer(1-8).py
 ├── templates/
 │   ├── base/                  # Apenas elementos comuns a todos relatórios
 │   │   ├── base.html          # Template base com estrutura HTML

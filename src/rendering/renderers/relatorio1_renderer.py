@@ -153,19 +153,47 @@ class Relatorio1Renderer(BaseRenderer):
     <title>Relatório Financeiro - {{ cliente_nome }} - {{ mes_nome }}/{{ ano }}</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
-        body { font-family: 'Inter', sans-serif; padding:20px; }
-        .section-title { font-size:25px; font-weight:bold; margin-top:6px; margin-bottom:40px}
+        /* Definir altura da página A4 (297mm) menos margens (5mm topo + 4mm base = 9mm) */
+        
+        /* Resetar margens e definir layout base */
+        html, body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+            position: relative;
+            min-height: 100%; /* Garante que o body ocupe a página inteira */
+        }
+
+        /* Contêiner principal para o conteúdo */
+        .main-content {
+            padding: 20px 20px 5px 20px; /* Aumenta padding-bottom para reservar espaço para o footer */
+            box-sizing: border-box;
+            position: relative;
+        }
+
+        .section-title {
+            font-size: 25px;
+            font-weight: bold;
+            margin-top: 6px;
+            margin-bottom: 40px;
+        }
+
         .notes-title {
             font-size: 18px;
-            font-weight: 600;    /* deixa em negrito */
-            margin: 15px 0 1px 0; /* seu espaçamento */
+            font-weight: 600;
+            margin: 15px 0 8px 0;
             text-align: left;
+            page-break-before: avoid;
         }
+
         .notes-title + .box-frame {
-            margin-top: 8px;      /* antes era 45px na .box-frame geral */
-            margin-bottom: 8px;
+            margin-top: 8px;
+            margin-bottom: 50px; /* Espaço suficiente para o footer */
             padding: 15px;
+            page-break-inside: avoid;
+            break-inside: avoid;
         }
+
         .bar-container {
             width: 100%;
             height: 28px;
@@ -173,24 +201,42 @@ class Relatorio1Renderer(BaseRenderer):
             overflow: hidden;
             margin: 2px 0 0 0;
         }
+
         .bar-segment {
-            /* flutua para a esquerda, com altura de 100%,
-                a largura já vem inline style via Jinja */
             float: left;
             height: 100%;
         }
-        .bar-total { font-size:17px; text-align:right; margin-top:5px; }
-        .value { font-size:25px; margin-top:-30px; margin-bottom:40px; font-weight:580; }
-        hr.section-separator { border: none; border-top: 1px solid #ddd; margin:20px 0; }
-        /* cor do nome do relatório */
-        .report-name {
-            color: #A5A5A5; 
+
+        .bar-total {
+            font-size: 17px;
+            text-align: right;
+            margin-top: 5px;
         }
-        /* cor do período */
-        .report-period {
-            color: #A5A5A5; 
+
+        .value {
+            font-size: 25px;
+            margin-top: -30px;
+            margin-bottom: 40px;
+            font-weight: 580;
         }
-        table.cat-table { width:100%; border-collapse: collapse; margin-bottom:30px; border: none; }
+
+        hr.section-separator {
+            border: none;
+            border-top: 1px solid #ddd;
+            margin: 20px 0;
+        }
+
+        .report-name, .report-period {
+            color: #A5A5A5;
+        }
+
+        table.cat-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+            border: none;
+        }
+
         table.cat-table th, table.cat-table td {
             border: none;
             padding: 8px;
@@ -200,13 +246,23 @@ class Relatorio1Renderer(BaseRenderer):
             font-weight: 200;
             font-size: 17px;
         }
-        table.cat-table td:nth-child(3) { font-weight: 700; }
-        table.cat-table td:nth-child(4) { font-size: 14px; }
-        table.cat-table td:nth-child(5) { font-size: 14px; }
-        table.cat-table thead { display: table-header-group; }
+
+        table.cat-table td:nth-child(3) {
+            font-weight: 700;
+        }
+
+        table.cat-table td:nth-child(4), table.cat-table td:nth-child(5) {
+            font-size: 14px;
+        }
+
+        table.cat-table thead {
+            display: table-header-group;
+        }
+
         table.cat-table thead th {
             visibility: hidden;
         }
+
         table.cat-table thead th:nth-child(4),
         table.cat-table thead th:nth-child(5) {
             visibility: visible;
@@ -214,64 +270,65 @@ class Relatorio1Renderer(BaseRenderer):
             font-size: 14px;
             font-weight: 600;
         }
-        .legend-box { width:12px; height:12px; border-radius:2px; }
-        .var-up img {
+
+        .legend-box {
+            width: 12px;
+            height: 12px;
+            border-radius: 2px;
+        }
+
+        .var-up img, .var-down img {
             vertical-align: middle;
             width: 10px;
             height: 7px;
             margin-right: 3px;
         }
-        .var-down img {
-            vertical-align: middle;
-            width: 10px;
-            height: 7px;
-            margin-right: 3px;
-        }
-        body {
-            font-family: 'Inter', sans-serif;
-            /* cria espaço no final para o footer não sobrepor conteúdo */
-            padding: 20px 20px 20px 20px;  
-            position: relative;
-        }
+
         footer {
             position: fixed;
-            bottom: -18mm;      /* distância do rodapé físico da página */
-            left: 0;
-            width: 100%;
+            bottom: 3mm; /* Ajustado para ficar dentro da margem de 4mm */
+            left: 10mm;
+            right: 10mm;
+            width: calc(100% - 20mm);
             text-align: center;
-            /* sem margin-top, sem page-break */
+            z-index: 9999; /* Aumentado para garantir que fique acima de tudo */
+            height: 20px; /* Aumentado para melhor visibilidade */
         }
+
         footer img {
-            height: 40px;     
+            height: 20px; /* Aumentado para melhor visibilidade, mas ainda dentro da margem */
+            max-width: 100%;
+            display: block; /* Garante que a imagem não cause espaçamentos indesejados */
+            margin: 0 auto;
         }
-        /* barra laranja acima do cabeçalho */
+
         .header-accent {
-            width: 100px;               /* ajuste a largura que quiser */
-            height: 6px;               /* ajuste a espessura */
-            background-color: #FF6900; /* laranja */
+            width: 100px;
+            height: 6px;
+            background-color: #FF6900;
             margin: 0 0 4px 40px;
-            border-radius: 3px 3px 0 0;        /* cantos levemente arredondados */
+            border-radius: 3px 3px 0 0;
         }
-        /* cabeçalho acima da primeira caixa */
+
         .report-header {
             border-top: 1px solid #D9D9D9;
             margin: 0 0 8px 0;
         }
-        /* container com nome e período */
+
         .report-header-info {
             display: flex;
-            justify-content: flex-start;   /* todos os itens começam à esquerda */
+            justify-content: flex-start;
             align-items: center;
             width: 100%;
             font-size: 14px;
             margin: 4px 0 16px;
             white-space: nowrap;
         }
-        /* empurra o segundo span para a margem direita */
+
         .report-header-info .report-period {
             margin-left: auto;
         }
-        /* contêiner com borda cinza arredondada */
+
         .box-frame {
             page-break-inside: avoid;
             border: 1px solid #D9D9D9;
@@ -280,11 +337,12 @@ class Relatorio1Renderer(BaseRenderer):
             margin-bottom: 18px;
             margin-top: 30px;
         }
-        /* quadrado em branco (vazio) */
+
         .box-frame.blank {
-            height: 100px;       /* ajuste a altura conforme quiser */
-            margin: 0 0 24px 0;  /* distância abaixo do bloco */
+            height: 100px;
+            margin: 0 0 24px 0;
         }
+
         .notes-content {
             white-space: pre-wrap;
             text-align: left;
@@ -294,8 +352,9 @@ class Relatorio1Renderer(BaseRenderer):
             line-height: 1.4;
         }
     </style>
-</head>
+    </head>
 <body>
+<div class="main-content">
   <!-- barra laranja acima da linha -->
   <div class="header-accent"></div>
   <div class="report-header"></div>
@@ -447,6 +506,7 @@ class Relatorio1Renderer(BaseRenderer):
   <div class="notes-title">Notas</div>
   <div class="box-frame">
     <div class="notes-content">{{ data.notas }}</div>
+  </div>
   </div>
   <footer>
     {{ logo_svg | safe }}

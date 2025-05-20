@@ -1,6 +1,0 @@
-# Ignorar todos os arquivos na pasta outputs
-*
-
-# Exceto o próprio .gitignore
-!.gitignore
-!nota.md

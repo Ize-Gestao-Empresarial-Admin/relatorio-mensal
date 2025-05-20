@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Relatório Mensal</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        /* Contêiner principal para o conteúdo */
+        .main-content {
+            padding: 20px;
+            box-sizing: border-box;
+            position: relative;
+        }
+
+        /* Cor do nome do relatório e período */
+        .report-name,
+        .report-period {
+            color: #A5A5A5;
+            font-size: 14px;
+        }
+
+        /* Barra laranja acima do cabeçalho */
+        .header-accent {
+            width: 100px;
+            height: 6px;
+            background-color: #FF6900;
+            margin: 0 20px 4px auto; /* Alinha à direita, respeitando o padding de 20px */
+            border-radius: 3px 3px 0 0;
+        }
+
+        /* Cabeçalho acima da primeira caixa */
+        .report-header {
+            border-top: 1px solid #D9D9D9;
+            margin: 0 0 8px 0;
+        }
+
+        /* Container com nome e período */
+        .report-header-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            margin: 4px 0 16px;
+            white-space: nowrap;
+        }
+
+        /* Estilo base para caixas */
+        .box-frame {
+            page-break-inside: avoid;
+            border: 1px solid #D9D9D9;
+            border-radius: 16px;
+            padding: 32px;
+            margin-bottom: 18px;
+            margin-top: 30px;
+            box-sizing: border-box;
+        }
+
+        /* Classe específica para a caixa de notas do consultor */
+        .box-frame.notes {
+            height: 1150px;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+        }
+
+        /* Classe para caixas em branco */
+        .box-frame.blank {
+            height: 750px;
+            margin: 0 0 24px 0;
+        }
+
+        /* Rodapé */
+        footer {
+            position: fixed;
+            bottom: 3mm;
+            left: 10mm;
+            right: 10mm;
+            width: calc(100% - 20mm);
+            text-align: center;
+            z-index: 9999;
+            height: 20px;
+        }
+
+        footer img {
+            height: 20px;
+            max-width: 100%;
+            display: block;
+            margin: 0 auto;
+        }
+
+        /* Título da seção */
+        .section-title {
+            font-size: 25px;
+            font-weight: bold;
+            margin-top: 6px;
+            margin-bottom: 40px;
+            text-align: center;
+        }
+
+        /* Conteúdo das notas */
+        .notes-content {
+            font-size: 16px;
+            overflow-y: auto; /* Permite rolagem se o conteúdo exceder a altura */
+        }
+    </style>
+</head>
+<body>
+    <div class="main-content">
+        <!-- Barra laranja acima da linha -->
+        <div class="header-accent"></div>
+        <div class="report-header"></div>
+        <table style="width:100%; border-collapse:collapse; margin:4px 0 16px;">
+            <tr>
+                <td class="report-name" style="padding:0; text-align:left;">
+                    {{ data.nome }}
+                </td>
+                <td class="report-period" style="padding:0; text-align:right;">
+                    {{ data.Periodo }}
+                </td>
+            </tr>
+        </table>
+
+        <div class="section">
+            <div class="box-frame notes">
+                <div class="section-title">Nota do Consultor</div>
+                <div class="notes-content">{{ data.nota_consultor | safe }}</div>
+            </div>
+        </div>
+    </div>
+    <footer>
+        {{ logo_svg | safe }}
+    </footer>
+</body>
+</html>

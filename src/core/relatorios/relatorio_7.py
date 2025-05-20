@@ -23,15 +23,19 @@ class Relatorio7:
         
         # Notas automatizadas
         notas_automatizadas = (
-            "Os indicadores são os mesmos do Dashboard B.I. "
+            "O cenário bom/ruim representa x" 
+            #bom/ruim devem ser dinâmicos, na tabela puxar "ruim" e "bom" do banco equivalente a "ruim" e "bom" do banco equivalente a categoria
         )
+        
 
         # Construir lista de categorias (cada indicador é uma categoria)
         return [
             {
                 "categoria": i["indicador"],
-                "valor": i["total_valor"]
+                "valor": i["total_valor"],
+                "cenario_bom": i["bom"],
+                "cenario_ruim": i["ruim"],
             } for i in indicadores_resultado
         ], {
             "notas": notas_automatizadas
-        }
+         } # type: ignore
