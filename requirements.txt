@@ -13,4 +13,7 @@ pytest-cov
 dotenv
 pdfkit
 matplotlib
+pypdf
 PyPDF2
+dotenv
+
