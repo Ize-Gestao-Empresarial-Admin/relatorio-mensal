@@ -112,7 +112,7 @@ class RenderingEngine:
         # Converter para PDF
         cmd = [
             'wkhtmltopdf', '--enable-local-file-access', '--page-size', 'A4',
-            '--margin-top', '5mm', '--margin-bottom', '4mm',
+            '--margin-top', '5mm', '--margin-bottom', '5mm',
             '--margin-left', '10mm', '--margin-right', '10mm',
             '--no-footer-line', html_path, pdf_path
         ]

@@ -114,7 +114,7 @@ def main():
             {"id": "Relatório 5", "nome": "Relatório 5 - Fechamento de Fluxo de Caixa", "status": "em_desenvolvimento"}
         ],
         "DRE": [
-            {"id": "Relatório 6", "nome": "Relatório 6 - Análise por Competência - DRE", "status": "em_desenvolvimento"}
+            {"id": "Relatório 6", "nome": "Relatório 6 - Análise por Competência - DRE", "status": "ativo"}
         ],
         "Indicadores": [
             {"id": "Relatório 7", "nome": "Relatório 7 - Indicadores", "status": "em_desenvolvimento"}
@@ -156,7 +156,7 @@ def main():
             relatorios_selecionados.append("Relatório 8")
         
         if agrupamentos_selecionados:
-            st.markdown("<span class='dev-note'>Nota: Os relatórios 5, 6 e 7 estão em desenvolvimento.</span>", unsafe_allow_html=True)
+            st.markdown("<span class='dev-note'>Nota: Os relatórios 5 e 7 estão em desenvolvimento.</span>", unsafe_allow_html=True)
     else:
         relatorios_selecionados = [
             "Relatório 1", "Relatório 2", "Relatório 3", "Relatório 4",
@@ -164,7 +164,7 @@ def main():
         ]
         if incluir_parecer:
             relatorios_selecionados.append("Relatório 8")
-        st.info("O relatório completo incluirá todas as 7 seções principais. Os relatórios 5, 6 e 7 estão em desenvolvimento.")
+        st.info("O relatório completo incluirá todas as 7 seções principais. Os relatórios 5 e 7 estão em desenvolvimento.")
     
     analise_text = render_parecer_tecnico(relatorios_selecionados)
     
@@ -226,6 +226,8 @@ def main():
                 rendering_engine = RenderingEngine()
                 output_filename = f"Relatorio_{cliente_nome.replace(' ', '_')}_{mes_nome}_{ano}.pdf"
                 output_path = os.path.join("outputs", output_filename)
+                
+                os.makedirs("outputs", exist_ok=True)  # Criar diretório se não existir
                 
                 pdf_path = rendering_engine.render_to_pdf(
                     relatorios_dados, 

@@ -26,6 +26,7 @@ class Relatorio4Renderer(BaseRenderer):
         
         # Carregar SVGs para os ícones
         icons_dir = os.path.abspath("assets/icons")
+        icon_rodape = self.load_icon(os.path.join(icons_dir, "rodape.png"))
         
         # Logo
         logo_path = os.path.join(icons_dir, "IZE-LOGO-2.svg")
@@ -121,6 +122,7 @@ class Relatorio4Renderer(BaseRenderer):
         template = self.env.from_string(self._get_template_html())
         return template.render(
             data=template_data,
+            icon_rodape=icon_rodape,
             logo_svg=logo_svg,
             seta_b64=seta_up_verde_b64,
             seta_b64_2=seta_down_laranja_b64,
@@ -270,25 +272,7 @@ class Relatorio4Renderer(BaseRenderer):
             height: 7px;
             margin-right: 3px;
         }
-
-        footer {
-            position: fixed;
-            bottom: 3mm; /* Dentro da margem inferior de 4mm */
-            left: 10mm;
-            right: 10mm;
-            width: calc(100% - 20mm);
-            text-align: center;
-            z-index: 9999; /* Garante que fique acima de tudo */
-            height: 20px; /* Altura ajustada */
-        }
-
-        footer img {
-            height: 20px; /* Dentro da margem, visível */
-            max-width: 100%;
-            display: block;
-            margin: 0 auto;
-        }
-
+        
         .header-accent {
             width: 100px;
             height: 6px;
@@ -338,10 +322,23 @@ class Relatorio4Renderer(BaseRenderer):
             font-size: 16px;
             line-height: 1.4;
         }
+        
+        .fixed-footer-bg {
+            position: fixed;           /* sai do fluxo normal */
+            bottom: -130px;                 /* gruda na base da página */
+            left: 45%;                 /* centraliza horizontalmente */
+            transform: translateX(-50%);
+            z-index: -1;               /* garante que fique atrás de tudo */
+            width: 80px;              /* ajuste à largura que desejar */
+            height: auto;
+            /* opacity: 1;           — opcional, se quiser “esmaecer” um pouco */
+        }
     </style>
 </head>
 <body>
+    
     <div class="main-content">
+    <img src="data:image/png;base64,{{ icon_rodape }}" class="fixed-footer-bg" alt=""/>
         <!-- barra laranja acima da linha -->
         <div class="header-accent"></div>
         <div class="report-header"></div>
@@ -495,9 +492,7 @@ class Relatorio4Renderer(BaseRenderer):
             <div class="notes-content">{{ data.notas }}</div>
         </div>
     </div>
-    <footer>
-        {{ logo_svg | safe }}
-    </footer>
+
 </body>
 </html>
 '''

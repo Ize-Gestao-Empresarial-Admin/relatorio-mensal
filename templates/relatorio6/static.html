@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Relatório Mensal - Empresa Exemplo - Janeiro 2025</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0 38px; /* Margens de 10mm (~38px) para A4 */
+            box-sizing: border-box;
+            max-width: 718px; /* Área útil do A4 (794px - 2 * 38px) */
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .section-title {
+            font-size: 25px;
+            font-weight: bold;
+            margin-top: 1px;
+            margin-bottom: 40px;
+            text-align: center;
+        }
+        .report-name { color: #A5A5A5; }
+        .report-period { color: #A5A5A5; }
+        .header-accent {
+            width: 100px;
+            height: 6px;
+            background-color: #FF6900;
+            margin: 0 auto 4px;
+            border-radius: 3px 3px 0 0;
+        }
+        .report-header {
+            border-top: 1px solid #D9D9D9;
+            margin: 0 0 8px 0;
+        }
+        .report-header-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            font-size: 14px;
+            margin: 4px 0 16px;
+            white-space: nowrap;
+        }
+        .report-header-info .report-period { margin-left: 0; }
+        .box-frame {
+            page-break-inside: avoid;
+            border: 1px solid #D9D9D9;
+            border-radius: 16px;
+            padding: 32px;
+            margin-bottom: 18px;
+            margin-top: 45px;
+            position: relative;
+            box-sizing: border-box;
+        }
+        .box-frame.blank {
+            height: 100px;
+            margin: 0 0 24px 0;
+        }
+        .metrics-row {
+            display: flex;
+            justify-content: center; /* Centraliza os cartões */
+            align-items: center; /* Alinha verticalmente */
+            gap: 24px;
+            margin: 60px 0;
+            flex-wrap: wrap;
+        }
+        .metrics-row.no-wrap {
+            flex-wrap: nowrap;
+        }
+        .metric-card {
+            position: relative;
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
+            border: 1.3px solid #CFCFCF;
+            border-radius: 12px;
+            padding: 16px 12px 12px;
+            width: 190px;
+            background: white;
+            box-sizing: border-box;
+            min-height: 110px;
+        }
+        .metrics-row .metric-card {
+            margin-right: 0;
+        }
+        .metrics-row .metric-card:last-child {
+            margin-right: 0;
+        }
+        .metrics-row .metric-card:first-child .metric-label,
+        .metrics-row .metric-card:last-child .metric-label,
+        .metric-card--operacional .metric-label {
+            margin-top: 13px;
+        }
+        .metrics-row + .metrics-row {
+            margin-top: 60px;
+        }
+        .metric-icon {
+            position: absolute;
+            top: -27px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #FFFFFF;
+            border-radius: 50%;
+            width: 45px;
+            height: 45px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2;
+        }
+        .metric-icon img {
+            width: 45px;
+            height: 45px;
+        }
+        .metric-label {
+            font-family: 'Inter', sans-serif;
+            font-size: 12px;
+            color: #333333;
+            margin-bottom: 0.7px;
+            margin-top: 4px;
+            text-align: center;
+        }
+        .metric-value {
+            font-family: 'Inter', sans-serif;
+            font-size: 17px;
+            font-weight: 500;
+            margin-bottom: 2px;
+        }
+        .metric-percent {
+            font-family: 'Inter', sans-serif;
+            font-size: 10px;
+            color: #69696F;
+        }
+        .notes-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin: 15px 0 1px 0;
+            text-align: left;
+        }
+        .notes-title + .box-frame {
+            margin-top: 12px;
+            margin-bottom: 8px;
+            padding: 30px;
+        }
+        .notes-content {
+            white-space: pre-wrap;
+            text-align: left;
+            margin: 0;
+            padding: 0;
+            font-size: 17px;
+            line-height: 1.7;
+        }
+        .fixed-footer-bg {
+            position: fixed;
+            bottom: -130px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: -1;
+            width: 80px;
+            height: auto;
+        }
+    </style>
+</head>
+<body>
+    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==" class="fixed-footer-bg" alt="Rodapé"/>
+    <div class="header-accent"></div>
+    <div class="report-header"></div>
+    <table style="width:100%; border-collapse:collapse; margin:4px 0 16px;">
+        <tr>
+            <td class="report-name" style="padding:0; text-align:left; font-size:14px;">Empresa Exemplo</td>
+            <td class="report-period" style="padding:0; text-align:right; font-size:14px;">Janeiro 2025</td>
+        </tr>
+    </table>
+    <div class="box-frame" style="position: relative;">
+        <div class="section-title">DRE - Análise por Competência</div>
+        <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYGD4DwABBAEAeS3YgQAAAABJRU5ErkJggg==" style="width:100%; height:auto; margin-top:1rem;" alt="Waterfall DRE"/>
+    </div>
+    <div class="metrics-row no-wrap">
+        <div class="metric-card">
+            <div class="metric-icon">
+                <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M/wHwAEBgIApZQc6gAAAABJRU5ErkJggg==" width="45" height="45" alt="Ícone Faturamento"/>
+            </div>
+            <div class="metric-label">Faturamento</div>
+            <div class="metric-value">R$ 1.000.000,00</div>
+            <div class="metric-percent">100%</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-icon">
+                <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHAgIABQ3YtwAAAABJRU5ErkJggg==" width="45" height="45" alt="Ícone CV e Deduções"/>
+            </div>
+            <div class="metric-label">Custos variáveis + deduções da receita</div>
+            <div class="metric-value">R$ 300.000,00</div>
+            <div class="metric-percent">30%</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-icon">
+                <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z/C/HwABAgIABQzYtwAAAABJRU5ErkJggg==" width="45" height="45" alt="Ícone CMV"/>
+            </div>
+            <div class="metric-label">Custos com Produtos e Serviços</div>
+            <div class="metric-value">R$ 200.000,00</div>
+            <div class="metric-percent">20%</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-icon">
+                <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHAgIABQzYtwAAAABJRU5ErkJggg==" width="45" height="45" alt="Ícone Despesas"/>
+            </div>
+            <div class="metric-label">Despesas Fixas</div>
+            <div class="metric-value">R$ 150.000,00</div>
+            <div class="metric-percent">15%</div>
+        </div>
+    </div>
+    <div class="metrics-row">
+        <div class="metric-card">
+            <div class="metric-icon">
+                <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M/wHwAEBgIApZQc6gAAAABJRU5ErkJggg==" width="45" height="45" alt="Ícone EBITDA Positivo"/>
+            </div>
+            <div class="metric-label">EBITDA</div>
+            <div class="metric-value">R$ 350.000,00</div>
+            <div class="metric-percent">35%</div>
+        </div>
+        <div class="metric-card metric-card--operacional">
+            <div class="metric-icon">
+                <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M/wHwAEBgIApZQc6gAAAABJRU5ErkJggg==" width="45" height="45" alt="Ícone Lucro Operacional Positivo"/>
+            </div>
+            <div class="metric-label">Lucro Operacional</div>
+            <div class="metric-value">R$ 300.000,00</div>
+            <div class="metric-percent">30%</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-icon">
+                <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M/wHwAEBgIApZQc6gAAAABJRU5ErkJggg==" width="45" height="45" alt="Ícone Lucro Líquido Positivo"/>
+            </div>
+            <div class="metric-label">Lucro Líquido</div>
+            <div class="metric-value">R$ 250.000,00</div>
+            <div class="metric-percent">25%</div>
+        </div>
+    </div>
+    <div class="notes-title">Notas</div>
+    <div class="box-frame">
+        <div class="notes-content">Este é um exemplo de notas para o relatório. Aqui podem ser incluídas observações relevantes sobre os dados apresentados.</div>
+    </div>
+</body>
+</html>
