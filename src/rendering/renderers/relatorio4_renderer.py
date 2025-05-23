@@ -26,7 +26,6 @@ class Relatorio4Renderer(BaseRenderer):
         
         # Carregar SVGs para os ícones
         icons_dir = os.path.abspath("assets/icons")
-        icon_rodape = self.load_icon(os.path.join(icons_dir, "rodape.png"))
         
         # Logo
         logo_path = os.path.join(icons_dir, "IZE-LOGO-2.svg")
@@ -122,7 +121,6 @@ class Relatorio4Renderer(BaseRenderer):
         template = self.env.from_string(self._get_template_html())
         return template.render(
             data=template_data,
-            icon_rodape=icon_rodape,
             logo_svg=logo_svg,
             seta_b64=seta_up_verde_b64,
             seta_b64_2=seta_down_laranja_b64,
@@ -338,7 +336,7 @@ class Relatorio4Renderer(BaseRenderer):
 <body>
     
     <div class="main-content">
-    <img src="data:image/png;base64,{{ icon_rodape }}" class="fixed-footer-bg" alt=""/>
+    <img src="data:image/png;base64,{{ logo_svg }}" class="fixed-footer-bg" alt=""/>
         <!-- barra laranja acima da linha -->
         <div class="header-accent"></div>
         <div class="report-header"></div>

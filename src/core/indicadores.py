@@ -1141,12 +1141,13 @@ class Indicadores:
             """
             # Query para obter os dados do DRE
             query = text("""
-                SELECT categoria, valor
-                FROM dre
-                WHERE id_cliente = :id_cliente
-                  AND visao = 'Competência'
-                  AND EXTRACT(YEAR FROM data) = :year
-                  AND EXTRACT(MONTH FROM data) = :month
+              SELECT categoria, sum(valor) AS valor
+              FROM dre
+              WHERE id_cliente = :id_cliente
+                AND visao = 'Competência'
+                AND EXTRACT(YEAR FROM data) = :year
+                AND EXTRACT(MONTH FROM data) = :month
+              group by categoria;
             """)
             params = {
                 "id_cliente": self.id_cliente,
@@ -1179,14 +1180,28 @@ class Indicadores:
                 "Despesas com Materiais e Equipamentos": dados_dre.get("Despesas com Materiais e Equipamentos", 0.0),
                 "Despesas de Marketing": dados_dre.get("Despesas de Marketing", 0.0),
                 "Despesas com Desenvolvimento Empresarial": dados_dre.get("Despesas com Desenvolvimento Empresarial", 0.0),
+                "Receitas Financeiras": dados_dre.get("Receitas Financeiras", 0.0),
                 "Rendimentos de Aplicações": dados_dre.get("Rendimentos de Aplicações", 0.0),
                 "Despesas Financeiras": dados_dre.get("Despesas Financeiras", 0.0),
-                "IRPJ": 0.0,
-                "CSLL": 0.0,
+                "Juros Bancários": dados_dre.get("Juros Bancários", 0.0),
+                "IRPJ": dados_dre.get("IRPJ", 0.0),
+                "CSLL": dados_dre.get("CSLL", 0.0),
                 "Investimento de Intangíveis": dados_dre.get("Investimento de Intangíveis", 0.0),
                 "Investimento em Imobilizado": dados_dre.get("Investimento em Imobilizado", 0.0),
                 "Investimentos em Bens Materiais": dados_dre.get("Investimentos em Bens Materiais", 0.0),
-                "Outras saídas não operacionais": dados_dre.get("Outras saídas não operacionais", 0.0)
+                "Outras saídas não operacionais": dados_dre.get("Outras saídas não operacionais", 0.0),
+                "Empréstimos bancários": dados_dre.get("Empréstimos bancários", 0.0),
+                "Venda de Imobilizados": dados_dre.get("Venda de Imobilizados", 0.0),
+                "Devolução de Pagamentos": dados_dre.get("Devolução de Pagamentos", 0.0),
+                "Outras entradas não operacionais": dados_dre.get("Outras entradas não operacionais", 0.0),
+                "Perdas Jurídicas": dados_dre.get("Perdas Jurídicas", 0.0),
+                "Aplicações Financeiras": dados_dre.get("Aplicações Financeiras", 0.0),
+                "Pagamento de Empréstimos": dados_dre.get("Pagamento de Empréstimos", 0.0),
+                "Dívidas Passadas": dados_dre.get("Dívidas Passadas", 0.0),
+                "Outras saídas não operacionais": dados_dre.get("Outras saídas não operacionais", 0.0),
+                "Aporte": dados_dre.get("Capitalização dos sócios", 0.0),
+                "Distribuição de Lucros": dados_dre.get("Distribuição de Lucros", 0.0)
+                
             }
 
             # Cálculos dos indicadores
@@ -1200,11 +1215,18 @@ class Indicadores:
                             valores["Despesas de Marketing"] + valores["Despesas com Desenvolvimento Empresarial"])
             ebitda = (faturamento + deducoes_receita_bruta + custos_variaveis + despesas_fixas)
             custos_variaveis_deducoes = custos_variaveis + deducoes_receita_bruta
+            receitas_financeiras = valores["Receitas Financeiras"] + valores["Rendimentos de Aplicações"]
+            despesas_financeiras = valores["Despesas Financeiras"] + valores["Juros Bancários"]
+            impostos = (valores["IRPJ"] + valores["CSLL"])
             lucro_operacional = (faturamento + deducoes_receita_bruta + custos_variaveis + despesas_fixas +
-                                valores["Rendimentos de Aplicações"] + valores["Despesas Financeiras"] +
-                                (valores["IRPJ"] + valores["CSLL"]))
-            lucro_liquido = (lucro_operacional + valores["Investimento de Intangíveis"] + valores["Investimento em Imobilizado"] +
-                            valores["Investimentos em Bens Materiais"] + 0 + valores["Outras saídas não operacionais"] + 0 + 0)
+                                receitas_financeiras + despesas_financeiras + impostos)
+            investimentos = valores["Investimentos em Bens Materiais"] + valores["Investimento em Imobilizado"] + valores["Investimento de Intangíveis"]
+            entradas_nao_operacionais = valores["Empréstimos bancários"] + valores["Venda de Imobilizados"] + valores["Devolução de Pagamentos"] + valores["Outras entradas não operacionais"]
+            saidas_nao_operacionais = valores["Perdas Jurídicas"] + valores["Aplicações Financeiras"] + valores["Pagamento de Empréstimos"] + valores["Dívidas Passadas"] + valores["Outras saídas não operacionais"]
+            aporte = valores["Aporte"]
+            distribuicao_de_lucros = valores["Distribuição de Lucros"]
+            lucro_liquido = (faturamento + deducoes_receita_bruta + custos_variaveis + despesas_fixas + receitas_financeiras + despesas_financeiras 
+                             + impostos + investimentos +entradas_nao_operacionais + saidas_nao_operacionais + aporte + distribuicao_de_lucros)
 
             # Lista única de indicadores com análise vertical (av_dre)
             indicadores = [
@@ -1229,9 +1251,7 @@ class Indicadores:
 
             return indicadores
 
-#indicadores do b.i:
-
-
+  #indicadores do b.i:
     def calcular_indicadores_operacionais(self, mes: date) -> List[Dict[str, Any]]:
         """Calcula os indicadores operacionais e seus valores para um cliente e mês específico, somando valores de indicadores com o mesmo nome.
 

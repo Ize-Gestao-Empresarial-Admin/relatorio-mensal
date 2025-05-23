@@ -178,7 +178,7 @@
         .fixed-footer-bg {
             position: fixed;           /* sai do fluxo normal */
             bottom: -130px;                 /* gruda na base da página */
-            left: 45%;                  /* centraliza horizontalmente */
+            left: 50%;                  /* centraliza horizontalmente */
             transform: translateX(-50%);
             z-index: -1;               /* garante que fique atrás de tudo */
             width: 80px;              /* ajuste à largura que desejar */
@@ -201,10 +201,10 @@
         <div class="section-title">DRE - Análise por Competência</div>
         <img src="data:image/png;base64,{{ chart_base64 }}" style="width:100%; height:auto; margin-top:1rem;" alt="Waterfall DRE"/>
     </div>
-    <div class="main-cards-metricas" style="margin-left: 40px !important;">
+    <div class="main-cards-metricas" style="margin-left: 50px !important;">
     <div class="metrics-row no-wrap">
         <div class="metric-card">
-            <div class="metric-icon" style= "margin-left: 20%">
+            <div class="metric-icon" style= "margin-left: 22%">
                 <img src="data:image/png;base64,{{ icon_png_b64 }}" width="50" height="50" alt="Ícone Faturamento"/>
             </div>
             <div class="metric-label">Faturamento</div>
@@ -212,7 +212,7 @@
             <div class="metric-percent">{{ data['Representatividade Faturamento (%)']|format_percentage }}</div>
         </div>
         <div class="metric-card">
-            <div class="metric-icon">
+            <div class="metric-icon" style= "margin-left: 22%">
                 <img src="data:image/png;base64,{{ icon_png_b64_2 }}" width="50" height="50" alt="Ícone CV e Deduções"/>
             </div>
             <div class="metric-label">Custos variáveis + deduções da receita</div>
@@ -220,7 +220,7 @@
             <div class="metric-percent">{{ data['Representatividade Custos e Deduções (%)']|format_percentage }}</div>
         </div>
         <div class="metric-card">
-            <div class="metric-icon">
+            <div class="metric-icon" style= "margin-left: 22%">
                 <img src="data:image/png;base64,{{ icon_png_b64_3 }}" width="45" height="45" alt="Ícone CMV"/>
             </div>
             <div class="metric-label">Custos com Produtos e Serviços</div>
@@ -228,7 +228,7 @@
             <div class="metric-percent">{{ data['Representatividade CMV (%)']|format_percentage }}</div>
         </div>
         <div class="metric-card">
-            <div class="metric-icon">
+            <div class="metric-icon" style= "margin-left: 22%">
                 <img src="data:image/png;base64,{{ icon_png_b64_4 }}" width="45" height="45" alt="Ícone Despesas"/>
             </div>
             <div class="metric-label">Despesas Fixas</div>
@@ -238,7 +238,7 @@
     </div>
     <div class="metrics-row">
         <div class="metric-card">
-            <div class="metric-icon">
+            <div class="metric-icon" style= "margin-left: 22%" >
                 {% if data['EBITDA'] < 0 %}
                     <img src="data:image/png;base64,{{ icon_png_b64_2 }}" width="50" height="50" alt="Ícone EBITDA Negativo"/>
                 {% else %}
@@ -250,7 +250,7 @@
             <div class="metric-percent">{{ data['Representatividade EBITDA (%)']|format_percentage }}</div>
         </div>
         <div class="metric-card metric-card--operacional">
-            <div class="metric-icon">
+            <div class="metric-icon" style= "margin-left: 22%">
                 {% if data['Lucro Operacional'] < 0 %}
                     <img src="data:image/png;base64,{{ icon_png_b64_2 }}" width="50" height="50" alt="Ícone Lucro Operacional Negativo"/>
                 {% else %}
@@ -262,7 +262,7 @@
             <div class="metric-percent">{{ data['Representatividade Lucro Operacional (%)']|format_percentage }}</div>
         </div>
         <div class="metric-card">
-            <div class="metric-icon">
+            <div class="metric-icon" style= "margin-left: 22%">
                 {% if data['Lucro Líquido'] < 0 %}
                     <img src="data:image/png;base64,{{ icon_png_b64_2 }}" width="50" height="50" alt="Ícone Lucro Líquido Negativo"/>
                 {% else %}

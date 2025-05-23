@@ -16,7 +16,10 @@ class Relatorio7:
             mes_anterior: Data do mês anterior (não usado, incluído para consistência).
 
         Returns:
-            Lista de dicionários, cada um com 'categoria' (nome do indicador) e 'valor'.
+            Tupla contendo:
+            - Lista de dicionários, cada um com 'categoria' (nome do indicador), 'valor', 'cenario_bom', 
+              'cenario_ruim' e 'unidade' (valores possíveis: '%', 'R$' ou 'SU').
+            - Dicionário com 'notas' contendo observações automatizadas.
         """
         # Buscar indicadores
         indicadores_resultado = self.indicadores.calcular_indicadores_operacionais(mes_atual)
@@ -27,6 +30,8 @@ class Relatorio7:
             #bom/ruim devem ser dinâmicos, na tabela puxar "ruim" e "bom" do banco equivalente a "ruim" e "bom" do banco equivalente a categoria
         )
         
+        # Lista de valores válidos para unidade
+        UNIDADES_VALIDAS = {"%", "R$", "SU"}
 
         # Construir lista de categorias (cada indicador é uma categoria)
         return [
@@ -35,6 +40,7 @@ class Relatorio7:
                 "valor": i["total_valor"],
                 "cenario_bom": i["bom"],
                 "cenario_ruim": i["ruim"],
+                "unidade": i.get("SU", "SU") if i.get("SU") in UNIDADES_VALIDAS else "SU"
             } for i in indicadores_resultado
         ], {
             "notas": notas_automatizadas
