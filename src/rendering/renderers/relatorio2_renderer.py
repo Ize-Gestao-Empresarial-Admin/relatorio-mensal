@@ -65,6 +65,7 @@ class Relatorio2Renderer(BaseRenderer):
         # Lucro Bruto
         lucro_bruto_categories = []
         lucro_bruto_total = lucro_bruto_data.get('valor', 0)  # Valor total da categoria Lucro Bruto
+        lucro_bruto_av = lucro_bruto_data.get('av_categoria', 0)  # AV da categoria Lucro Bruto
         
         #receita chamada pra realização de operações
         receita_total = next((subcat['valor'] for subcat in lucro_bruto_data.get('subcategorias', []) if subcat['subcategoria'] == 'Receita'), 0) 
@@ -93,6 +94,7 @@ class Relatorio2Renderer(BaseRenderer):
         despesas_fixas_total = despesas_fixas_data.get('valor', 0)  # Valor total da categoria Despesas Fixas
         despesas_fixas_subcategorias_sum = sum(abs(subcat['valor']) for subcat in despesas_fixas_data.get('subcategorias', []))
         despesas_fixas_restante = max(0, abs(despesas_fixas_total) - despesas_fixas_subcategorias_sum)  # Calcula o valor restante
+        despesas_fixas_av = despesas_fixas_data.get('av_categoria', 0)  # AV da categoria Lucro Bruto
 
         # Adiciona as subcategorias
         for subcat in despesas_fixas_data.get('subcategorias', []):
@@ -120,10 +122,10 @@ class Relatorio2Renderer(BaseRenderer):
             "Periodo": f"{mes_nome}/{ano}",
             "notas": notas,
             "lucro_bruto": lucro_bruto_data.get('valor', 0),
-            "represent_lucro_bruto": round((lucro_bruto_total / receita_total) * 100, 2) if receita_total != 0 else 0,
+            "represent_lucro_bruto": abs(lucro_bruto_av) or 0,
             "lucro_bruto_categories": lucro_bruto_categories,
             "despesas_fixas": abs(despesas_fixas_data.get('valor') or 0),  # Valor absoluto garantindo que None seja tratado como 0
-            "represent_despesas_fixas": abs(despesas_fixas_data.get('valor') or 0) / (lucro_bruto_data.get('valor') or 1) * 100 if (lucro_bruto_data.get('valor') or 0) > 0 else 0,
+            "represent_despesas_fixas": abs(despesas_fixas_av) or 0,  # AV absoluto garantindo que None seja tratado como 0
             "despesas_fixas_categories": despesas_fixas_categories
         }
         

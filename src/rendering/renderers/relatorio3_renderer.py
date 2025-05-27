@@ -58,6 +58,7 @@ class Relatorio3Renderer(BaseRenderer):
         
         # Processar dados do relatório
         lucro_operacional_data = next((item for item in relatorio_data if item['categoria'] == 'Lucro Operacional'), {})
+        
         investimentos_data = next((item for item in relatorio_data if item['categoria'] == 'Investimentos'), {})
 
         #receita chamada pra realização de operações
@@ -72,7 +73,7 @@ class Relatorio3Renderer(BaseRenderer):
         for subcat in lucro_operacional_data.get('subcategorias', []):
             lucro_operacional_categories.append({
                 "name": subcat['subcategoria'],
-                "value": abs(subcat['valor']),  # Valor absoluto para exibiçãoffffffffff
+                "value": abs(subcat['valor']),  # Valor absoluto para exibição
                 "representatividade": abs(subcat['av']),
                 "variacao": subcat['ah'],
                 "barra_rep": subcat['representatividade'] 
@@ -90,14 +91,15 @@ class Relatorio3Renderer(BaseRenderer):
 
         # Investimentos
         investimentos_categories = []
-        investimentos_total = abs(investimentos_data.get('valor', 0)) # Valor absoluto para exibição
+        investimentos_total = investimentos_data.get('valor', 0) 
         investimentos_subcategorias_sum = sum(abs(subcat['valor']) for subcat in investimentos_data.get('subcategorias', []))
         investimentos_restante = max(0, abs(investimentos_total) - investimentos_subcategorias_sum)  # Calcula o valor restante
+        investimentos_av = investimentos_data.get('av_categoria', 0)  # AV da categoria Lucro Bruto
 
         for subcat in investimentos_data.get('subcategorias', []):
             investimentos_categories.append({
                 "name": subcat['subcategoria'],
-                "value": abs(subcat['valor']),  # Valor absoluto para exibição
+                "value": subcat['valor'],  # Valor absoluto para exibição
                 "representatividade": abs(subcat['av']), #nesse caso em especifico esta usando o AV
                 "variacao": subcat['ah'],
                 "barra_rep": round((abs(subcat['valor']) / abs(investimentos_total)) * 100, 2) if investimentos_total != 0 else 0
@@ -122,8 +124,8 @@ class Relatorio3Renderer(BaseRenderer):
             "lucro_operacional": lucro_operacional_total,
             "represent_lucro_operacional": round((lucro_operacional_total / receita_total) * 100, 2) if receita_total != 0 else 0,
             "lucro_operacional_categories": lucro_operacional_categories,
-            "investimentos": investimentos_total,
-            "represent_investimentos": (investimentos_total / lucro_operacional_total * 100) if lucro_operacional_total > 0 else 0,
+            "investimentos": abs(investimentos_total),
+            "represent_investimentos": abs(investimentos_av) or 0,  # AV absoluto garantindo que None seja tratado como 0
             "investimentos_categories": investimentos_categories
         }
         

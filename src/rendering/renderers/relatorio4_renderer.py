@@ -81,17 +81,16 @@ class Relatorio4Renderer(BaseRenderer):
         resultados_nao_operacionais_restante = max(0, abs(resultados_nao_operacionais_total) - resultados_nao_operacionais_subcategorias_sum)  # Calcula o valor restante
         
         #receita chamada pra realização de operações
-        receita_total = next((subcat['valor'] for subcat in lucro_liquido_data.get('subcategorias', []) if subcat['subcategoria'] == 'Receita'), 0) 
-        
+        receita_total = next((subcat['valor'] for subcat in lucro_liquido_data.get('subcategorias', []) if subcat['subcategoria'] == 'Receita'), 0)     
         
         # Adiciona as 3 maiores subcategorias
         for subcat in resultados_nao_operacionais_data.get('subcategorias', []):
             resultados_nao_operacionais_categories.append({
                 "name": subcat['subcategoria'],
-                "value": abs(subcat['valor']),  # Valor absoluto para exibição
+                "value": subcat['valor'],  # Valor absoluto para exibição
                 "representatividade": abs(subcat['av']),
                 "variacao": subcat['ah'],
-                "barra_rep": subcat['representatividade']
+                "barra_rep": subcat['representatividade']  # Usar o valor corrigido diretamente
             })
 
         # Adiciona "Outras categorias" se houver valor restante
@@ -112,7 +111,7 @@ class Relatorio4Renderer(BaseRenderer):
             "lucro_liquido": lucro_liquido_data.get('valor', 0),
             "represent_lucro_liquido": round((lucro_liquido_total / receita_total) * 100, 2) if receita_total != 0 else 0, 
             "lucro_liquido_categories": lucro_liquido_categories,
-            "resultados_nao_operacionais": abs(resultados_nao_operacionais_data.get('valor') or 0),  # Valor absoluto garantindo que None seja tratado como 0
+            "resultados_nao_operacionais": resultados_nao_operacionais_data.get('valor') or 0,  # Valor absoluto garantindo que None seja tratado como 0
             "represent_resultados_nao_operacionais": round((resultados_nao_operacionais_total / receita_total) * 100, 2) if receita_total != 0 else 0,
             "resultados_nao_operacionais_categories": resultados_nao_operacionais_categories
         }

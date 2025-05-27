@@ -33,53 +33,53 @@ class Indicadores:
 
         query = text("""
             WITH 
-              receita AS (
-                SELECT SUM(valor) AS total_receita
-                FROM fc
-                WHERE id_cliente = :id_cliente
-                  AND visao = 'Realizado'
-                  AND EXTRACT(YEAR FROM data) = :year
-                  AND EXTRACT(MONTH FROM data) = :month
-                  AND nivel_1 = '3. Receitas'
-              ),
-              prev_custos AS (
-                SELECT 
-                  p.nivel_2 AS categoria,
-                  SUM(f.valor) AS prev_valor
-                FROM fc f
-                JOIN plano_de_contas p
-                  ON f.id_cliente = p.id_cliente
-                  AND text(f.nivel_3_id) = p.nivel_3_id
-                WHERE f.id_cliente = :id_cliente
-                  AND f.visao = 'Realizado'
-                  AND f.nivel_1 = '4. Custos Variáveis'
-                  AND EXTRACT(YEAR FROM f.data) = :prev_year
-                  AND EXTRACT(MONTH FROM f.data) = :prev_month
-                GROUP BY p.nivel_2
-              )
+                receita AS (
+                    SELECT SUM(valor) AS total_receita
+                    FROM fc
+                    WHERE id_cliente = :id_cliente
+                      AND visao = 'Realizado'
+                      AND EXTRACT(YEAR FROM data) = :year
+                      AND EXTRACT(MONTH FROM data) = :month
+                      AND nivel_1 = '3. Receitas'
+                ),
+                prev_custos AS (
+                    SELECT 
+                        p.nivel_2 AS categoria,
+                        SUM(f.valor) AS prev_valor
+                    FROM fc f
+                    JOIN plano_de_contas p
+                        ON f.id_cliente = p.id_cliente
+                        AND text(f.nivel_3_id) = p.nivel_3_id
+                    WHERE f.id_cliente = :id_cliente
+                      AND f.visao = 'Realizado'
+                      AND f.nivel_1 = '4. Custos Variáveis'
+                      AND f.data < DATE_TRUNC('month', MAKE_DATE(:year, :month, 1))
+                      AND f.data >= DATE_TRUNC('month', MAKE_DATE(:year, :month, 1) - INTERVAL '1 month')
+                    GROUP BY p.nivel_2
+                )
             SELECT 
-              p.nivel_2 AS nivel_2,
-              SUM(f.valor) AS total_categoria,
-              CASE 
-                WHEN r.total_receita = 0 THEN NULL 
-                ELSE SUM(f.valor) / r.total_receita * 100
-              END AS av,
-              CASE 
-                WHEN prev.prev_valor IS NULL OR prev.prev_valor = 0 THEN NULL 
-                ELSE (SUM(f.valor) / prev.prev_valor - 1) * 100
-              END AS ah
+                p.nivel_2 AS nivel_2,
+                SUM(f.valor) AS total_categoria,
+                CASE 
+                    WHEN r.total_receita = 0 THEN NULL 
+                    ELSE SUM(f.valor) / r.total_receita * 100
+                END AS av,
+                CASE 
+                    WHEN prev.prev_valor IS NULL OR prev.prev_valor = 0 THEN NULL 
+                    ELSE (SUM(f.valor) / prev.prev_valor - 1) * 100
+                END AS ah
             FROM fc f
             JOIN plano_de_contas p
-              ON f.id_cliente = p.id_cliente
-              AND text(f.nivel_3_id) = p.nivel_3_id
+                ON f.id_cliente = p.id_cliente
+                AND text(f.nivel_3_id) = p.nivel_3_id
             CROSS JOIN receita r
             LEFT JOIN prev_custos prev 
-              ON prev.categoria = p.nivel_2
+                ON prev.categoria = p.nivel_2
             WHERE f.id_cliente = :id_cliente
-              AND f.visao = 'Realizado'
-              AND f.nivel_1 = '4. Custos Variáveis'
-              AND EXTRACT(YEAR FROM f.data) = :year
-              AND EXTRACT(MONTH FROM f.data) = :month
+                AND f.visao = 'Realizado'
+                AND f.nivel_1 = '4. Custos Variáveis'
+                AND EXTRACT(YEAR FROM f.data) = :year
+                AND EXTRACT(MONTH FROM f.data) = :month
             GROUP BY p.nivel_2, r.total_receita, prev.prev_valor
             ORDER BY total_categoria ASC;
             
@@ -464,7 +464,7 @@ class Indicadores:
         return result.to_dict('records') # type: ignore
 
     def calcular_investimentos_fc(self, mes_atual: date, mes_anterior: Optional[date] = None) -> List[Dict[str, Any]]:
-          """Calcula até 3 categorias de Investimentos (nivel_2 6.1, 6.2, 6.3), com AV e AH."""
+          """Calcula categorias de Investimentos (nivel_2 6.1, 6.2, 6.3), com AV e AH."""
           query = text("""
               WITH 
                 receita AS (
@@ -489,11 +489,8 @@ class Indicadores:
                     AND f.nivel_1 = '6. Investimentos'
                     AND EXTRACT(YEAR FROM f.data) = :ano_anterior
                     AND EXTRACT(MONTH FROM f.data) = :mes_anterior
-                    AND p.nivel_2 IN (
-                      '6.1 Investimentos em Marketing',
-                      '6.2 Investimentos em Bens Materiais e Imóveis',
-                      '6.3 Investimentos em Desenvolvimento Empresarial'
-                    )
+                    AND p.nivel_2 LIKE 
+                      '6.%'
                   GROUP BY p.nivel_2
                 )
               SELECT 
@@ -519,11 +516,7 @@ class Indicadores:
                 AND f.nivel_1 = '6. Investimentos'
                 AND EXTRACT(YEAR FROM f.data) = :ano_atual
                 AND EXTRACT(MONTH FROM f.data) = :mes_atual
-                AND p.nivel_2 IN (
-                  '6.1 Investimentos em Marketing',
-                  '6.2 Investimentos em Bens Materiais e Imóveis',
-                  '6.3 Investimentos em Desenvolvimento Empresarial'
-                )
+                AND p.nivel_2 LIKE '6.%' 
               GROUP BY p.nivel_2, r.total_receita, prev.prev_valor
               ORDER BY valor DESC;
           """)
@@ -1162,16 +1155,16 @@ class Indicadores:
 
             # Inicializar valores com 0 para categorias que podem não existir
             valores = {
-                "Receita de Vendas de Produtos": 0.0,
+                "Receita de Vendas de Produtos":dados_dre.get("Receita de Vendas de Produtos",0.0),
                 "Receita de Prestação de Serviços": dados_dre.get("Receita de Prestação de Serviços", 0.0),
-                "Descontos Incondicionais": 0.0,
-                "ICMS": 0.0,
+                "Descontos Incondicionais": dados_dre.get("Descontos Incondicionais", 0.0),
+                "ICMS": dados_dre.get("ICMS", 0.0),
                 "PIS": dados_dre.get("PIS", 0.0),
                 "COFINS": dados_dre.get("COFINS", 0.0),
                 "ISS": dados_dre.get("ISS", 0.0),
-                "Simples Nacional": 0.0,
-                "Outros Tributos de Deduções de Vendas": 0.0,
-                "Devoluções de Vendas": 0.0,
+                "Simples Nacional": dados_dre.get("Simples Nacional", 0.0),
+                "Outros Tributos de Deduções de Vendas": dados_dre.get("Outros Tributos de Deduções de Vendas", 0.0),
+                "Devoluções de Vendas": dados_dre.get("Devoluções de Vendas", 0.0),
                 "Custos com Produtos e Serviços": dados_dre.get("Custos com Produtos e Serviços", 0.0),
                 "Custos Comerciais": dados_dre.get("Custos Comerciais", 0.0),
                 "Despesas Administrativas": dados_dre.get("Despesas Administrativas", 0.0),

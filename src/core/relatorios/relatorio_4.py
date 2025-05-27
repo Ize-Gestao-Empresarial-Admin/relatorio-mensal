@@ -50,7 +50,7 @@ class Relatorio4:
         # Calcular soma total para representatividade (usar valores absolutos para evitar problemas com negativos)
         lucro_liquido_subcategorias_total = sum(abs(self.safe_float(r["valor"])) for r in lucro_liquido_resultado) if lucro_liquido_resultado else 0
         entradas_nao_operacionais_subcategorias_total = sum(abs(self.safe_float(e["total_valor"])) for e in entradas_nao_operacionais_resultado) if entradas_nao_operacionais_resultado else 0
-        resultados_nao_operacionais_subcategorias_total = sum(abs(self.safe_float(r["total_valor"])) for r in resultados_nao_operacionais) if resultados_nao_operacionais else 0
+        resultados_nao_operacionais_subcategorias_total = sum(abs(self.safe_float(r["total_valor"])) for r in resultados_nao_operacionais) if resultados_nao_operacionais else 0  # Soma dos valores absolutos das subcategorias
 
         # Construir subcategorias para Lucro Líquido com representatividade
         lucro_liquido_categorias = [
@@ -84,7 +84,7 @@ class Relatorio4:
                 "av": round(self.safe_float(r["av"]), 2),
                 "ah": round(self.safe_float(r["ah"]), 2),
                 "representatividade": round(self.safe_float((abs(self.safe_float(r["total_valor"])) / resultados_nao_operacionais_subcategorias_total) * 100), 2)
-                                     if resultados_nao_operacionais_subcategorias_total != 0 else 0
+                                    if resultados_nao_operacionais_subcategorias_total != 0 else 0
             } for r in resultados_nao_operacionais
         ]
 
@@ -128,6 +128,7 @@ class Relatorio4:
                 "valor": entradas_nao_operacionais_total,
                 "subcategorias": entradas_nao_operacionais_categorias,
             },
+            
             {
                 "categoria": "Resultados Não Operacionais",
                 "valor": resultados_nao_operacionais_total,

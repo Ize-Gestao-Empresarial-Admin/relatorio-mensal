@@ -95,15 +95,27 @@ class Relatorio1Renderer(BaseRenderer):
         custos_total = custos_data.get('valor', 0)  # Valor total da categoria Custos Variáveis
         custos_subcategorias_sum = sum(abs(subcat['valor']) for subcat in custos_data.get('subcategorias', []))
         custos_restante = max(0, abs(custos_total) - custos_subcategorias_sum)  # Calcula o valor restante
-
+        
+        # Calcula a soma total dos valores de representatividade
+        total_rep = sum(abs(subcat['representatividade']) for subcat in custos_data.get('subcategorias', []))
+        
         # Adiciona as 3 maiores subcategorias
-        for subcat in custos_data.get('subcategorias', []):
+        for i, subcat in enumerate(custos_data.get('subcategorias', [])):
+            # Normaliza e arredonda o valor de representatividade
+            rep = abs(subcat['representatividade'])
+            barra_rep = round((rep / total_rep * 100) if total_rep > 0 else 0, 2)
+        
+            # Ajusta o último valor para garantir soma exata de 100
+            if i == len(custos_data.get('subcategorias', [])) - 1:
+                soma_atual = sum(c['barra_rep'] for c in custo_categories)
+                barra_rep = round(100 - soma_atual, 2) if soma_atual < 100 else barra_rep
+            
             custo_categories.append({
                 "name": subcat['subcategoria'],
                 "value": abs(subcat['valor']),  # Valor absoluto para exibição
                 "representatividade": abs(subcat['av']),
                 "variacao": subcat['ah'],
-                "barra_rep": round((abs(subcat['valor']) / abs(custos_total)) * 100, 2) if custos_total != 0 else 0
+                "barra_rep": barra_rep 
             })
 
         # Adiciona "Outras categorias" se houver valor restante
@@ -128,6 +140,8 @@ class Relatorio1Renderer(BaseRenderer):
             "represent_custos": abs(custos_data.get('valor') or 0) / (receitas_data.get('valor') or 1) * 100 if (receitas_data.get('valor') or 0) > 0 else 0,
             "custo_categories": custo_categories
         }
+        
+        
         
         # Renderizar template
         template = self.env.from_string(self._get_template_html())

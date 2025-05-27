@@ -2,6 +2,7 @@
 from datetime import date
 from typing import Optional, List, Dict, Any
 from src.core.indicadores import Indicadores
+import math  # Importado para verificar NaN
 
 class Relatorio1:
     def __init__(self, indicadores: Indicadores, nome_cliente: str):
@@ -13,6 +14,15 @@ class Relatorio1:
         """
         self.indicadores = indicadores
         self.nome_cliente = nome_cliente
+    
+    def safe_float(self, value: Any, default: float = 0.0) -> float:
+        """Converte um valor para float, tratando NaN e None como o valor padrão."""
+        if value is None or (isinstance(value, float) and math.isnan(value)):
+            return default
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return default
 
     def gerar_relatorio(self, mes_atual: date, mes_anterior: Optional[date] = None) -> List[Dict[str, Any]]:
         """Gera o relatório 1 com receitas, custos variáveis e suas representatividades.
@@ -31,10 +41,10 @@ class Relatorio1:
         receita_total = sum(r.get('total_categoria', 0) for r in receitas) if receitas else 0
         custos_total = sum(c.get('total_categoria', 0) for c in custos) if custos else 0
 
-        # Calcula a soma total das subcategorias de receitas (limita a 3)
-        receita_subcategorias_total = sum(r.get('total_categoria', 0) for r in receitas[:3]) if receitas else 0
-        # Calcula a soma total das subcategorias de custos (limita a 3)
-        custos_subcategorias_total = sum(c.get('total_categoria', 0) for c in custos[:3]) if custos else 0
+        # Calcula a soma total das subcategorias de receitas
+        receita_subcategorias_total = sum(r.get('total_categoria', 0) for r in receitas) if receitas else 0
+        # Calcula a soma total das subcategorias de custos
+        custos_subcategorias_total = sum(c.get('total_categoria', 0) for c in custos) if custos else 0
 
         # Gera a lista de subcategorias de receitas com representatividade
         receitas_categoria = [
@@ -57,8 +67,8 @@ class Relatorio1:
                 "av": round(c.get("av", 0), 2) if c.get("av") is not None else 0,
                 "ah": round(c.get("ah", 0), 2) if c.get("ah") is not None else 0,
                 "representatividade": round(
-                    (c.get("total_categoria", 0) / custos_subcategorias_total) * 100, 2
-                ) if custos_subcategorias_total != 0 else 0
+                    (c.get("total_categoria", 0) / custos_subcategorias_total) * 100, 2 
+                )if custos_subcategorias_total != 0 else 0
             } for c in custos[:3]
         ]
 
@@ -74,13 +84,40 @@ class Relatorio1:
         #CORRIGIR  Calcula a análise horizontal para receitas (média dos 'ah' das subcategorias)
         receita_ah = round(sum(r.get('ah', 0) for r in receitas) / len(receitas), 2) if receitas else 0
 
-        # Gera notas automatizadas alinhadas com a saída do teste
+        ####### SECAO NOTAS AUTOMATIZADAS ########
+
+        # Calcula a receita total do mês anterior para análise horizontal (AH)
+        receita_total_mes_anterior = 0
+        receita_total_anterior = 0
+        if mes_anterior:
+            receitas_anterior = self.indicadores.calcular_receitas_fc(mes_anterior, '3.%')
+            receita_total_anterior = sum(r.get('total_categoria', 0) for r in receitas_anterior) if receitas_anterior else 0
+
+        # Calcula AH para receita total
+        receita_total_ah = round(((receita_total / receita_total_anterior - 1) * 100) if receita_total_anterior != 0 else 0, 2)
+
+        # Monta o dicionário com os valores calculados
+        notas_automatizadas_valores = {
+            "receita_total": receita_total,
+            "receita_total_ah": receita_total_ah,
+            "categoria_maior_peso_receitas_1": primeira_cat_receita,
+            "categoria_maior_peso_receitas_2": segunda_cat_receita,
+            "custos_variaveis_total": custos_total,
+            "categoria_maior_peso_custos_1": primeira_cat_custo,
+        }
+
+        # Formata a nota automatizada com os valores calculados
         notas_automatizadas = (
-            f" No mês, observamos uma receita operacional de R$--, uma variação de (AH da receita total) em relação ao mês anterior, com principal peso na categoria (1ª categoria mais representativa) e (2ª categoria mais representativa). Em relação aos custos variáveis, tivemos um resultados de -R$ --, com destaque para (1ª categoria mais representativa). \n"
+            f"No mês, observamos uma receita operacional de R$ {receita_total:,.2f}, "
+            f"uma variação de {receita_total_ah}% em relação ao mês anterior, "
+            f"com principal peso na categoria {primeira_cat_receita} e {segunda_cat_receita}. "
+            f"Em relação aos custos variáveis, tivemos um resultado de R$ {custos_total:,.2f}, "
+            f"com destaque para {primeira_cat_custo}."
         )
+
         # Verifica se as listas estão vazias ou se todos os valores são zero
         if (not receitas or all(r.get("total_categoria", 0) == 0 for r in receitas)) and \
-           (not custos or all(c.get("total_categoria", 0) == 0 for c in custos)):
+        (not custos or all(c.get("total_categoria", 0) == 0 for c in custos)):
             notas_automatizadas = "Não há dados disponíveis para o período selecionado."
 
         return [
