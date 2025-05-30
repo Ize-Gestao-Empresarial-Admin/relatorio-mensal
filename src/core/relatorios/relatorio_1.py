@@ -1,22 +1,19 @@
-#src/core/relatorios/relatorio_1.py
+# src/core/relatorios/relatorio_1.py
 from datetime import date
 from typing import Optional, List, Dict, Any
 from src.core.indicadores import Indicadores
-import math  # Importado para verificar NaN
+from dateutil.relativedelta import relativedelta
+from src.core.utils import calcular_outras_categorias, safe_float
+import math
 
 class Relatorio1:
     def __init__(self, indicadores: Indicadores, nome_cliente: str):
-        """Inicializa a classe Relatorio1 com indicadores e nome do cliente.
-
-        Args:
-            indicadores: Instância da classe Indicadores.
-            nome_cliente: Nome do cliente associado ao relatório.
-        """
+        """Initializes the Relatorio1 class with indicators and client name."""
         self.indicadores = indicadores
         self.nome_cliente = nome_cliente
     
     def safe_float(self, value: Any, default: float = 0.0) -> float:
-        """Converte um valor para float, tratando NaN e None como o valor padrão."""
+        """Converts a value to float, handling NaN and None as the default value."""
         if value is None or (isinstance(value, float) and math.isnan(value)):
             return default
         try:
@@ -25,88 +22,69 @@ class Relatorio1:
             return default
 
     def gerar_relatorio(self, mes_atual: date, mes_anterior: Optional[date] = None) -> List[Dict[str, Any]]:
-        """Gera o relatório 1 com receitas, custos variáveis e suas representatividades.
+        """Generates Report 1 with revenues, variable costs, and their representativeness.
 
         Args:
-            mes_atual: Data do mês atual para o cálculo.
-            mes_anterior: Data do mês anterior para análise horizontal (opcional).
+            mes_atual: Current month date for calculations.
+            mes_anterior: Previous month date for horizontal analysis (optional).
 
         Returns:
-            Tupla com lista de dicionários (categorias e subcategorias) e dicionário de notas.
+            Tuple with a list of dictionaries (categories and subcategories) and a notes dictionary.
         """
+        # Calculate previous month automatically if not provided
+        if mes_anterior is None:
+            mes_anterior = mes_atual - relativedelta(months=1)
+        
         receitas = self.indicadores.calcular_receitas_fc(mes_atual, '3.%')
         custos = self.indicadores.calcular_custos_variaveis_fc(mes_atual, '4.%')
+        receitas_mes_anterior = self.indicadores.calcular_receitas_fc(mes_anterior, '3.%')
+        custos_mes_anterior = self.indicadores.calcular_custos_variaveis_fc(mes_anterior, '4.%')
 
-        # Calcula totais somando total_categoria
-        receita_total = sum(r.get('total_categoria', 0) for r in receitas) if receitas else 0
-        custos_total = sum(c.get('total_categoria', 0) for c in custos) if custos else 0
+        # Calculate totals
+        receita_total = sum(self.safe_float(r.get('total_categoria', 0)) for r in receitas) if receitas else 0
+        custos_total = sum(self.safe_float(c.get('total_categoria', 0)) for c in custos) if custos else 0
+        receita_total_anterior = sum(self.safe_float(r.get('total_categoria', 0)) for r in receitas_mes_anterior) if receitas_mes_anterior else 0
+        custos_total_anterior = sum(self.safe_float(c.get('total_categoria', 0)) for c in custos_mes_anterior) if custos_mes_anterior else 0
 
-        # Calcula a soma total das subcategorias de receitas
-        receita_subcategorias_total = sum(r.get('total_categoria', 0) for r in receitas) if receitas else 0
-        # Calcula a soma total das subcategorias de custos
-        custos_subcategorias_total = sum(c.get('total_categoria', 0) for c in custos) if custos else 0
+        # Calculate subcategories with "Outras categorias" for Receitas
+        receitas_categoria = calcular_outras_categorias(
+            items=receitas,
+            items_anterior=receitas_mes_anterior,
+            total_atual=receita_total,
+            total_anterior=receita_total_anterior,
+            receita_total=receita_total,  # Pass receita_total for AV calculation
+            chave_valor="total_categoria",
+            chave_nome="categoria_nivel_3",
+            top_n=3,
+            usar_valor_abs=False
+        )
 
-        # Gera a lista de subcategorias de receitas com representatividade
-        receitas_categoria = [
-            {
-                "subcategoria": r.get("categoria_nivel_3", "N/A"),
-                "valor": r.get("total_categoria", 0),
-                "av": round(r.get("av", 0), 2) if r.get("av") is not None else 0,
-                "ah": round(r.get("ah", 0), 2) if r.get("ah") is not None else 0,
-                "representatividade": round(
-                    (r.get("total_categoria", 0) / receita_subcategorias_total) * 100, 2
-                ) if receita_subcategorias_total != 0 else 0
-            } for r in receitas[:3]
-        ]
+        # Calculate subcategories with "Outras categorias" for Custos Variáveis
+        custos_variaveis = calcular_outras_categorias(
+            items=custos,
+            items_anterior=custos_mes_anterior,
+            total_atual=custos_total,
+            total_anterior=custos_total_anterior,
+            receita_total=receita_total,  # Pass receita_total for AV calculation
+            chave_valor="total_categoria",
+            chave_nome="nivel_2",
+            top_n=3,
+            usar_valor_abs=True
+        )
 
-        # Gera a lista de subcategorias de custos variáveis com representatividade
-        custos_variaveis = [
-            {
-                "subcategoria": c.get("nivel_2", "N/A"),
-                "valor": c.get("total_categoria", 0),
-                "av": round(c.get("av", 0), 2) if c.get("av") is not None else 0,
-                "ah": round(c.get("ah", 0), 2) if c.get("ah") is not None else 0,
-                "representatividade": round(
-                    (c.get("total_categoria", 0) / custos_subcategorias_total) * 100, 2 
-                )if custos_subcategorias_total != 0 else 0
-            } for c in custos[:3]
-        ]
-
-        # Identifica as categorias mais representativas das receitas
+        # Identify the most representative categories
         receitas_ordenadas = sorted(receitas_categoria, key=lambda x: x['representatividade'], reverse=True)
         primeira_cat_receita = receitas_ordenadas[0]['subcategoria'] if len(receitas_ordenadas) > 0 else "N/A"
         segunda_cat_receita = receitas_ordenadas[1]['subcategoria'] if len(receitas_ordenadas) > 1 else "N/A"
-
-        # Identifica a categoria mais representativa dos custos
         custos_ordenados = sorted(custos_variaveis, key=lambda x: x['representatividade'], reverse=True)
         primeira_cat_custo = custos_ordenados[0]['subcategoria'] if len(custos_ordenados) > 0 else "N/A"
 
-        #CORRIGIR  Calcula a análise horizontal para receitas (média dos 'ah' das subcategorias)
-        receita_ah = round(sum(r.get('ah', 0) for r in receitas) / len(receitas), 2) if receitas else 0
+        # Calculate AH for total revenue
+        receita_total_ah = round(
+            ((receita_total / receita_total_anterior) - 1) * 100, 2
+        ) if receita_total_anterior != 0 else 0
 
-        ####### SECAO NOTAS AUTOMATIZADAS ########
-
-        # Calcula a receita total do mês anterior para análise horizontal (AH)
-        receita_total_mes_anterior = 0
-        receita_total_anterior = 0
-        if mes_anterior:
-            receitas_anterior = self.indicadores.calcular_receitas_fc(mes_anterior, '3.%')
-            receita_total_anterior = sum(r.get('total_categoria', 0) for r in receitas_anterior) if receitas_anterior else 0
-
-        # Calcula AH para receita total
-        receita_total_ah = round(((receita_total / receita_total_anterior - 1) * 100) if receita_total_anterior != 0 else 0, 2)
-
-        # Monta o dicionário com os valores calculados
-        notas_automatizadas_valores = {
-            "receita_total": receita_total,
-            "receita_total_ah": receita_total_ah,
-            "categoria_maior_peso_receitas_1": primeira_cat_receita,
-            "categoria_maior_peso_receitas_2": segunda_cat_receita,
-            "custos_variaveis_total": custos_total,
-            "categoria_maior_peso_custos_1": primeira_cat_custo,
-        }
-
-        # Formata a nota automatizada com os valores calculados
+        # Format automated notes
         notas_automatizadas = (
             f"No mês, observamos uma receita operacional de R$ {receita_total:,.2f}, "
             f"uma variação de {receita_total_ah}% em relação ao mês anterior, "
@@ -115,9 +93,9 @@ class Relatorio1:
             f"com destaque para {primeira_cat_custo}."
         )
 
-        # Verifica se as listas estão vazias ou se todos os valores são zero
-        if (not receitas or all(r.get("total_categoria", 0) == 0 for r in receitas)) and \
-        (not custos or all(c.get("total_categoria", 0) == 0 for c in custos)):
+        # Check if there are valid data
+        if (not receitas or all(self.safe_float(r.get("total_categoria", 0)) == 0 for r in receitas)) and \
+           (not custos or all(self.safe_float(c.get("total_categoria", 0)) == 0 for c in custos)):
             notas_automatizadas = "Não há dados disponíveis para o período selecionado."
 
         return [
@@ -133,4 +111,4 @@ class Relatorio1:
             }
         ], {
             "notas": notas_automatizadas
-        } # type: ignore
+        }

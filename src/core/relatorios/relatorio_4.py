@@ -1,137 +1,164 @@
+# src/core/relatorios/relatorio4.py
 from datetime import date
 from typing import Optional, List, Dict, Any
-import math  # Importado para verificar NaN
-
+import math
+from dateutil.relativedelta import relativedelta
 from src.core.indicadores import Indicadores
+from src.core.utils import calcular_outras_categorias, safe_float
 
 class Relatorio4:
     def __init__(self, indicadores: Indicadores, nome_cliente: str):
         self.indicadores = indicadores
         self.nome_cliente = nome_cliente
 
-    def safe_float(self, value: Any, default: float = 0.0) -> float:
-        """Converte um valor para float, tratando NaN e None como o valor padrão."""
-        if value is None or (isinstance(value, float) and math.isnan(value)):
-            return default
-        try:
-            return float(value)
-        except (TypeError, ValueError):
-            return default
-
     def gerar_relatorio(self, mes_atual: date, mes_anterior: Optional[date] = None) -> List[Dict[str, Any]]:
-        # Calcular mes_anterior se não fornecido
-        if mes_anterior is None:
-            mes_anterior = date(mes_atual.year if mes_atual.month > 1 else mes_atual.year - 1,
-                                mes_atual.month - 1 if mes_atual.month > 1 else 12, 1)
+        """Gera o relatório 4 com lucro líquido, entradas e resultados não operacionais.
 
-        # Chamar funções de indicadores
+        Args:
+            mes_atual: Data do mês atual para o cálculo.
+            mes_anterior: Data do mês anterior para análise horizontal (opcional).
+
+        Returns:
+            Lista de dicionários contendo categorias e subcategorias, junto com notas.
+        """
+        # Calcula mês anterior automaticamente se não for passado
+        if mes_anterior is None:
+            mes_anterior = mes_atual - relativedelta(months=1)
+
+        # Chamar funções de indicadores para o mês atual
         lucro_liquido_resultado = self.indicadores.calcular_lucro_liquido_fc(mes_atual)
         entradas_nao_operacionais_resultado = self.indicadores.calcular_entradas_nao_operacionais_fc(mes_atual)
-        resultados_nao_operacionais = self.indicadores.calcular_resultados_nao_operacionais_fc(mes_atual)
+        resultados_nao_operacionais_resultado = self.indicadores.calcular_resultados_nao_operacionais_fc(mes_atual)
 
-        # Extrair valores, tratando None e NaN explicitamente
+        # Chamar funções de indicadores para o mês anterior
+        lucro_liquido_anterior_resultado = self.indicadores.calcular_lucro_liquido_fc(mes_anterior)
+        entradas_nao_operacionais_anterior_resultado = self.indicadores.calcular_entradas_nao_operacionais_fc(mes_anterior)
+        resultados_nao_operacionais_anterior_resultado = self.indicadores.calcular_resultados_nao_operacionais_fc(mes_anterior)
+
+        # Extrair valores, tratando None e NaN
         def get_valor(categoria: str, resultado: List[Dict[str, Any]], default: float = 0.0) -> float:
             valor = next((r['valor'] for r in resultado if r['categoria'] == categoria), default)
-            return self.safe_float(valor, default)
+            return safe_float(valor, default)
 
+        # Valores do mês atual
         receita_atual = get_valor('Receita', lucro_liquido_resultado)
         custos_variaveis_atual = get_valor('Custos Variáveis', lucro_liquido_resultado)
         despesas_fixas_atual = get_valor('Despesas Fixas', lucro_liquido_resultado)
         investimentos_atual = get_valor('Investimentos', lucro_liquido_resultado)
-        lucro_liquido_atual = self.safe_float(receita_atual - custos_variaveis_atual - despesas_fixas_atual - investimentos_atual)
+        lucro_liquido_atual = safe_float(receita_atual - custos_variaveis_atual - despesas_fixas_atual - investimentos_atual)
 
-        entradas_nao_operacionais_total = sum(self.safe_float(e["total_valor"]) for e in entradas_nao_operacionais_resultado) if entradas_nao_operacionais_resultado else 0
-        resultados_nao_operacionais_total = sum(self.safe_float(r["total_valor"]) for r in resultados_nao_operacionais) if resultados_nao_operacionais else 0
+        entradas_nao_operacionais_total = sum(safe_float(e["total_valor"]) for e in entradas_nao_operacionais_resultado)
+        resultados_nao_operacionais_total = sum(safe_float(r["total_valor"]) for r in resultados_nao_operacionais_resultado)
 
-        # Análise Vertical (AV) do Lucro Líquido
-        av_lucro_liquido = self.safe_float((lucro_liquido_atual / receita_atual) * 100, 0) if receita_atual else 0
-        av_lucro_liquido = round(av_lucro_liquido, 2)
+        # Valores do mês anterior
+        receita_anterior = get_valor('Receita', lucro_liquido_anterior_resultado)
+        lucro_liquido_anterior = safe_float(
+            receita_anterior - 
+            get_valor('Custos Variáveis', lucro_liquido_anterior_resultado) - 
+            get_valor('Despesas Fixas', lucro_liquido_anterior_resultado) - 
+            get_valor('Investimentos', lucro_liquido_anterior_resultado)
+        )
+        entradas_nao_operacionais_anterior_total = sum(safe_float(e["total_valor"]) for e in entradas_nao_operacionais_anterior_resultado)
+        resultados_nao_operacionais_anterior_total = sum(safe_float(r["total_valor"]) for r in resultados_nao_operacionais_anterior_resultado)
 
-        # Calcular soma total para representatividade (usar valores absolutos para evitar problemas com negativos)
-        lucro_liquido_subcategorias_total = sum(abs(self.safe_float(r["valor"])) for r in lucro_liquido_resultado) if lucro_liquido_resultado else 0
-        entradas_nao_operacionais_subcategorias_total = sum(abs(self.safe_float(e["total_valor"])) for e in entradas_nao_operacionais_resultado) if entradas_nao_operacionais_resultado else 0
-        resultados_nao_operacionais_subcategorias_total = sum(abs(self.safe_float(r["total_valor"])) for r in resultados_nao_operacionais) if resultados_nao_operacionais else 0  # Soma dos valores absolutos das subcategorias
+        # Calcular subcategorias com "Outras categorias"
+        lucro_liquido_categorias = calcular_outras_categorias(
+            items=lucro_liquido_resultado,
+            items_anterior=lucro_liquido_anterior_resultado,
+            total_atual=lucro_liquido_atual,
+            total_anterior=lucro_liquido_anterior,
+            receita_total=receita_atual,
+            chave_valor="valor",
+            chave_nome="categoria",
+            top_n=3,
+            usar_valor_abs=False  # Ordenação natural para Receita, Custos, Despesas, Investimentos
+        )
 
-        # Construir subcategorias para Lucro Líquido com representatividade
-        lucro_liquido_categorias = [
-            {
-                "subcategoria": r["categoria"],
-                "valor": self.safe_float(r["valor"]),
-                "av": round(self.safe_float(r["av"]), 2),
-                "ah": round(self.safe_float(r["ah"]), 2),
-                "representatividade": round(self.safe_float((abs(self.safe_float(r["valor"])) / lucro_liquido_subcategorias_total) * 100), 2)
-                                     if lucro_liquido_subcategorias_total != 0 else 0
-            } for r in lucro_liquido_resultado
-        ]
+        entradas_nao_operacionais_categorias = calcular_outras_categorias(
+            items=[{"categoria_nivel_3": e["categoria_nivel_3"], "valor": e["total_valor"], "av": e["av"], "ah": e["ah"]} 
+                   for e in entradas_nao_operacionais_resultado],
+            items_anterior=[{"categoria_nivel_3": e["categoria_nivel_3"], "valor": e["total_valor"], "av": e["av"], "ah": e["ah"]} 
+                            for e in entradas_nao_operacionais_anterior_resultado],
+            total_atual=entradas_nao_operacionais_total,
+            total_anterior=entradas_nao_operacionais_anterior_total,
+            receita_total=receita_atual,
+            chave_valor="valor",
+            chave_nome="categoria_nivel_3",
+            top_n=3,
+            usar_valor_abs=True  # Ordenação por valor absoluto
+        )
 
-        # Construir subcategorias para Entradas Não Operacionais com representatividade
-        entradas_nao_operacionais_categorias = [
-            {
-                "subcategoria": e["categoria_nivel_3"],
-                "valor": self.safe_float(e["total_valor"]),
-                "av": round(self.safe_float(e["av"]), 2),
-                "ah": round(self.safe_float(e["ah"]), 2),
-                "representatividade": round(self.safe_float((abs(self.safe_float(e["total_valor"])) / entradas_nao_operacionais_subcategorias_total) * 100), 2)
-                                     if entradas_nao_operacionais_subcategorias_total != 0 else 0
-            } for e in entradas_nao_operacionais_resultado
-        ]
+        resultados_nao_operacionais_categorias = calcular_outras_categorias(
+            items=[{"nivel_1": r["nivel_1"], "valor": r["total_valor"], "av": r["av"], "ah": r["ah"]} 
+                   for r in resultados_nao_operacionais_resultado],
+            items_anterior=[{"nivel_1": r["nivel_1"], "valor": r["total_valor"], "av": r["av"], "ah": r["ah"]} 
+                            for r in resultados_nao_operacionais_anterior_resultado],
+            total_atual=resultados_nao_operacionais_total,
+            total_anterior=resultados_nao_operacionais_anterior_total,
+            receita_total=receita_atual,
+            chave_valor="valor",
+            chave_nome="nivel_1",
+            top_n=3,
+            usar_valor_abs=True  # Ordenação por valor absoluto
+        )
 
-        # Construir subcategorias para Resultados Não Operacionais com representatividade
-        resultados_nao_operacionais_categorias = [
-            {
-                "subcategoria": r["nivel_1"],
-                "valor": self.safe_float(r["total_valor"]),
-                "av": round(self.safe_float(r["av"]), 2),
-                "ah": round(self.safe_float(r["ah"]), 2),
-                "representatividade": round(self.safe_float((abs(self.safe_float(r["total_valor"])) / resultados_nao_operacionais_subcategorias_total) * 100), 2)
-                                    if resultados_nao_operacionais_subcategorias_total != 0 else 0
-            } for r in resultados_nao_operacionais
-        ]
+        # Identificar a subcategoria mais representativa
+        primeira_cat_entradas = max(
+            entradas_nao_operacionais_categorias, key=lambda x: x['representatividade'], default={'subcategoria': 'N/A'}
+        )['subcategoria']
+        primeira_cat_resultado = max(
+            resultados_nao_operacionais_categorias, key=lambda x: x['representatividade'], default={'subcategoria': 'N/A'}
+        )['subcategoria']
 
-        # Identificar a subcategoria mais representativa de Entradas Não Operacionais
-        entradas_ordenadas = sorted(entradas_nao_operacionais_categorias, key=lambda x: x['representatividade'], reverse=True)
-        primeira_cat_entradas = entradas_ordenadas[0]['subcategoria'] if entradas_ordenadas else "N/A"
+        # Calcular AV e AH para as categorias
+        av_lucro_liquido = round(safe_float((lucro_liquido_atual / receita_atual) * 100), 2) if receita_atual else 0
+        av_entradas_nao_operacionais = round(safe_float((entradas_nao_operacionais_total / receita_atual) * 100), 2) if receita_atual else 0
+        av_resultados_nao_operacionais = round(safe_float((resultados_nao_operacionais_total / receita_atual) * 100), 2) if receita_atual else 0
 
-        # Identificar a subcategoria mais representativa de Resultados Não Operacionais
-        resultado_ordenado = sorted(resultados_nao_operacionais_categorias, key=lambda x: x['representatividade'], reverse=True)
-        primeira_cat_resultado = resultado_ordenado[0]['subcategoria'] if resultado_ordenado else "N/A"
-
-        # Calcular a análise horizontal (AH) para Lucro Líquido (média dos 'ah' das subcategorias)
-        lucro_liquido_ah = round(sum(self.safe_float(r.get('ah', 0)) for r in lucro_liquido_resultado) / len(lucro_liquido_resultado), 2) if lucro_liquido_resultado else 0
+        lucro_liquido_ah = round(
+            safe_float(((lucro_liquido_atual / lucro_liquido_anterior - 1) * 100)), 2) if lucro_liquido_anterior != 0 else 0
+        entradas_ah = round(
+            safe_float(((entradas_nao_operacionais_total / entradas_nao_operacionais_anterior_total - 1) * 100)), 2
+        ) if entradas_nao_operacionais_anterior_total != 0 else 0
+        resultados_ah = round(
+            safe_float(((resultados_nao_operacionais_total / resultados_nao_operacionais_anterior_total - 1) * 100)), 2
+        ) if resultados_nao_operacionais_anterior_total != 0 else 0
 
         # Notas automatizadas
         notas_automatizadas = (
             f"Já o Lucro Líquido, dados os indicadores anteriores, fechou em R$ {lucro_liquido_atual:,.2f} "
-            f"({av_lucro_liquido}% da Receita Total), uma variação de {lucro_liquido_ah}% em relação ao ano anterior. "
+            f"({av_lucro_liquido}% da Receita Total), uma variação de {lucro_liquido_ah}% em relação ao mês anterior. "
             f"As Entradas Não Operacionais fecharam com R$ {entradas_nao_operacionais_total:,.2f} "
-            f"({round(self.safe_float(entradas_nao_operacionais_total / receita_atual * 100), 2) if receita_atual else 0}% da Receita Total), "
+            f"({av_entradas_nao_operacionais}% da Receita Total), "
             f"com peso mais concentrado na categoria {primeira_cat_entradas}. "
             f"O Resultado Não Operacional fechou em R$ {resultados_nao_operacionais_total:,.2f} "
-            f"({round(self.safe_float(resultados_nao_operacionais_total / receita_atual * 100), 2) if receita_atual else 0}% da Receita Total), "
+            f"({av_resultados_nao_operacionais}% da Receita Total), "
             f"com peso mais concentrado na categoria {primeira_cat_resultado}."
         )
 
-        # Verifica se não há dados relevantes (totais zero ou listas vazias)
+        # Verifica se não há dados relevantes
         if (not lucro_liquido_resultado or lucro_liquido_atual == 0) and \
            (not entradas_nao_operacionais_resultado or entradas_nao_operacionais_total == 0) and \
-           (not resultados_nao_operacionais or resultados_nao_operacionais_total == 0):
+           (not resultados_nao_operacionais_resultado or resultados_nao_operacionais_total == 0):
             notas_automatizadas = "Não há dados disponíveis para o período selecionado."
 
         return [
             {
                 "categoria": "Lucro Líquido",
                 "valor": lucro_liquido_atual,
+                "av_categoria": av_lucro_liquido,
                 "subcategorias": lucro_liquido_categorias,
             },
             {
                 "categoria": "Entradas Não Operacionais",
                 "valor": entradas_nao_operacionais_total,
+                "av_categoria": av_entradas_nao_operacionais,
                 "subcategorias": entradas_nao_operacionais_categorias,
             },
-            
             {
                 "categoria": "Resultados Não Operacionais",
                 "valor": resultados_nao_operacionais_total,
+                "av_categoria": av_resultados_nao_operacionais,
                 "subcategorias": resultados_nao_operacionais_categorias,
             }
         ], {

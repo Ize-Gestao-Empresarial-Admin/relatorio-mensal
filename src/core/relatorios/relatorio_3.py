@@ -1,7 +1,9 @@
-#src/core/relatorios/relatorio_.py
+# src/core/relatorios/relatorio3_.py
 from datetime import date
 from typing import Optional, List, Dict, Any
 from src.core.indicadores import Indicadores
+from dateutil.relativedelta import relativedelta
+from src.core.utils import calcular_outras_categorias, safe_float
 
 class Relatorio3:
     def __init__(self, indicadores: Indicadores, nome_cliente: str):
@@ -9,108 +11,103 @@ class Relatorio3:
         self.nome_cliente = nome_cliente
 
     def gerar_relatorio(self, mes_atual: date, mes_anterior: Optional[date] = None) -> List[Dict[str, Any]]:
-        # Calcular mes_anterior se não fornecido
-        if mes_anterior is None:
-            mes_anterior = date(mes_atual.year if mes_atual.month > 1 else mes_atual.year - 1,
-                                mes_atual.month - 1 if mes_atual.month > 1 else 12, 1)
+        """Gera o relatório 3 com lucro operacional, investimentos e suas representatividades.
 
+        Args:
+            mes_atual: Data do mês atual para o cálculo.
+            mes_anterior: Data do mês anterior para análise horizontal (opcional).
+
+        Returns:
+            Lista de dicionários contendo categorias e subcategorias, junto com notas.
+        """
+        # Calcula mês anterior automaticamente se não for passado
+        if mes_anterior is None:
+            mes_anterior = mes_atual - relativedelta(months=1)
+        
         # Chamar funções de indicadores
         lucro_operacional_resultado = self.indicadores.calcular_lucro_operacional_fc(mes_atual, mes_anterior)
         investimentos_resultado = self.indicadores.calcular_investimentos_fc(mes_atual, mes_anterior)
+        lucro_operacional_anterior_resultado = self.indicadores.calcular_lucro_operacional_fc(mes_anterior, None)
+        investimentos_anterior_resultado = self.indicadores.calcular_investimentos_fc(mes_anterior, None)
 
         # Extrair valores, tratando None explicitamente
         def get_valor(categoria: str, resultado: List[Dict[str, Any]], default: float = 0.0) -> float:
             valor = next((r['valor'] for r in resultado if r['categoria'] == categoria), default)
-            return valor if valor is not None else default
+            return safe_float(valor, default)
 
+        # Valores do mês atual
         receita_atual = get_valor('Receita', lucro_operacional_resultado)
         custos_variaveis_atual = get_valor('Custos Variáveis', lucro_operacional_resultado)
         despesas_fixas_atual = get_valor('Despesas Fixas', lucro_operacional_resultado)
         lucro_operacional_atual = receita_atual - custos_variaveis_atual - despesas_fixas_atual
-        investimentos_atual = sum(r['valor'] if r['valor'] is not None else 0 for r in investimentos_resultado)
+        investimentos_atual = sum(safe_float(r['valor']) for r in investimentos_resultado)
 
+        # Valores do mês anterior
+        receita_anterior = get_valor('Receita', lucro_operacional_anterior_resultado)
+        custos_variaveis_anterior = get_valor('Custos Variáveis', lucro_operacional_anterior_resultado)
+        despesas_fixas_anterior = get_valor('Despesas Fixas', lucro_operacional_anterior_resultado)
+        lucro_operacional_anterior = receita_anterior - custos_variaveis_anterior - despesas_fixas_anterior
+        investimentos_anterior = sum(abs(safe_float(r['valor'])) for r in investimentos_anterior_resultado)
 
-        # Calcular a soma total das subcategorias de Lucro Operacional
-        lucro_operacional_subcategorias_total = sum(abs(r["valor"]) if r["valor"] is not None else 0 for r in lucro_operacional_resultado) if lucro_operacional_resultado else 0
-        # Calcular a soma total das subcategorias de Investimentos
-        investimentos_subcategorias_total = sum(abs(r["valor"]) if r["valor"] is not None else 0 for r in investimentos_resultado) if investimentos_resultado else 0
+        # Calcular subcategorias com "Outras categorias" para Lucro Operacional
+        lucro_operacional_categorias = calcular_outras_categorias(
+            items=lucro_operacional_resultado,
+            items_anterior=lucro_operacional_anterior_resultado,
+            total_atual=lucro_operacional_atual,
+            total_anterior=lucro_operacional_anterior,
+            receita_total=receita_atual,
+            chave_valor="valor",
+            chave_nome="categoria",
+            top_n=3,
+            usar_valor_abs=False  # Ordenação natural para Receita, Custos, Despesas
+        )
 
-        # Construir subcategorias para Lucro Operacional com representatividade
-        lucro_operacional_categorias = [
-            {
-                "subcategoria": r["categoria"],
-                "valor": r["valor"] if r["valor"] is not None else 0,
-                "av": round(r["av"], 2) if r["av"] is not None else 0,
-                "ah": round(r["ah"], 2) if r["ah"] is not None else 0,
-                "representatividade": round(abs(r["valor"]) / lucro_operacional_subcategorias_total * 100, 2)
-                if lucro_operacional_subcategorias_total != 0 and r["valor"] is not None else 0
-            } for r in lucro_operacional_resultado [:3]
-        ]
-
-        # Construir subcategorias para Investimentos, ordenadas do maior para o menor (em valor absoluto), limitando a 3
-        investimentos_categorias = [
-            {
-                "subcategoria": i["categoria"],
-                "valor": i["valor"] if i["valor"] is not None else 0,
-                "av": round(i["av"], 2) if i["av"] is not None else 0,
-                "ah": round(i["ah"], 2) if i["ah"] is not None else 0,
-                "representatividade": round(abs(i["valor"]) / investimentos_subcategorias_total * 100, 2)
-                if investimentos_subcategorias_total != 0 and i["valor"] is not None else 0
-            } for i in sorted(investimentos_resultado, key=lambda x: abs(x["valor"] if x["valor"] is not None else 0), reverse=True)[:3]
-        ]
-
-        ####### SEÇÃO NOTAS AUTOMATIZADAS ########
-
-        # Calcula valores do mês anterior para análise horizontal (AH)
-        lucro_operacional_anterior = 0
-        investimentos_anterior = 0
-        if mes_anterior:
-            lucro_operacional_anterior_resultado = self.indicadores.calcular_lucro_operacional_fc(mes_anterior, None)
-            investimentos_anterior_resultado = self.indicadores.calcular_investimentos_fc(mes_anterior, None)
-            
-            receita_anterior = get_valor('Receita', lucro_operacional_anterior_resultado)
-            custos_variaveis_anterior = get_valor('Custos Variáveis', lucro_operacional_anterior_resultado)
-            despesas_fixas_anterior = get_valor('Despesas Fixas', lucro_operacional_anterior_resultado)
-            lucro_operacional_anterior = receita_anterior - custos_variaveis_anterior - despesas_fixas_anterior
-            investimentos_anterior = sum(abs(r['valor']) if r['valor'] is not None else 0 for r in investimentos_anterior_resultado) if investimentos_anterior_resultado else 0
+        # Calcular subcategorias com "Outras categorias" para Investimentos
+        investimentos_categorias = calcular_outras_categorias(
+            items=investimentos_resultado,
+            items_anterior=investimentos_anterior_resultado,
+            total_atual=investimentos_atual,
+            total_anterior=investimentos_anterior,
+            receita_total=receita_atual,
+            chave_valor="valor",
+            chave_nome="categoria",
+            top_n=3,
+            usar_valor_abs=True  # Ordenação por valor absoluto
+        )
 
         # Calcula AV para lucro operacional
         lucro_operacional_av = round((lucro_operacional_atual / receita_atual * 100) if receita_atual != 0 else 0, 2)
-        #round((despesas_fixas_total / receita_total * 100) if receita_total != 0 else 0, 2)
 
         # Calcula AH para lucro operacional
-        lucro_operacional_ah = round(((lucro_operacional_atual / lucro_operacional_anterior - 1) * 100) if lucro_operacional_anterior != 0 else 0, 2)
+        lucro_operacional_ah = round(
+            ((lucro_operacional_atual / lucro_operacional_anterior - 1) * 100) if lucro_operacional_anterior != 0 else 0, 2
+        )
 
-        # Calcula AH para investimentos
-        investimentos_ah = round(((investimentos_atual / investimentos_anterior - 1) * 100) if investimentos_anterior != 0 else 0, 3)
+        # Calcula AV para investimentos
         investimentos_av = round((investimentos_atual / receita_atual * 100) if receita_atual != 0 else 0, 2)
 
+        # Calcula AH para investimentos
+        investimentos_ah = round(
+            ((investimentos_atual / investimentos_anterior - 1) * 100) if investimentos_anterior != 0 else 0, 2
+        )
+
         # Obtém a categoria mais representativa dos investimentos
-        categoria_maior_peso_investimentos_1 = investimentos_categorias[0]["subcategoria"] if investimentos_categorias else "N/A"
+        categoria_maior_peso_investimentos = max(
+            investimentos_categorias, key=lambda x: x['representatividade'], default={'subcategoria': 'N/A'}
+        )['subcategoria']
 
-        # Monta o dicionário com os valores calculados
-        notas_automatizadas_valores = {
-            "lucro_operacional": lucro_operacional_atual,
-            "lucro_operacional_av": lucro_operacional_av,
-            "lucro_operacional_ah": lucro_operacional_ah,
-            "investimentos": investimentos_atual,
-            "investimentos_ah": investimentos_ah,
-            'investimentos_av': investimentos_av,
-            "categoria_maior_peso_investimentos_1": categoria_maior_peso_investimentos_1,
-        }
-
-        # Formata a nota automatizada com os valores calculados
+        # Formata a nota automatizada
         notas_automatizadas = (
             f"O nosso principal indicador de eficiência da empresa, o Lucro Operacional, fechou em {lucro_operacional_av}% "
             f"(R$ {lucro_operacional_atual:,.2f}) em relação à Receita Total, "
             f"uma variação de {lucro_operacional_ah}% em relação ao mês anterior. "
             f"Nos investimentos, totalizamos R$ {investimentos_atual:,.2f}, {investimentos_ah}% em relação ao mês anterior, "
-            f"com protagonismo da categoria {categoria_maior_peso_investimentos_1}."
+            f"com protagonismo da categoria {categoria_maior_peso_investimentos}."
         )
 
-        # Verifica se não há dados relevantes (listas vazias ou totais zero)
+        # Verifica se não há dados relevantes
         if (not lucro_operacional_resultado or lucro_operacional_atual == 0) and \
-        (not investimentos_resultado or investimentos_atual == 0):
+           (not investimentos_resultado or investimentos_atual == 0):
             notas_automatizadas = "Não há dados disponíveis para o período selecionado."
 
         return [

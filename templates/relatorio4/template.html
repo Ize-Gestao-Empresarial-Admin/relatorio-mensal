@@ -17,7 +17,7 @@
 
         /* Contêiner principal para o conteúdo */
         .main-content {
-            padding: 20px 20px 140px 20px; /* Uniforme, conforme sua correção */
+            padding: 20px 20px 140px 20px; /* Uniforme */
             box-sizing: border-box;
             position: relative;
         }
@@ -134,25 +134,7 @@
             height: 7px;
             margin-right: 3px;
         }
-
-        footer {
-            position: fixed;
-            bottom: 3mm; /* Dentro da margem inferior de 4mm */
-            left: 10mm;
-            right: 10mm;
-            width: calc(100% - 20mm);
-            text-align: center;
-            z-index: 9999; /* Garante que fique acima de tudo */
-            height: 20px; /* Altura ajustada */
-        }
-
-        footer img {
-            height: 20px; /* Dentro da margem, visível */
-            max-width: 100%;
-            display: block;
-            margin: 0 auto;
-        }
-
+        
         .header-accent {
             width: 100px;
             height: 6px;
@@ -202,10 +184,21 @@
             font-size: 16px;
             line-height: 1.4;
         }
+        
+        .fixed-footer-bg {
+            position: fixed;
+            bottom: -130px;
+            left: 45%;
+            transform: translateX(-50%);
+            z-index: -1;
+            width: 80px;
+            height: auto;
+        }
     </style>
 </head>
 <body>
     <div class="main-content">
+        <img src="data:image/svg+xml;base64,{{ logo_svg }}" class="fixed-footer-bg" alt="Footer Logo"/>
         <!-- barra laranja acima da linha -->
         <div class="header-accent"></div>
         <div class="report-header"></div>
@@ -224,14 +217,14 @@
                 <div class="section-title">Lucro Líquido</div>
                 {% set lucro_colors = ['#007F4F', '#33B283', '#7FCEB1', '#CCECE0'] %}
                 <div class="bar-container">
-                {% for cat in data.lucro_liquido_categories %}
-                    <div class="bar-segment"
-                        style="width: {{ cat.barra_rep }}%; background-color: {{ lucro_colors[loop.index0 % lucro_colors|length] }};">
-                    </div>
-                {% endfor %}
+                    {% for cat in data.lucro_liquido_categories %}
+                        <div class="bar-segment"
+                             style="width: {{ cat.barra_rep }}%; background-color: {{ lucro_colors[loop.index0 % lucro_colors|length] }};">
+                        </div>
+                    {% endfor %}
                 </div>
                 <div class="bar-total">
-                {{ '%.0f'|format(data.represent_lucro_liquido) }}%
+                    {{ '%.0f'|format(data.represent_lucro_liquido) }}%
                 </div>
                 <div class="value">{{ data.lucro_liquido|format_currency }}</div>
                 <table class="cat-table">
@@ -244,45 +237,35 @@
                     </colgroup>
                     <thead>
                         <tr>
-                        <th></th>
-                        <th>Categoria</th>
-                        <th>Valor</th>
-                        <th>AV</th>
-                        <th>AH</th>
+                            <th></th>
+                            <th>Categoria</th>
+                            <th>Valor</th>
+                            <th>AV</th>
+                            <th>AH</th>
                         </tr>
                     </thead>
                     <tbody>
-                    {% for cat in data.lucro_liquido_categories %}
-                    <tr>
-                        <td><div class="legend-box" style="background-color:{{ lucro_colors[loop.index0 % lucro_colors|length] }};"></div></td>
-                        <td>{{ cat.name }}</td>
-                        <td>{{ cat.value|format_currency }}</td>
-                        <td>
-                            {% if cat.name == "Outras categorias" %}
-                                -
-                            {% else %}
-                                {{ cat.representatividade|format_percentage }}
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if cat.name == "Outras categorias" %}
-                                -
-                            {% else %}
-                                {% if cat.variacao >= 0 %}
-                                    <span class="var-up"> 
-                                    <img src="data:image/svg+xml;base64,{{ seta_b64 }}" alt="↑"/>
-                                    {{ cat.variacao|format_percentage }}
-                                    </span>
-                                {% else %}
-                                    <span class="var-down">
-                                    <img src="data:image/svg+xml;base64,{{ seta_b64_2 }}" alt="↓"/>
-                                    {{ cat.variacao|format_percentage }}
-                                    </span>
-                                {% endif %}
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
+                        {% for cat in data.lucro_liquido_categories %}
+                            <tr>
+                                <td><div class="legend-box" style="background-color:{{ lucro_colors[loop.index0 % lucro_colors|length] }};"></div></td>
+                                <td>{{ cat.name }}</td>
+                                <td>{{ cat.value|format_currency }}</td>
+                                <td>{{ cat.representatividade|format_percentage }}</td>
+                                <td>
+                                    {% if cat.variacao >= 0 %}
+                                        <span class="var-up"> 
+                                            <img src="data:image/svg+xml;base64,{{ seta_b64 }}" alt="↑"/>
+                                            {{ cat.variacao|format_percentage }}
+                                        </span>
+                                    {% else %}
+                                        <span class="var-down">
+                                            <img src="data:image/svg+xml;base64,{{ seta_b64_2 }}" alt="↓"/>
+                                            {{ cat.variacao|format_percentage }}
+                                        </span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
                     </tbody>
                 </table>
             </div>
@@ -291,14 +274,14 @@
                 <div class="section-title">Resultados Não Operacionais</div>
                 {% set resultados_colors = ['#E75F00', '#FF8733', '#FFB37F', '#ebebeb'] %}
                 <div class="bar-container">
-                {% for cat in data.resultados_nao_operacionais_categories %}
-                    <div class="bar-segment"
-                        style="width: {{ cat.barra_rep }}%; background-color: {{ resultados_colors[loop.index0 % resultados_colors|length] }};">
-                    </div>
-                {% endfor %}
+                    {% for cat in data.resultados_nao_operacionais_categories %}
+                        <div class="bar-segment"
+                             style="width: {{ cat.barra_rep }}%; background-color: {{ resultados_colors[loop.index0 % resultados_colors|length] }};">
+                        </div>
+                    {% endfor %}
                 </div>
                 <div class="bar-total">
-                {{ '%.0f'|format(data.represent_resultados_nao_operacionais) }}%
+                    {{ '%.0f'|format(data.represent_resultados_nao_operacionais) }}%
                 </div>
                 <div class="value">{{ data.resultados_nao_operacionais|format_currency }}</div>
                 <table class="cat-table">
@@ -311,56 +294,43 @@
                     </colgroup>
                     <thead>
                         <tr>
-                        <th></th>
-                        <th>Categoria</th>
-                        <th>Valor</th>
-                        <th>AV</th>
-                        <th>AH</th>
+                            <th></th>
+                            <th>Categoria</th>
+                            <th>Valor</th>
+                            <th>AV</th>
+                            <th>AH</th>
                         </tr>
                     </thead>
                     <tbody>
-                    {% for cat in data.resultados_nao_operacionais_categories %}
-                    <tr>
-                        <td><div class="legend-box" style="background-color:{{ resultados_colors[loop.index0 % resultados_colors|length] }};"></div></td>
-                        <td>{{ cat.name }}</td>
-                        <td>{{ cat.value|format_currency }}</td>
-                        <td>
-                            {% if cat.name == "Outras categorias" %}
-                                -
-                            {% else %}
-                                {{ cat.representatividade|format_percentage }}
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if cat.name == "Outras categorias" %}
-                                -
-                            {% else %}
-                                {% if cat.variacao >= 0 %}
-                                    <span class="var-up"> 
-                                    <img src="data:image/svg+xml;base64,{{ seta_b64_3 }}" alt="↑"/>
-                                    {{ cat.variacao|format_percentage }}
-                                    </span>
-                                {% else %}
-                                    <span class="var-down">
-                                    <img src="data:image/svg+xml;base64,{{ seta_b64_4 }}" alt="↓"/>
-                                    {{ cat.variacao|format_percentage }}
-                                    </span>
-                                {% endif %}
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
+                        {% for cat in data.resultados_nao_operacionais_categories %}
+                            <tr>
+                                <td><div class="legend-box" style="background-color:{{ resultados_colors[loop.index0 % resultados_colors|length] }};"></div></td>
+                                <td>{{ cat.name }}</td>
+                                <td>{{ cat.value|format_currency }}</td>
+                                <td>{{ cat.representatividade|format_percentage }}</td>
+                                <td>
+                                    {% if cat.variacao >= 0 %}
+                                        <span class="var-up"> 
+                                            <img src="data:image/svg+xml;base64,{{ seta_b64_3 }}" alt="↑"/>
+                                            {{ cat.variacao|format_percentage }}
+                                        </span>
+                                    {% else %}
+                                        <span class="var-down">
+                                            <img src="data:image/svg+xml;base64,{{ seta_b64_4 }}" alt="↓"/>
+                                            {{ cat.variacao|format_percentage }}
+                                        </span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
                     </tbody>
                 </table>
             </div>
         </div>
         <div class="notes-title">Notas</div>
         <div class="box-frame">
-            <div class="notes-content">{{ data.nota_consultor | safe }}</div>
+            <div class="notes-content">{{ data.notas }}</div>
         </div>
     </div>
-    <footer>
-        {{ logo_svg | safe }}
-    </footer>
 </body>
 </html>

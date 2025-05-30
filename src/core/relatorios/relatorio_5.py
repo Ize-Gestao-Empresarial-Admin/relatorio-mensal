@@ -2,6 +2,7 @@
 from datetime import date
 from typing import Optional, List, Dict, Any
 from src.core.indicadores import Indicadores
+from dateutil.relativedelta import relativedelta
 
 class Relatorio5:
     def __init__(self, indicadores: Indicadores, nome_cliente: str):
@@ -18,10 +19,9 @@ class Relatorio5:
         Returns:
             Lista de dicionários com categorias, valores, subcategorias e análise temporal.
         """
-        # Calcular mes_anterior se não fornecido
+         # Calcula mês anterior automaticamente se não for passado
         if mes_anterior is None:
-            mes_anterior = date(mes_atual.year if mes_atual.month > 1 else mes_atual.year - 1,
-                                mes_atual.month - 1 if mes_atual.month > 1 else 12, 1)
+            mes_anterior = mes_atual - relativedelta(months=1)
 
         # Parte 1: Cálculo das categorias principais (Saídas Não Operacionais e Geração de Caixa)
         saidas_nao_operacionais_resultado = self.indicadores.calcular_saidas_nao_operacionais_fc(mes_atual)
