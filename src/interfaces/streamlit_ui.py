@@ -143,7 +143,7 @@ def main():
             "Agrupamentos",
             agrupamentos_opcoes,
             default=["Fluxo de Caixa"],
-            help="Os relatórios 5, 6 e 7 estão em desenvolvimento e podem não exibir dados completos."
+            help="VERSÃO BETA: Os relatórios 5 (fechamento FC) e 7 (Indicadores) estão em desenvolvimento e podem não exibir dados completos."
         )
         
         # Mapear agrupamentos para relatórios
@@ -156,7 +156,7 @@ def main():
             relatorios_selecionados.append("Relatório 8")
         
         if agrupamentos_selecionados:
-            st.markdown("<span class='dev-note'>Nota: Os relatórios 5 e 7 estão em desenvolvimento.</span>", unsafe_allow_html=True)
+            st.markdown("<span class='dev-note'>Versão BETA: Os relatórios 5 (fechamento FC) e 7 (Indicadores) estão em desenvolvimento.</span>", unsafe_allow_html=True)
     else:
         relatorios_selecionados = [
             "Relatório 1", "Relatório 2", "Relatório 3", "Relatório 4",
@@ -164,7 +164,7 @@ def main():
         ]
         if incluir_parecer:
             relatorios_selecionados.append("Relatório 8")
-        st.info("O relatório completo incluirá todas as 7 seções principais. Os relatórios 5 e 7 estão em desenvolvimento.")
+        st.info("Versão BETA: O relatório completo incluirá todas as 7 seções principais. Os relatórios 5 (fechamento FC) e 7 (Indicadores) estão em desenvolvimento.")
     
     analise_text = render_parecer_tecnico(relatorios_selecionados)
     
