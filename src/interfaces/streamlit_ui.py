@@ -39,6 +39,11 @@ def main():
     # Estilo personalizado
     st.markdown("""
     <style>
+    
+    ._container_1upux_1 {
+        display: none;
+    }
+    
     .main-header { font-size: 2.5rem; color: #0f52ba; text-align: center; margin-bottom: 2rem; }
     .subheader { font-size: 1.5rem; color: #333; margin-top: 1.5rem; margin-bottom: 1rem; }
     .dev-note { font-style: italic; color: #666; font-size: 0.9rem; }

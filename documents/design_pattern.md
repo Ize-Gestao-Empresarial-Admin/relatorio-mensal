@@ -2,121 +2,138 @@
 
 ## Explicação da Arquitetura
 
-O sistema segue o **Padrão de Arquitetura em Camadas (Layered Architecture)**, organizando o código em camadas distintas com responsabilidades bem definidas. Esse padrão facilita a separação de preocupações, escalabilidade e manutenção, alinhando-se ao **Princípio da Responsabilidade Única (SRP)** do SOLID.
+O sistema segue o **Padrão de Arquitetura em Camadas (Layered Architecture)**, organizando o código em camadas com responsabilidades bem definidas. Essa estrutura facilita a separação de preocupações, escalabilidade e manutenção, alinhando-se ao **Princípio da Responsabilidade Única (SRP)** do SOLID.
 
 ### Estrutura de Camadas
 
 1. **Camada de Dados (Data Layer)**  
-   - **Localização**: `src/database/`  
+   - **Localização**: database  
    - **Arquivos**: `db_utils.py`  
    - **Responsabilidade**: Gerenciar a conexão com o banco de dados e executar consultas SQL.  
-   - **Exemplo**: `DatabaseConnection` abstrai o acesso ao PostgreSQL, retornando resultados como DataFrames do Pandas.
+   - **Exemplo**: `DatabaseConnection` abstrai o acesso ao banco, retornando resultados para processamento.
 
 2. **Camada de Domínio/Negócio (Business Logic Layer)**  
-   - **Localização**: `src/core/`  
-   - **Arquivos**: `indicadores.py`, `relatorios.py`, `analises.py`  
-   - **Responsabilidade**: Implementar a lógica de negócio principal, como cálculos financeiros, geração de relatórios e análises.  
+   - **Localização**: core  
+   - **Arquivos**: `indicadores.py`, módulos em `relatorios/`  
+   - **Responsabilidade**: Implementar a lógica de negócio principal, como cálculos financeiros e geração de relatórios.  
    - **Exemplo**:
-     - `Indicadores`: Calcula valores a partir do banco (ex.: `calcular_dre`, `calcular_nivel_1`).  
-     - `Relatorios`: Gera relatórios completos (ex.: `gerar_relatorio_1`, `gerar_relatorio_2`).  
-     - `AnalisesFinanceiras`: Fornece métodos de análise (ex.: `calcular_analise_vertical`).
+     - `Indicadores`: Calcula valores a partir do banco (ex.: `calcular_custos_variaveis_fc`, `calcular_lucro_bruto_fc`).  
+     - `Relatorios`: Classes especializadas (ex.: `Relatorio1`-`Relatorio8`) que geram cada tipo de relatório financeiro.
 
 3. **Camada de Apresentação (Presentation Layer)**  
-   - **Localização**: `src/interfaces/`  
-   - **Arquivos**: `streamlit_ui.py`, `graficos.py`  
-   - **Responsabilidade**: Exibir dados ao usuário e gerenciar interações visuais.  
+   - **Localização**: `templates/`, `api.py`
+   - **Responsabilidade**: Formatar e apresentar dados ao usuário, seja via API ou templates HTML.
    - **Exemplo**:
-     - `streamlit_ui.py`: Interface Streamlit para selecionar empresas/meses e mostrar relatórios.  
-     - `graficos.py`: Gera gráficos Plotly (ex.: `grafico_r1`, `grafico_r2`).
+     - Templates HTML para cada tipo de relatório organizados por pasta (ex.: `relatorio1/template.html`)
+     - API REST para acesso aos relatórios via endpoints
 
-4. **Configuração (Configuration Layer)**  
-   - **Localização**: `config/`  
-   - **Arquivos**: `settings.py`  
-   - **Responsabilidade**: Centralizar configurações do sistema, como credenciais do banco.  
-   - **Exemplo**: `DB_CONFIG` define parâmetros de conexão ao PostgreSQL.
+4. **Configuração**  
+   - **Localização**: Arquivos .env, config  
+   - **Responsabilidade**: Centralizar configurações do sistema.
 
 ### Recursos Estáticos
 
-- **Localização**: `static/`
-- **Responsabilidade**: Armazenar arquivos estáticos como imagens, ícones e estilos usados pela Camada de Apresentação.
-- **Exemplo**:
-  - `assets/images/logo.png`: Logo exibido na interface.
-  - `assets/images/relatorio_7_p1.png`: Imagem comercial IZE Relatório 7.
+- **Localização**: assets
+- **Responsabilidade**: Armazenar arquivos estáticos como imagens, ícones e estilos.
+- **Exemplo**: Logos, ícones e imagens de fundo para os relatórios.
 
 ### Princípios e Padrões Adicionais
 
-- **Separação de Responsabilidades (SRP - Single Responsibility Principle)**:
-  - Cada módulo tem uma única responsabilidade clara, reduzindo acoplamento e facilitando testes.
+- **Separação de Responsabilidades**:
+  - Cada módulo tem uma responsabilidade específica, como geração de um tipo específico de relatório.
 
-- **Injeção de Dependências (Dependency Injection)**:
-  - Dependências como `DatabaseConnection` e `Indicadores` são injetadas via construtores, permitindo substituição por mocks em testes (ex.: `Relatorios(indicadores, nome_cliente)`).
+- **Injeção de Dependências**:
+  - As classes de relatório recebem `Indicadores` e outros parâmetros via construtor (ex.: `Relatorio1(indicadores, nome_cliente)`).
 
 - **Modularidade**:
-  - Cada arquivo é independente e pode ser testado ou expandido separadamente, como adicionar novos relatórios ou indicadores.
-
-### Escalabilidade para API
-
-- A lógica de negócio em `core` é reutilizável para uma futura API.
-- Um arquivo `api.py` (a ser criado com FastAPI ou Flask) pode consumir `Relatorios` e `Indicadores` diretamente, mantendo a mesma estrutura.
-
-### Configuração Centralizada
-
-- `config/settings.py` centraliza configurações (ex.: conexão ao banco), evitando duplicação e facilitando ajustes globais.
+  - Cada tipo de relatório é uma classe independente, permitindo desenvolvimento e testes isolados.
 
 ### Fluxo de Dados
 
-1. O usuário interage com `streamlit_ui.py` (Camada de Apresentação).
-2. `streamlit_ui.py` instancia as classes específicas de relatório (como `Relatorio1`, `Relatorio2`, etc.) importadas do pacote `src.core.relatorios`. Cada uma dessas classes de relatório depende de `Indicadores` (Camada de Negócio).
-3. `Indicadores` consulta o banco via `DatabaseConnection` (Camada de Dados).
-4. Os resultados são processados em `core` e retornados para visualização em `interfaces`.
+1. O cliente faz uma requisição ao sistema via Streamlit (em breve API através dos endpoints em api.py).
+2. O Streamlit faz a chamada das classes específicas de relatório (ex.: `Relatorio1`, `Relatorio2`) do pacote `src.core.relatorios`.
+3. Essas classes dependem dos `Indicadores` para obter os dados financeiros.
+4. `Indicadores` consulta o banco via `DatabaseConnection`.
+5. Os resultados são processados, formatados e retornados como JSON ou incorporados em templates HTML para gerar PDFs.
 
-### Benefícios
+### Estrutura Real do Diretório
 
-- **Manutenção**: Alterações em uma camada (ex.: mudar o banco) não afetam as outras.
-- **Testabilidade**: Camadas isoladas permitem testes unitários com mocks (ex.: `pytest` com `unittest.mock`).
-- **Reutilização**: A lógica de `core` pode ser usada em diferentes interfaces (Streamlit, API, CLI).
-
-### Estrutura de Diretórios
-
-``` python
-v2_relatorio_mensal/
-├── static/                 # Diretório para recursos estáticos
-│   ├── images/             # Subdiretório para imagens
-│   │   ├── logo.png        # Logo da empresa 
-│   │   ├── relatorio_7_p1.png  # Ícone para cards
-│   │   └── relatorio_7_p2.png  # Fundo para relatórios
-│   └── icons/             # Subdiretório para ícones
-│       └── icon_ize.png   # Ícone da empresa
-├── config/
-│   └── settings.py         # Configurações centralizadas
-├── data/
-│   └── analises/           # Diretório para arquivos JSON
-│       ├── analise_105_2025-01.json #Exemplo de relatórios do consultor contendo id_cliente e data no nome.
+```
+.
+├── .env                    # Configurações de ambiente
+├── .gitignore              # Arquivos ignorados pelo Git
+├── api.py                  # API REST para acesso aos relatórios
+├── frontend.md             # Documentação da estrutura do frontend
+├── main.py                 # Ponto de entrada da aplicação
+├── packages.txt            # Dependências do sistema
+├── pytest.ini              # Configuração de testes
+├── README.md               # Documentação geral do projeto
+├── requirements.txt        # Dependências Python
+├── saidas.txt              # Log de saídas dos testes
+├── test_relatorio_1.py     # Testes para Relatório 1
+├── test_relatorio_2.py     # Testes para Relatório 2
+├── ...                     # Outros testes de relatórios
+├── .devcontainer/          # Configuração do ambiente de desenvolvimento
+├── .streamlit/             # Configuração do Streamlit (se utilizado)
+├── .vscode/                # Configuração do VS Code
+├── assets/                 # Arquivos estáticos (imagens, ícones)
+├── config/                 # Configurações do sistema
+├── documents/              # Documentação adicional
+│   ├── api.md              # Documentação da API
+│   ├── design_pattern.md   # Padrões de design
+│   └── nova_interface.md   # Especificação da nova interface
+├── outputs/                # PDFs e outros arquivos gerados
 ├── src/
 │   ├── core/
-│   │   ├── indicadores.py  # Cálculos financeiros
-│   │   ├── relatorios/
-│   │   |   ├── __init__.py # Importa e expõe as classes de relatórios disponíveis na aplicação.
-│   │   │   ├── relatorio_1.py # Relatório tipo 1
-│   │   │   ├── relatorio_2.py # Relatório tipo 2
-│   │   │   ├── relatorio_3.py # Relatório tipo 3
-│   │   │   ├── relatorio_4.py # Relatório tipo 4
-│   │   │   ├── relatorio_5.py # Relatório tipo 5
-│   │   │   ├── relatorio_6.py # Relatório tipo 6
-│   │   │   └── relatorio_7.py # Relatório tipo 7
-│   │   └── analises.py     # Análises financeiras (AV, AH)
-│   ├── database/
-│   │   └── db_utils.py     # Conexão e consultas ao banco
-│   ├── interfaces/
-│   │   ├── streamlit_ui.py # Interface Streamlit
-│   │   ├── graficos.py     # Geração de gráficos
-|   |   └── components.py   # Componentes reutilizáveis do Streamlit
-│   └── models/             # (Futuro) Estruturas de dados
-├── tests/
-│   ├── test_indicadores.py # Testes unitários para indicadores
-│   ├── test_relatorios.py  # Testes unitários para relatórios
-│   └── test_analises.py    # Testes unitários para análises
-├── main.py                 # Ponto de entrada do Streamlit
-├── design_pattern.md      # Documentação da arquitetura e padrões de design do sistema
-└── README.md              # Documentação geral
+│   │   ├── indicadores.py  # Lógica de cálculos financeiros
+│   │   └── relatorios/     # Classes dos diferentes tipos de relatórios
+│   │       ├── relatorio_1.py
+│   │       ├── relatorio_2.py
+│   │       ├── ...
+│   │       └── relatorio_8.py
+│   ├── database/           # Camada de acesso a dados
+│   └── interfaces/         # Interfaces com o usuário
+└── templates/              # Templates HTML para renderização dos relatórios
+    ├── base/               # Templates base (cabeçalho, rodapé)
+    ├── relatorio1/
+    ├── relatorio2/
+    ├── ...
+    └── relatorio8/
 ```
+
+### Tipos de Relatórios
+
+O sistema implementa oito tipos diferentes de relatórios financeiros:
+
+1. **Relatório 1**: Análise de Fluxo de Caixa (Receitas e Custos Variáveis)
+2. **Relatório 2**: Análise de Fluxo de Caixa (Lucro Bruto e Despesas Fixas)
+3. **Relatório 3**: Análise de Fluxo de Caixa (Lucro Operacional e Investimentos)
+4. **Relatório 4**: Análise de Fluxo de Caixa (Lucro Líquido e Entradas Não Operacionais)
+5. **Relatório 5**: Fechamento de Análise de Fluxo de Caixa (Saídas Não Operacionais e Geração de Caixa)
+6. **Relatório 6**: Análise por Competência - DRE
+7. **Relatório 7**: Indicadores 
+8. **Relatório 8**: Parecer Técnico (Nota do Consultor)
+
+Cada relatório tem seu próprio template HTML em `/templates/relatorio{n}/` e sua implementação em `/src/core/relatorios/relatorio_{n}.py`.
+
+### API REST
+
+O sistema oferece uma API REST (api.py) com os seguintes endpoints principais:
+
+- **`/clientes`**: Lista todos os clientes disponíveis
+- **`/meses`**: Retorna a lista de meses para seleção
+- **`/relatorio/{tipo}/{id_cliente}/{mes}/{ano}`**: Gera um relatório específico (tipo 1-8)
+- **`/analise/{id_cliente}/{mes}/{ano}`**: Gerencia análises qualitativas (GET, POST, DELETE)
+- **`/gerar-pdf`**: Gera um PDF combinando múltiplos relatórios
+- **`/health`**: Verifica a saúde da API
+
+A API utiliza FastAPI e implementa validação de dados com Pydantic para garantir a integridade das entradas.
+
+### Benefícios da Arquitetura
+
+- **Manutenção**: Alterações em uma camada (como a interface ou o banco de dados) têm impacto mínimo nas outras.
+- **Testabilidade**: Os testes unitários (`test_relatorio_*.py`) podem verificar cada relatório individualmente.
+- **Reutilização**: A lógica de negócio das classes de relatório pode ser usada tanto pela API quanto por outras interfaces.
+- **Extensibilidade**: Novos tipos de relatórios podem ser adicionados seguindo o mesmo padrão.
+
+Esta arquitetura em camadas proporciona uma base sólida para o sistema de Relatórios Mensais, permitindo seu crescimento e adaptação às necessidades do negócio de forma sustentável.

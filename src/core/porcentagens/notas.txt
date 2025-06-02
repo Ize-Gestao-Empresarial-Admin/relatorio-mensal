@@ -1,1 +1,0 @@
-valores que serão inseridos nos gráficos para mostrar a porcentagem de cada categoria em relação ao total

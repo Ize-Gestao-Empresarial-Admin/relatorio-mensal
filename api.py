@@ -6,7 +6,6 @@ from typing import List, Optional, Dict, Any
 from pydantic import BaseModel
 from datetime import date, datetime
 import os
-from sqlalchemy.orm import Session
 import tempfile
 
 from src.core.indicadores import Indicadores
@@ -14,17 +13,18 @@ from src.core.relatorios.relatorio_1 import Relatorio1
 from src.core.relatorios.relatorio_2 import Relatorio2
 from src.core.relatorios.relatorio_3 import Relatorio3
 from src.core.relatorios.relatorio_4 import Relatorio4
-from src.core.relatorios.relatorio_6 import Relatorio5
-from src.core.relatorios.relatorio_5 import Relatorio6
+from src.core.relatorios.relatorio_5 import Relatorio5
+from src.core.relatorios.relatorio_6 import Relatorio6
 from src.core.relatorios.relatorio_7 import Relatorio7
+from src.core.relatorios.relatorio_8 import Relatorio8
 from src.database.db_utils import DatabaseConnection, buscar_clientes, obter_meses
-#from src.interfaces.pdf_generator import PDFGenerator
+from src.rendering.engine import RenderingEngine
 
 app = FastAPI(
     title="API de Relatórios Financeiros",
     description="""
     API para geração de relatórios financeiros para clientes.
-    Suporta 7 tipos de relatórios que podem ser obtidos individualmente ou combinados em um PDF.
+    Suporta 8 tipos de relatórios que podem ser obtidos individualmente ou combinados em um PDF.
     """,
     version="1.0.0",
     docs_url="/docs",
@@ -46,7 +46,7 @@ class RelatorioPdfInput(BaseModel):
     mes: int
     ano: int
     nome_cliente: str
-    relatorios: List[int] = [1, 2, 3, 4, 5, 6, 7]
+    relatorios: List[int] = [1, 2, 3, 4, 5, 6, 7, 8]
     analise_qualitativa: Optional[str] = None
 
 # Helper para obter conexão com banco
@@ -85,15 +85,15 @@ def get_relatorio(
     """
     Gera um relatório financeiro específico para um cliente, mês e ano.
     
-    - **tipo**: Tipo de relatório (1-7)
+    - **tipo**: Tipo de relatório (1-8)
     - **id_cliente**: ID do cliente
     - **mes**: Número do mês (1-12)
     - **ano**: Ano do relatório
     - **mes_anterior**: Se deve incluir comparação com o mês anterior
     """
     # Validação básica
-    if tipo < 1 or tipo > 7:
-        raise HTTPException(status_code=400, detail="Tipo de relatório inválido (deve ser 1-7)")
+    if tipo < 1 or tipo > 8:
+        raise HTTPException(status_code=400, detail="Tipo de relatório inválido (deve ser 1-8)")
     if mes < 1 or mes > 12:
         raise HTTPException(status_code=400, detail="Mês inválido (deve ser 1-12)")
     
@@ -120,24 +120,42 @@ def get_relatorio(
         4: Relatorio4,
         5: Relatorio5,
         6: Relatorio6,
-        7: Relatorio7
+        7: Relatorio7,
+        8: Relatorio8
     }
     
     relatorio_class = relatorio_classes[tipo]
     rel_instance = relatorio_class(indicadores, nome_cliente)
     
     # Gera o relatório
-    if tipo in [1, 2, 3] and mes_anterior:
+    if tipo in [1, 2, 3, 4] and mes_anterior:
         relatorio_data = rel_instance.gerar_relatorio(mes_atual, mes_anterior_data)
     else:
         relatorio_data = rel_instance.gerar_relatorio(mes_atual)
     
     # Adiciona metadados
-    relatorio_data["id_cliente"] = id_cliente
-    relatorio_data["tipo_relatorio"] = tipo
-    relatorio_data["data_geracao"] = datetime.now().isoformat()
-    
-    return relatorio_data
+    if isinstance(relatorio_data, list):
+        resultado = {
+            "data": relatorio_data,
+            "id_cliente": id_cliente,
+            "tipo_relatorio": tipo,
+            "data_geracao": datetime.now().isoformat()
+        }
+        return resultado
+    elif isinstance(relatorio_data, tuple) and len(relatorio_data) == 2:
+        resultado, notas = relatorio_data
+        return {
+            "resultado": resultado,
+            "notas": notas,
+            "id_cliente": id_cliente,
+            "tipo_relatorio": tipo,
+            "data_geracao": datetime.now().isoformat()
+        }
+    else:
+        relatorio_data["id_cliente"] = id_cliente
+        relatorio_data["tipo_relatorio"] = tipo
+        relatorio_data["data_geracao"] = datetime.now().isoformat()
+        return relatorio_data
 
 @app.get("/analise/{id_cliente}/{mes}/{ano}", 
          response_model=Dict[str, Any],
@@ -150,7 +168,7 @@ def get_analise(
     db: DatabaseConnection = Depends(get_db)
 ):
     """
-    Obtém a análise qualitativa (relatório 6) para um cliente e período.
+    Obtém a análise qualitativa (relatório 8) para um cliente e período.
     
     - **id_cliente**: ID do cliente
     - **mes**: Número do mês (1-12)
@@ -164,10 +182,10 @@ def get_analise(
     
     nome_cliente = cliente["nome"]
     indicadores = Indicadores(id_cliente, db)
-    relatorio6 = Relatorio6(indicadores, nome_cliente)
+    relatorio8 = Relatorio8(indicadores, nome_cliente)
     mes_atual = date(ano, mes, 1)
     
-    return relatorio6.gerar_relatorio(mes_atual)
+    return relatorio8.gerar_relatorio(mes_atual)
 
 @app.post("/analise/{id_cliente}/{mes}/{ano}", 
           response_model=Dict[str, Any],
@@ -181,7 +199,7 @@ def salvar_analise(
     db: DatabaseConnection = Depends(get_db)
 ):
     """
-    Salva uma análise qualitativa (relatório 6) para um cliente e período.
+    Salva uma análise qualitativa (relatório 8) para um cliente e período.
     
     - **id_cliente**: ID do cliente
     - **mes**: Número do mês (1-12)
@@ -196,11 +214,11 @@ def salvar_analise(
     
     nome_cliente = cliente["nome"]
     indicadores = Indicadores(id_cliente, db)
-    relatorio6 = Relatorio6(indicadores, nome_cliente)
+    relatorio8 = Relatorio8(indicadores, nome_cliente)
     mes_atual = date(ano, mes, 1)
     
     # Salva a análise
-    relatorio6.salvar_analise(mes_atual, analise.analise)
+    relatorio8.salvar_analise(mes_atual, analise.analise)
     
     return {"status": "success", "message": "Análise salva com sucesso"}
 
@@ -215,7 +233,7 @@ def excluir_analise(
     db: DatabaseConnection = Depends(get_db)
 ):
     """
-    Exclui uma análise qualitativa (relatório 6) para um cliente e período.
+    Exclui uma análise qualitativa (relatório 8) para um cliente e período.
     
     - **id_cliente**: ID do cliente
     - **mes**: Número do mês (1-12)
@@ -229,11 +247,11 @@ def excluir_analise(
     
     nome_cliente = cliente["nome"]
     indicadores = Indicadores(id_cliente, db)
-    relatorio6 = Relatorio6(indicadores, nome_cliente)
+    relatorio8 = Relatorio8(indicadores, nome_cliente)
     mes_atual = date(ano, mes, 1)
     
     # Exclui a análise
-    relatorio6.excluir_analise(mes_atual)
+    relatorio8.excluir_analise(mes_atual)
     
     return {"status": "success", "message": "Análise excluída com sucesso"}
 
@@ -252,8 +270,8 @@ def gerar_pdf(
     - **mes**: Número do mês (1-12)
     - **ano**: Ano do relatório
     - **nome_cliente**: Nome do cliente (para o cabeçalho)
-    - **relatorios**: Lista de tipos de relatórios a incluir (1-7)
-    - **analise_qualitativa**: Texto opcional da análise qualitativa (relatório 6)
+    - **relatorios**: Lista de tipos de relatórios a incluir (1-8)
+    - **analise_qualitativa**: Texto opcional da análise qualitativa (relatório 8)
     """
     try:
         # Instancia serviços
@@ -267,7 +285,8 @@ def gerar_pdf(
             4: Relatorio4,
             5: Relatorio5,
             6: Relatorio6,
-            7: Relatorio7
+            7: Relatorio7,
+            8: Relatorio8
         }
         
         # Obtém nomes dos meses
@@ -279,16 +298,31 @@ def gerar_pdf(
         mes_atual = date(input_data.ano, input_data.mes, 1)
         mes_anterior = date(input_data.ano, input_data.mes - 1, 1) if input_data.mes > 1 else date(input_data.ano - 1, 12, 1)
         
+        # Adicionar dados do índice
+        indice_data = {
+            "fluxo_caixa": "Sim" if any(r in input_data.relatorios for r in [1, 2, 3, 4, 5]) else "Não",
+            "dre_gerencial": "Sim" if 6 in input_data.relatorios else "Não",
+            "indicador": "Sim" if 7 in input_data.relatorios else "Não",
+            "nota_consultor": "Sim" if 8 in input_data.relatorios else "Não",
+            "cliente_nome": input_data.nome_cliente,
+            "mes": mes_nome,
+            "ano": input_data.ano,
+            "nome": f"{input_data.nome_cliente}",
+            "Periodo": f"{mes_nome} {input_data.ano}",
+            "marca": "Sim"
+        }
+        relatorios_dados.append(("Índice", indice_data))
+        
         for rel_tipo in input_data.relatorios:
             rel_class = relatorios_classes[rel_tipo]
             relatorio = rel_class(indicadores, input_data.nome_cliente)
             
             # Tratamento especial para cada tipo de relatório
-            if rel_tipo == 6 and input_data.analise_qualitativa:
+            if rel_tipo == 8 and input_data.analise_qualitativa:
                 # Se enviou análise, salva primeiro
                 relatorio.salvar_analise(mes_atual, input_data.analise_qualitativa)
                 dados = relatorio.gerar_relatorio(mes_atual)
-            elif rel_tipo in [1, 2, 3]:
+            elif rel_tipo in [1, 2, 3, 4]:
                 # Relatórios que precisam do mês anterior
                 dados = relatorio.gerar_relatorio(mes_atual, mes_anterior)
             else:
@@ -297,25 +331,28 @@ def gerar_pdf(
             
             # Nome do relatório para o PDF
             rel_nome = f"Relatório {rel_tipo} - " + {
-                1: "Resultados Mensais",
-                2: "Análise por Competência",
-                3: "Análise de Lucros",
-                4: "Evolução",
-                5: "Indicadores",
-                6: "Análise Qualitativa",
-                7: "Imagens"
+                1: "Análise de Fluxo de Caixa (Receitas e Custos Variáveis)",
+                2: "Análise de Fluxo de Caixa (Lucro Bruto e Despesas Fixas)",
+                3: "Análise de Fluxo de Caixa (Lucro Operacional e Investimentos)",
+                4: "Análise de Fluxo de Caixa (Lucro Líquido e Entradas Não Operacionais)",
+                5: "Fechamento de Análise de Fluxo de Caixa",
+                6: "Análise por Competência - DRE",
+                7: "Indicadores",
+                8: "Parecer Técnico"
             }[rel_tipo]
             
             relatorios_dados.append((rel_nome, dados))
         
-        # Gera o PDF
-        pdf_gen = PDFGenerator()
+        # Gera o PDF usando o RenderingEngine
+        rendering_engine = RenderingEngine()
         
         # Cria arquivo temporário para o PDF
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
-            output_path = tmp.name
+        output_filename = f"Relatorio_{input_data.nome_cliente.replace(' ', '_')}_{mes_nome}_{input_data.ano}.pdf"
+        output_path = os.path.join("outputs", output_filename)
         
-        pdf_file = pdf_gen.generate_pdf(
+        os.makedirs("outputs", exist_ok=True)
+        
+        pdf_file = rendering_engine.render_to_pdf(
             relatorios_dados, 
             input_data.nome_cliente, 
             mes_nome, 
@@ -326,7 +363,7 @@ def gerar_pdf(
         # Retorna o arquivo PDF
         return FileResponse(
             path=pdf_file,
-            filename=f"Relatorio_{input_data.nome_cliente.replace(' ', '_')}_{mes_nome}_{input_data.ano}.pdf",
+            filename=output_filename,
             media_type="application/pdf"
         )
         
