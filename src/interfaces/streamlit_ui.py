@@ -40,8 +40,8 @@ def main():
     st.markdown("""
     <style>
     
-    ._container_1upux_1 {
-        display: none;
+    ._linkOutText_1upux_17 {
+        display: none !important;
     }
     
     .main-header { font-size: 2.5rem; color: #0f52ba; text-align: center; margin-bottom: 2rem; }
