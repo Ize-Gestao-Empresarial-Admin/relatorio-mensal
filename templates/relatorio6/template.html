@@ -21,7 +21,7 @@
             width: 100px;               /* ajuste a largura que quiser */
             height: 6px;               /* ajuste a espessura */
             background-color: #FF6900; /* laranja */
-            margin: 0 0 4px 40px;
+            margin: 0 0 4px 571px;
             border-radius: 3px 3px 0 0;        /* cantos levemente arredondados */
         }
         /* cabeçalho acima da primeira caixa */
@@ -157,9 +157,10 @@
 
         .notes-title {
             font-size: 18px;
-            font-weight: 600;    /* deixa em negrito */
-            margin: 15px 0 1px 0; /* seu espaçamento */
+            font-weight: 600;
+            margin: 15px 0 8px 0;
             text-align: left;
+            page-break-before: avoid;
         }
         .notes-title + .box-frame {
             margin-top: 12px;      /* antes era 45px na .box-frame geral */
@@ -177,7 +178,7 @@
 
         .fixed-footer-bg {
             position: fixed;           /* sai do fluxo normal */
-            bottom: -130px;                 /* gruda na base da página */
+            bottom: -190px;                 /* gruda na base da página */
             left: 50%;                  /* centraliza horizontalmente */
             transform: translateX(-50%);
             z-index: -1;               /* garante que fique atrás de tudo */
@@ -201,7 +202,7 @@
         <div class="section-title">DRE - Análise por Competência</div>
         <img src="data:image/png;base64,{{ chart_base64 }}" style="width:100%; height:auto; margin-top:1rem;" alt="Waterfall DRE"/>
     </div>
-    <div class="main-cards-metricas" style="margin-left: 50px !important;">
+    <div class="main-cards-metricas" style="margin-left: 45px !important;">
     <div class="metrics-row no-wrap">
         <div class="metric-card">
             <div class="metric-icon" style= "margin-left: 22%">

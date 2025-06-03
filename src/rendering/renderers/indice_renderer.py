@@ -2,16 +2,26 @@
 from typing import Dict, Any
 from .base_renderer import BaseRenderer
 import os
+import base64
 
 class IndiceRenderer(BaseRenderer):
     def __init__(self):
         super().__init__()
         # Carregar o template do índice
         self.template = self.env.get_template("indice/template.html")
-        # Carregar o logo SVG (ajuste o caminho conforme necessário)
-        logo_path = os.path.join("assets", "icons", "IZE-LOGO-1.svg")
-        with open(logo_path, "r", encoding="utf-8") as f:
-            self.logo_svg = f.read()
+        
+        # Carregar ícones e imagens
+        icons_dir = os.path.abspath("assets/icons")
+        
+        # Carregar o logo PNG
+        logo_path = os.path.join(icons_dir, "IZE-SIMBOLO-1.png")
+        try:
+            with open(logo_path, "rb") as f:
+                logo_bytes = f.read()
+                self.logo_png_b64 = base64.b64encode(logo_bytes).decode("ascii")
+        except Exception as e:
+            print(f"Erro ao carregar logo: {str(e)}")
+            self.logo_png_b64 = ""
 
     def render(self, data: Dict[str, Any], cliente_nome: str, mes_nome: str, ano: int) -> str:
         """
@@ -26,4 +36,4 @@ class IndiceRenderer(BaseRenderer):
         Returns:
             String com o HTML renderizado.
         """
-        return self.template.render(data=data, logo_svg=self.logo_svg)
+        return self.template.render(data=data, logo_png_b64=self.logo_png_b64)

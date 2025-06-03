@@ -3,6 +3,8 @@ from typing import Dict, Any, List, Tuple, Union
 from src.rendering.renderers.base_renderer import BaseRenderer
 import os
 import base64
+import logging
+logger = logging.getLogger(__name__)
 
 class Relatorio2Renderer(BaseRenderer):
     """
@@ -40,10 +42,17 @@ class Relatorio2Renderer(BaseRenderer):
         # Carregar SVGs para os ícones
         icons_dir = os.path.abspath("assets/icons")
         
-        # Logo
-        logo_path = os.path.join(icons_dir, "IZE-LOGO-2.svg")
-        with open(logo_path, "r", encoding="utf-8") as f:
-            logo_svg = f.read()
+        # Dentro do método render, após carregar o rodapé:
+        rodape_path = os.path.join(icons_dir, "rodape.png")
+        try:
+            with open(rodape_path, "rb") as f:
+                icon_bytes = f.read()
+                logger.info(f"Arquivo rodapé lido com sucesso: {rodape_path}, tamanho: {len(icon_bytes)} bytes")
+                icon_rodape = base64.b64encode(icon_bytes).decode("ascii")
+                logger.info(f"Base64 do rodapé gerado com sucesso, tamanho: {len(icon_rodape)}")
+        except Exception as e:
+            logger.error(f"Erro ao carregar rodapé: {str(e)}")
+            icon_rodape = ""  # Valor padrão vazio em caso de erro
         
         # Setas (carregar como base64)
         seta_up_verde_path = os.path.join(icons_dir, "SETA-UP-VERDE.svg")
@@ -118,7 +127,7 @@ class Relatorio2Renderer(BaseRenderer):
         # Renderizar template
         return self.template.render(
             data=template_data,
-            logo_svg=logo_svg,
+            icon_rodape=icon_rodape,
             seta_b64=seta_up_verde_b64,
             seta_b64_2=seta_down_laranja_b64,
             seta_b64_3=seta_up_laranja_b64,

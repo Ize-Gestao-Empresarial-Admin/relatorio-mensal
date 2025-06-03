@@ -157,6 +157,95 @@ def get_relatorio(
         relatorio_data["data_geracao"] = datetime.now().isoformat()
         return relatorio_data
 
+@app.get("/relatorios-completos/{id_cliente}/{mes}/{ano}", 
+         response_model=Dict[str, Any],
+         summary="Obtém todos os relatórios de uma vez",
+         description="Gera todos os relatórios financeiros para um cliente, mês e ano específicos.")
+def get_relatorios_completos(
+    id_cliente: int, 
+    mes: int, 
+    ano: int, 
+    mes_anterior: bool = Query(True, description="Incluir comparação com mês anterior"),
+    db: DatabaseConnection = Depends(get_db)
+):
+    """
+    Gera todos os relatórios financeiros para um cliente, mês e ano específicos.
+    
+    - **id_cliente**: ID do cliente
+    - **mes**: Número do mês (1-12)
+    - **ano**: Ano do relatório
+    - **mes_anterior**: Se deve incluir comparação com o mês anterior para relatórios aplicáveis
+    
+    Retorna um objeto contendo todos os 8 tipos de relatórios disponíveis.
+    """
+    # Validação básica
+    if mes < 1 or mes > 12:
+        raise HTTPException(status_code=400, detail="Mês inválido (deve ser 1-12)")
+    
+    # Busca cliente
+    clientes = buscar_clientes(db)
+    cliente = next((c for c in clientes if c["id_cliente"] == id_cliente), None)
+    if not cliente:
+        raise HTTPException(status_code=404, detail="Cliente não encontrado")
+    
+    nome_cliente = cliente["nome"]
+    
+    # Instancia indicadores
+    indicadores = Indicadores(id_cliente, db)
+    
+    # Cria as datas
+    mes_atual = date(ano, mes, 1)
+    mes_anterior_data = date(ano, mes - 1, 1) if mes > 1 else date(ano - 1, 12, 1) if mes_anterior else None
+    
+    # Mapeamento de classes de relatórios
+    relatorios_classes = {
+        1: Relatorio1,
+        2: Relatorio2,
+        3: Relatorio3,
+        4: Relatorio4,
+        5: Relatorio5,
+        6: Relatorio6,
+        7: Relatorio7,
+        8: Relatorio8
+    }
+    
+    # Para armazenar os resultados
+    resultados = {}
+    
+    # Gera cada relatório
+    for tipo, relatorio_class in relatorios_classes.items():
+        rel_instance = relatorio_class(indicadores, nome_cliente)
+        
+        # Gera o relatório com base no tipo
+        if tipo in [1, 2, 3, 4] and mes_anterior:
+            relatorio_data = rel_instance.gerar_relatorio(mes_atual, mes_anterior_data)
+        else:
+            relatorio_data = rel_instance.gerar_relatorio(mes_atual)
+        
+        # Nome do relatório para o resultado
+        nome_relatorio = {
+            1: "fluxo_caixa_receitas_custos",
+            2: "fluxo_caixa_lucro_bruto_despesas",
+            3: "fluxo_caixa_lucro_operacional_investimentos",
+            4: "fluxo_caixa_lucro_liquido_entradas",
+            5: "fluxo_caixa_fechamento",
+            6: "dre_gerencial",
+            7: "indicadores",
+            8: "parecer_tecnico"
+        }[tipo]
+        
+        # Adiciona ao dicionário de resultados
+        resultados[nome_relatorio] = relatorio_data
+    
+    # Adiciona metadados
+    resultados["id_cliente"] = id_cliente
+    resultados["nome_cliente"] = nome_cliente
+    resultados["mes"] = mes
+    resultados["ano"] = ano
+    resultados["data_geracao"] = datetime.now().isoformat()
+    
+    return resultados
+
 @app.get("/analise/{id_cliente}/{mes}/{ano}", 
          response_model=Dict[str, Any],
          summary="Obtém a análise qualitativa de um consultor",

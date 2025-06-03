@@ -38,11 +38,9 @@
         }
 
         .notes-title + .box-frame {
-            margin-top: 8px;
-            margin-bottom: 50px; /* Espaço suficiente para o footer */
-            padding: 15px;
-            page-break-inside: avoid;
-            break-inside: avoid;
+            margin-top: 12px;      /* antes era 45px na .box-frame geral */
+            margin-bottom: 8px;
+            padding: 30px;
         }
 
         .bar-container {
@@ -66,7 +64,7 @@
 
         .value {
             font-size: 25px;
-            margin-top: -30px;
+            margin-top: -25px;
             margin-bottom: 40px;
             font-weight: 580;
         }
@@ -139,7 +137,7 @@
             width: 100px;
             height: 6px;
             background-color: #FF6900;
-            margin: 0 0 4px 40px;
+            margin: 0 0 4px 457px;
             border-radius: 3px 3px 0 0;
         }
 
@@ -177,29 +175,29 @@
         }
 
         .notes-content {
-            white-space: pre-wrap;
-            text-align: left;
-            margin: 0;
-            padding: 0;
-            font-size: 16px;
-            line-height: 1.4;
+            white-space: pre-wrap;   /* preserva quebras de linha */
+            text-align: left;        /* garante que todo o texto fique alinhado à esquerda */
+            margin: 0;               /* zera qualquer margem interna */
+            padding: 0;              /* zera qualquer padding interno se houver */
+            font-size: 17px;
+            line-height: 1.7;
         }
         
         .fixed-footer-bg {
-            position: fixed;
-            bottom: -130px;
-            left: 45%;
+            position: fixed;           /* sai do fluxo normal */
+            bottom: 10px;                 /* gruda na base da página */
+            left: 50%;                 /* centraliza horizontalmente */
             transform: translateX(-50%);
-            z-index: -1;
-            width: 80px;
+            z-index: -1;               /* garante que fique atrás de tudo */
+            width: 80px;              /* ajuste à largura que desejar */
             height: auto;
+            /* opacity: 1;           — opcional, se quiser “esmaecer” um pouco */
         }
     </style>
 </head>
 <body>
+    <img src="data:image/png;base64,{{ icon_rodape }}" class="fixed-footer-bg" alt=""/>        <!-- barra laranja acima da linha -->
     <div class="main-content">
-        <img src="data:image/svg+xml;base64,{{ logo_svg }}" class="fixed-footer-bg" alt="Footer Logo"/>
-        <!-- barra laranja acima da linha -->
         <div class="header-accent"></div>
         <div class="report-header"></div>
         <table style="width:100%; border-collapse:collapse; margin:4px 0 16px;">
@@ -303,27 +301,53 @@
                     </thead>
                     <tbody>
                         {% for cat in data.resultados_nao_operacionais_categories %}
-                            <tr>
-                                <td><div class="legend-box" style="background-color:{{ resultados_colors[loop.index0 % resultados_colors|length] }};"></div></td>
-                                <td>{{ cat.name }}</td>
-                                <td>{{ cat.value|format_currency }}</td>
-                                <td>{{ cat.representatividade|format_percentage }}</td>
-                                <td>
-                                    {% if cat.variacao >= 0 %}
-                                        <span class="var-up"> 
-                                            <img src="data:image/svg+xml;base64,{{ seta_b64_3 }}" alt="↑"/>
-                                            {{ cat.variacao|format_percentage }}
-                                        </span>
-                                    {% else %}
-                                        <span class="var-down">
-                                            <img src="data:image/svg+xml;base64,{{ seta_b64_4 }}" alt="↓"/>
-                                            {{ cat.variacao|format_percentage }}
-                                        </span>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
+        <tr>
+            <td><div class="legend-box" style="background-color:{{ resultados_colors[loop.index0 % resultados_colors|length] }};"></div></td>
+            <td>{{ cat.name }}</td>
+            <td>{{ cat.value|format_currency }}</td>
+            <td>{{ cat.representatividade|format_percentage }}</td>
+            <td>
+                {% if "7.1" in cat.name %}
+                    {% if cat.variacao >= 0 %}
+                        <span class="var-up"> 
+                            <img src="data:image/svg+xml;base64,{{ seta_b64 }}" alt="↑"/>
+                            {{ cat.variacao|format_percentage }}
+                        </span>
+                    {% else %}
+                        <span class="var-down">
+                            <img src="data:image/svg+xml;base64,{{ seta_b64_2 }}" alt="↓"/>
+                            {{ cat.variacao|format_percentage }}
+                        </span>
+                    {% endif %}
+                {% elif "7.2" in cat.name %}
+                    {% if cat.variacao >= 0 %}
+                        <span class="var-up"> 
+                            <img src="data:image/svg+xml;base64,{{ seta_b64_4 }}" alt="↑"/>
+                            {{ cat.variacao|format_percentage }}
+                        </span>
+                    {% else %}
+                        <span class="var-down">
+                            <img src="data:image/svg+xml;base64,{{ seta_b64_3 }}" alt="↓"/>
+                            {{ cat.variacao|format_percentage }}
+                        </span>
+                    {% endif %}
+                {% else %}
+                    {% if cat.variacao >= 0 %}
+                        <span class="var-up"> 
+                            <img src="data:image/svg+xml;base64,{{ seta_b64_3 }}" alt="↑"/>
+                            {{ cat.variacao|format_percentage }}
+                        </span>
+                    {% else %}
+                        <span class="var-down">
+                            <img src="data:image/svg+xml;base64,{{ seta_b64_4 }}" alt="↓"/>
+                            {{ cat.variacao|format_percentage }}
+                        </span>
+                    {% endif %}
+                {% endif %}
+            </td>
+        </tr>
+    {% endfor %}
+</tbody>
                 </table>
             </div>
         </div>

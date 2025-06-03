@@ -1206,7 +1206,6 @@ class Indicadores:
             despesas_fixas = (valores["Despesas Administrativas"] + valores["Despesas com Pessoal"] +
                             valores["Despesas com Serviços de Terceiros"] + valores["Despesas com Materiais e Equipamentos"] +
                             valores["Despesas de Marketing"] + valores["Despesas com Desenvolvimento Empresarial"])
-            ebitda = (faturamento + deducoes_receita_bruta + custos_variaveis + despesas_fixas)
             custos_variaveis_deducoes = custos_variaveis + deducoes_receita_bruta
             receitas_financeiras = valores["Receitas Financeiras"] + valores["Rendimentos de Aplicações"]
             despesas_financeiras = valores["Despesas Financeiras"] + valores["Juros Bancários"]
@@ -1220,7 +1219,8 @@ class Indicadores:
             distribuicao_de_lucros = valores["Distribuição de Lucros"]
             lucro_liquido = (faturamento + deducoes_receita_bruta + custos_variaveis + despesas_fixas + receitas_financeiras + despesas_financeiras 
                              + impostos + investimentos +entradas_nao_operacionais + saidas_nao_operacionais + aporte + distribuicao_de_lucros)
-
+            ebitda = (faturamento + deducoes_receita_bruta + custos_variaveis + despesas_fixas)
+            #ebitda = (receitas_financeiras + despesas_financeiras + impostos)
             # Lista única de indicadores com análise vertical (av_dre)
             indicadores = [
                 {"indicador": "Faturamento", "valor": round(faturamento, 2)},
