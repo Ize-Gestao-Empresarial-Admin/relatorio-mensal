@@ -753,7 +753,7 @@ class Indicadores:
         query = text("""
             SELECT
                 'Saídas Não Operacionais' AS categoria,
-                SUM(valor) * -1 AS total_valor
+                SUM(valor) AS total_valor
             FROM fc
             WHERE id_cliente = :id_cliente
               AND visao = 'Realizado'
@@ -1200,7 +1200,7 @@ class Indicadores:
             # Cálculos dos indicadores
             faturamento = (valores["Receita de Vendas de Produtos"] + valores["Receita de Prestação de Serviços"])
             deducoes_receita_bruta = (valores["Descontos Incondicionais"] + valores["ICMS"] + valores["PIS"] +
-                                    valores["COFINS"] + valores["ISS"] + valores["Simples Nacional"] +
+                                    valores["COFINS"] + valores["ISS"] +
                                     valores["Outros Tributos de Deduções de Vendas"] + valores["Devoluções de Vendas"])
             custos_variaveis = (valores["Custos com Produtos e Serviços"] + valores["Custos Comerciais"])
             despesas_fixas = (valores["Despesas Administrativas"] + valores["Despesas com Pessoal"] +
@@ -1209,7 +1209,7 @@ class Indicadores:
             custos_variaveis_deducoes = custos_variaveis + deducoes_receita_bruta
             receitas_financeiras = valores["Receitas Financeiras"] + valores["Rendimentos de Aplicações"]
             despesas_financeiras = valores["Despesas Financeiras"] + valores["Juros Bancários"]
-            impostos = (valores["IRPJ"] + valores["CSLL"])
+            impostos = (valores["IRPJ"] + valores["CSLL"] + valores["Simples Nacional"])
             lucro_operacional = (faturamento + deducoes_receita_bruta + custos_variaveis + despesas_fixas +
                                 receitas_financeiras + despesas_financeiras + impostos)
             investimentos = valores["Investimentos em Bens Materiais"] + valores["Investimento em Imobilizado"] + valores["Investimento de Intangíveis"]

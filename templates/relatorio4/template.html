@@ -270,7 +270,12 @@
             <hr class="section-separator"/>
             <div class="section">
                 <div class="section-title">Resultados Não Operacionais</div>
-                {% set resultados_colors = ['#E75F00', '#FF8733', '#FFB37F', '#ebebeb'] %}
+                <!-- Cores dinâmicas baseadas no valor total -->
+                {% if data.resultados_nao_operacionais >= 0 %}
+                    {% set resultados_colors = ['#007F4F', '#33B283', '#7FCEB1', '#ebebeb'] %}  <!-- Verde (positivo) -->
+                {% else %}
+                    {% set resultados_colors = ['#E75F00', '#FF8733', '#FFB37F', '#ebebeb'] %}  <!-- Laranja (negativo) -->
+                {% endif %}
                 <div class="bar-container">
                     {% for cat in data.resultados_nao_operacionais_categories %}
                         <div class="bar-segment"

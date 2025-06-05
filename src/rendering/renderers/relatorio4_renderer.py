@@ -102,7 +102,7 @@ class Relatorio4Renderer(BaseRenderer):
         for subcat in resultados_nao_operacionais_data.get('subcategorias', []):
             resultados_nao_operacionais_categories.append({
                 "name": subcat['subcategoria'],
-                "value": abs(subcat['valor']),
+                "value": subcat['valor'],
                 "representatividade": abs(subcat['av']),
                 "variacao": subcat['ah'],
                 "barra_rep": abs(subcat['representatividade'])
