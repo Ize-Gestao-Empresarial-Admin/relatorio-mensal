@@ -14,6 +14,6 @@ def testar_relatorio(id_cliente: int, mes: date):
     print(json.dumps(resultado, indent=2, ensure_ascii=False))
 
 if __name__ == "__main__":
-    id_cliente = 243
-    mes = date(2025, 3, 1)
+    id_cliente = 85
+    mes = date(2025, 5, 1)
     testar_relatorio(id_cliente, mes)

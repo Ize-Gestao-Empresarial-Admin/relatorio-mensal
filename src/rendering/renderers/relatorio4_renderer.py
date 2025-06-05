@@ -30,6 +30,11 @@ class Relatorio4Renderer(BaseRenderer):
         Returns:
             HTML formatado.
         """
+        # Diagnóstico: imprimir a estrutura dos dados recebidos
+        import json
+        print("DADOS RECEBIDOS NO RENDERER:")
+        print(json.dumps(data, indent=2))
+        
         # Extrair dados na estrutura correta
         if isinstance(data, tuple) and len(data) == 2:
             relatorio_data = data[0]
@@ -72,6 +77,7 @@ class Relatorio4Renderer(BaseRenderer):
         
         # Processar dados do relatório
         lucro_liquido_data = next((item for item in relatorio_data if item['categoria'] == 'Lucro Líquido'), {})
+        entradas_nao_operacionais_data = next((item for item in relatorio_data if item['categoria'] == 'Entradas Não Operacionais'), {})
         resultados_nao_operacionais_data = next((item for item in relatorio_data if item['categoria'] == 'Resultados Não Operacionais'), {})
 
         # Receita total para cálculos
@@ -83,21 +89,22 @@ class Relatorio4Renderer(BaseRenderer):
         # Lucro Líquido
         lucro_liquido_categories = []
         lucro_liquido_total = lucro_liquido_data.get('valor', 0)
-        lucro_liquido_av = lucro_liquido_data.get('av_categoria', 0)
+        lucro_liquido_av = lucro_liquido_data.get('av_categoria', 0)  # Usar 'av_categoria' em vez de 'av'
         
         for subcat in lucro_liquido_data.get('subcategorias', []):
+            # Usar 'representatividade' que já existe nos dados
             lucro_liquido_categories.append({
                 "name": subcat['subcategoria'],
                 "value": abs(subcat['valor']),
                 "representatividade": abs(subcat['av']),
                 "variacao": subcat['ah'],
-                "barra_rep": abs(subcat['representatividade'])
+                "barra_rep": abs(subcat['representatividade'])  # Usar a representatividade fornecida
             })
 
         # Resultados Não Operacionais
         resultados_nao_operacionais_categories = []
         resultados_nao_operacionais_total = resultados_nao_operacionais_data.get('valor', 0)
-        resultados_nao_operacionais_av = resultados_nao_operacionais_data.get('av_categoria', 0)
+        resultados_nao_operacionais_av = resultados_nao_operacionais_data.get('av_categoria', 0)  # Usar 'av_categoria'
         
         for subcat in resultados_nao_operacionais_data.get('subcategorias', []):
             resultados_nao_operacionais_categories.append({
