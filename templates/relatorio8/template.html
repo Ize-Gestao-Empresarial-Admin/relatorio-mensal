@@ -11,11 +11,14 @@
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            min-height: 100vh; /* Garante que o body ocupe pelo menos toda a altura visível */
+            position: relative; /* Para posicionamento do rodapé */
         }
 
         /* Contêiner principal para o conteúdo */
         .main-content {
             padding: 20px;
+            padding-bottom: 100px; /* Espaço para o rodapé */
             box-sizing: border-box;
             position: relative;
         }
@@ -65,10 +68,12 @@
 
         /* Classe específica para a caixa de notas do consultor */
         .box-frame.notes {
-            height: 1150px;
+            min-height: 1150px;
             display: flex;
             flex-direction: column;
             justify-content: flex-start;
+            position: relative; /* Garantir que não afeta posicionamento absoluto */
+            z-index: 1; /* Colocar acima do background, mas abaixo do rodapé */
         }
 
         /* Classe para caixas em branco */
@@ -77,23 +82,18 @@
             margin: 0 0 24px 0;
         }
 
-        /* Rodapé */
-        footer {
-            position: fixed;
-            bottom: 3mm;
-            left: 10mm;
-            right: 10mm;
-            width: calc(100% - 20mm);
-            text-align: center;
-            z-index: 9999;
-            height: 20px;
-        }
-
-        footer img {
-            height: 20px;
-            max-width: 100%;
-            display: block;
-            margin: 0 auto;
+        /* Rodapé - estilo melhorado */
+        .fixed-footer-bg {
+            position: fixed !important; /* Garante que fique fixo, sobrescrevendo qualquer outro posicionamento */
+            bottom: -50px !important;    /* Distância do fundo */
+            left: 50% !important;       /* Centraliza horizontalmente */
+            transform: translateX(-50%) !important; /* Centraliza adequadamente */
+            z-index: 999 !important;    /* Garante exibição sobre outros elementos */
+            width: 80px !important;     /* Largura fixa */
+            height: auto !important;    /* Altura proporcional */
+            margin: 0 !important;       /* Remove margens que possam interferir */
+            padding: 0 !important;      /* Remove padding que possa interferir */
+            box-sizing: content-box !important; /* Garante que a largura não seja alterada */
         }
 
         /* Título da seção */
@@ -135,8 +135,8 @@
             </div>
         </div>
     </div>
-    <footer>
-        {{ logo_svg | safe }}
-    </footer>
+    
+    <!-- Colocando a imagem do rodapé FORA de qualquer contêiner para evitar influências -->
+    <img src="data:image/png;base64,{{ icon_rodape }}" class="fixed-footer-bg" alt=""/>
 </body>
 </html>

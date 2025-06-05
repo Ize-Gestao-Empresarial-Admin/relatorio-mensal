@@ -1,7 +1,10 @@
 from datetime import date
 from typing import List, Dict, Any
 import logging
+import math
+import numpy as np
 from src.core.indicadores import Indicadores
+from src.core.utils import safe_float
 
 # Configurar logging para depuração
 logging.basicConfig(level=logging.INFO)
@@ -41,26 +44,37 @@ class Relatorio6:
             indicadores_dict = {item["indicador"]: item for item in indicadores_resultado}
             
             # Verificar se todos os indicadores necessários estão presentes
-            for indicador in indicadores_esperados:
-                if indicador not in indicadores_dict:
-                    logger.error(f"Indicador '{indicador}' não encontrado nos resultados")
-                    raise RuntimeError(f"Indicador '{indicador}' não encontrado nos resultados")
+            indicadores_presentes = all(indicador in indicadores_dict for indicador in indicadores_esperados)
+            
+            # Verificar se há dados válidos - similar à lógica do relatório 4
+            dados_validos = False
+            if indicadores_presentes:
+                # Verifica se pelo menos um dos valores principais não é nulo, zero ou NaN
+                for indicador in indicadores_esperados:
+                    valor = indicadores_dict[indicador]["valor"]
+                    if valor is not None and valor != 0 and not (isinstance(valor, float) and (math.isnan(valor) or np.isnan(valor))):
+                        dados_validos = True
+                        break
+            
+            # Gerar notas automatizadas baseadas na disponibilidade de dados
+            if not indicadores_presentes or not dados_validos:
+                notas_automatizadas = "Não há dados disponíveis para o período selecionado."
+            else:
+                # Extrair valores para as notas, usando safe_float para garantir que valores None ou NaN sejam tratados
+                faturamento = safe_float(indicadores_dict["Faturamento"]["valor"], 0.0)
+                deducoes = safe_float(indicadores_dict["Deduções da Receita Bruta"]["valor"], 0.0)
+                custos_variaveis = safe_float(indicadores_dict["Custos Variáveis"]["valor"], 0.0)
+                despesas_fixas = safe_float(indicadores_dict["Despesas Fixas"]["valor"], 0.0)
+                ebitda_percentual = safe_float(indicadores_dict["EBITDA"]["av_dre"], 0.0)
 
-            # Extrair valores para as notas
-            faturamento = indicadores_dict["Faturamento"]["valor"]
-            deducoes = indicadores_dict["Deduções da Receita Bruta"]["valor"]
-            custos_variaveis = indicadores_dict["Custos Variáveis"]["valor"]
-            despesas_fixas = indicadores_dict["Despesas Fixas"]["valor"]
-            ebitda_percentual = indicadores_dict["EBITDA"]["av_dre"]
-
-            # Gerar notas automatizadas com valores formatados
-            notas_automatizadas = (
-                f"No mês, tivemos um total de vendas no montante de R$ {faturamento:,.2f}, "
-                f"seguido das deduções da receita bruta de R$ {deducoes:,.2f}, "
-                f"Custos Variáveis em R$ {custos_variaveis:,.2f}, "
-                f"Despesas Fixas de R$ {despesas_fixas:,.2f}, "
-                f"fechando o mês com um EBITDA de {ebitda_percentual:.1f}% em relação ao faturamento!"
-            )
+                # Gerar notas automatizadas com valores formatados
+                notas_automatizadas = (
+                    f"No mês, tivemos um total de vendas no montante de R$ {faturamento:,.2f}, "
+                    f"seguido das deduções da receita bruta de R$ {deducoes:,.2f}, "
+                    f"Custos Variáveis em R$ {custos_variaveis:,.2f}, "
+                    f"Despesas Fixas de R$ {despesas_fixas:,.2f}, "
+                    f"fechando o mês com um EBITDA de {ebitda_percentual:.1f}% em relação ao faturamento!"
+                )
 
             return indicadores_resultado, {"notas": notas_automatizadas}
 
