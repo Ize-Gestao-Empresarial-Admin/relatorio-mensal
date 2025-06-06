@@ -72,17 +72,51 @@ def main():
     if not clientes:
         st.error("Nenhum cliente ativo encontrado no banco de dados.")
         return
-    cliente_options = {cliente['nome']: cliente['id_cliente'] for cliente in clientes}
-    cliente_nome = st.selectbox(
-        "Cliente",
-        list(cliente_options.keys()),
-        key="cliente_select",
-        help="Selecione o cliente para gerar o relatório."
-    )
-    cliente_id = cliente_options[cliente_nome]
     
-    # Atualizar cliente_id no session_state
+    # Opção para múltiplos clientes
+    multi_cliente = st.checkbox(
+        "Agrupar dados de múltiplos clientes em um único relatório",
+        help="Consolida dados de clientes com mais de um ID no banco"
+    )
+    
+    cliente_options = {cliente['nome']: cliente['id_cliente'] for cliente in clientes}
+    
+    if multi_cliente:
+        # Seleção múltipla de clientes
+        cliente_nomes = st.multiselect(
+            "Clientes",
+            list(cliente_options.keys()),
+            default=[list(cliente_options.keys())[0]] if cliente_options else [],
+            help="Selecione um ou mais clientes para agrupar dados em um único relatório"
+        )
+        
+        if not cliente_nomes:
+            st.warning("Selecione pelo menos um cliente")
+            cliente_nomes = [list(cliente_options.keys())[0]] if cliente_options else []
+        
+        # Gerar nome exibido para o cliente
+        display_cliente_nome = f"{cliente_nomes[0]}_Consolidado" if len(cliente_nomes) > 1 else cliente_nomes[0]
+        
+        # Lista de IDs dos clientes
+        cliente_ids = [cliente_options[nome] for nome in cliente_nomes]
+        cliente_id = cliente_ids[0]  # Primeiro ID para compatibilidade
+    else:
+        # Seleção única de cliente (comportamento original)
+        cliente_nome = st.selectbox(
+            "Cliente",
+            list(cliente_options.keys()),
+            key="cliente_select",
+            help="Selecione o cliente para gerar o relatório."
+        )
+        cliente_id = cliente_options[cliente_nome]
+        display_cliente_nome = cliente_nome
+        cliente_ids = [cliente_id]
+    
+    # Atualizar session_state
     st.session_state.cliente_id = cliente_id
+    st.session_state.cliente_ids = cliente_ids
+    st.session_state.multi_cliente = multi_cliente
+    st.session_state.display_cliente_nome = display_cliente_nome
     
     # Seleção de mês e ano
     st.markdown("<h3 class='subheader'>Período do Relatório</h3>", unsafe_allow_html=True)
@@ -100,7 +134,17 @@ def main():
         mes = next(m[1] for m in meses if m[0] == mes_nome)
     
     with col_periodo2:
-        anos = obter_anos(db, st.session_state.cliente_id)
+        # Se for multi-cliente, busque anos de todos os clientes selecionados
+        if multi_cliente and cliente_ids:
+            todos_anos = []
+            for id_cliente in cliente_ids:
+                anos_cliente = obter_anos(db, id_cliente)
+                todos_anos.extend(anos_cliente)
+            # Remove duplicados e ordena
+            anos = sorted(list(set(todos_anos)), reverse=True)
+        else:
+            anos = obter_anos(db, cliente_id)
+            
         ano = st.selectbox(
             "Ano",
             anos,
@@ -173,14 +217,17 @@ def main():
     
     analise_text = render_parecer_tecnico(relatorios_selecionados)
     
+    # Quando o botão "Gerar e Baixar Relatório PDF" for clicado:
     if st.button("Gerar e Baixar Relatório PDF", key="gerar_relatorio"):
         if not relatorios_selecionados:
-            st.error("Selecione pelo menos um agrupamento ou a Nota do Consultor para gerar o PDF.")
-            return
+                st.error("Selecione pelo menos um agrupamento ou a Nota do Consultor para gerar o PDF.")
+                return
 
         with st.spinner("Gerando relatório, por favor aguarde..."):
             try:
-                indicadores = Indicadores(cliente_id, db)
+                # Cria uma instância de indicadores com os ids de clientes escolhidos
+                indicadores = Indicadores(cliente_ids, db)  # Passar cliente_ids diretamente
+                
                 relatorios_classes = {
                     "Relatório 1": Relatorio1,
                     "Relatório 2": Relatorio2,
@@ -204,18 +251,18 @@ def main():
                     "dre_gerencial": "Sim" if "Relatório 6" in relatorios_selecionados else "Não",
                     "indicador": "Sim" if "Relatório 7" in relatorios_selecionados else "Não",
                     "nota_consultor": "Sim" if "Relatório 8" in relatorios_selecionados else "Não",
-                    "cliente_nome": cliente_nome,
+                    "cliente_nome": display_cliente_nome,
                     "mes": mes_nome,
                     "ano": ano,
-                    "nome": f"{cliente_nome}",  # Adicionado para o template
-                    "Periodo": f"{mes_nome} {ano}",  # Adicionado para o template
+                    "nome": display_cliente_nome,  # Nome para o template
+                    "Periodo": f"{mes_nome} {ano}",  # Período para o template
                     "marca": marca
                 }
                 relatorios_dados.append(("Índice", indice_data))
                 
                 for rel_nome in relatorios_selecionados:
                     rel_class = relatorios_classes[rel_nome]
-                    relatorio = rel_class(indicadores, cliente_nome)
+                    relatorio = rel_class(indicadores, display_cliente_nome)
                     
                     if rel_nome in ["Relatório 1", "Relatório 2", "Relatório 3", "Relatório 4"]:
                         dados = relatorio.gerar_relatorio(mes_atual, mes_anterior)
@@ -229,14 +276,14 @@ def main():
                     relatorios_dados.append((rel_nome, dados))
                 
                 rendering_engine = RenderingEngine()
-                output_filename = f"Relatorio_{cliente_nome.replace(' ', '_')}_{mes_nome}_{ano}.pdf"
+                output_filename = f"Relatorio_{display_cliente_nome.replace(' ', '_')}_{mes_nome}_{ano}.pdf"
                 output_path = os.path.join("outputs", output_filename)
                 
                 os.makedirs("outputs", exist_ok=True)  # Criar diretório se não existir
                 
                 pdf_path = rendering_engine.render_to_pdf(
                     relatorios_dados, 
-                    cliente_nome, 
+                    display_cliente_nome, 
                     mes_nome, 
                     ano, 
                     output_path

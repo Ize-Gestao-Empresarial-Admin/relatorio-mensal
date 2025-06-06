@@ -1,12 +1,12 @@
 # src/core/indicadores.py
 from datetime import date
-from typing import List, Dict, Any, Optional
+from typing import Union, List, Dict, Any, Optional
 from sqlalchemy import text
 from src.database.db_utils import DatabaseConnection
 import pandas as pd
 
 class Indicadores:
-    def __init__(self, id_cliente: int, db_connection: DatabaseConnection):
+    def __init__(self, id_cliente: Union[int, List[int]], db_connection: DatabaseConnection):
         self.id_cliente = id_cliente
         self.db = db_connection
 
@@ -36,7 +36,7 @@ class Indicadores:
                 receita AS (
                     SELECT SUM(valor) AS total_receita
                     FROM fc
-                    WHERE id_cliente = :id_cliente
+                    WHERE id_cliente = ANY (:id_cliente)
                       AND visao = 'Realizado'
                       AND EXTRACT(YEAR FROM data) = :year
                       AND EXTRACT(MONTH FROM data) = :month
@@ -50,7 +50,7 @@ class Indicadores:
                     JOIN plano_de_contas p
                         ON f.id_cliente = p.id_cliente
                         AND text(f.nivel_3_id) = p.nivel_3_id
-                    WHERE f.id_cliente = :id_cliente
+                    WHERE f.id_cliente = ANY (:id_cliente)
                       AND f.visao = 'Realizado'
                       AND f.nivel_1 = '4. Custos Variáveis'
                       AND f.data < DATE_TRUNC('month', MAKE_DATE(:year, :month, 1))
@@ -75,7 +75,7 @@ class Indicadores:
             CROSS JOIN receita r
             LEFT JOIN prev_custos prev 
                 ON prev.categoria = p.nivel_2
-            WHERE f.id_cliente = :id_cliente
+            WHERE f.id_cliente = ANY (:id_cliente)
                 AND f.visao = 'Realizado'
                 AND f.nivel_1 = '4. Custos Variáveis'
                 AND EXTRACT(YEAR FROM f.data) = :year
@@ -132,7 +132,7 @@ class Indicadores:
               receita_atual AS (
                 SELECT SUM(valor) AS total
                 FROM fc
-                WHERE id_cliente = :id_cliente
+                WHERE id_cliente = ANY (:id_cliente)
                   AND visao = 'Realizado'
                   AND EXTRACT(YEAR FROM data) = :year
                   AND EXTRACT(MONTH FROM data) = :month
@@ -143,7 +143,7 @@ class Indicadores:
                   categoria_nivel_3,
                   SUM(valor) AS total_prev
                 FROM fc
-                WHERE id_cliente = :id_cliente
+                WHERE id_cliente = ANY (:id_cliente)
                   AND visao = 'Realizado'
                   AND EXTRACT(YEAR FROM data) = :prev_year
                   AND EXTRACT(MONTH FROM data) = :prev_month
@@ -165,7 +165,7 @@ class Indicadores:
             CROSS JOIN receita_atual ra
             LEFT JOIN receita_anterior rp 
               ON rp.categoria_nivel_3 = f.categoria_nivel_3
-            WHERE f.id_cliente = :id_cliente
+            WHERE f.id_cliente = ANY (:id_cliente)
               AND f.visao = 'Realizado'
               AND EXTRACT(YEAR FROM f.data) = :year
               AND EXTRACT(MONTH FROM f.data) = :month
@@ -211,7 +211,7 @@ class Indicadores:
               totais_atual AS (
                 SELECT 'Receita' AS categoria, SUM(valor) AS valor
                 FROM fc
-                WHERE id_cliente = :id_cliente
+                WHERE id_cliente = ANY (:id_cliente)
                   AND visao = 'Realizado'
                   AND EXTRACT(YEAR FROM data) = :year
                   AND EXTRACT(MONTH FROM data) = :month
@@ -219,7 +219,7 @@ class Indicadores:
                 UNION ALL
                 SELECT 'Custos Variáveis', SUM(valor) * -1
                 FROM fc
-                WHERE id_cliente = :id_cliente
+                WHERE id_cliente = ANY (:id_cliente)
                   AND visao = 'Realizado'
                   AND EXTRACT(YEAR FROM data) = :year
                   AND EXTRACT(MONTH FROM data) = :month
@@ -228,7 +228,7 @@ class Indicadores:
               totais_anterior AS (
                 SELECT 'Receita' AS categoria, SUM(valor) AS prev_valor
                 FROM fc
-                WHERE id_cliente = :id_cliente
+                WHERE id_cliente = ANY (:id_cliente)
                   AND visao = 'Realizado'
                   AND EXTRACT(YEAR FROM data) = :prev_year
                   AND EXTRACT(MONTH FROM data) = :prev_month
@@ -236,7 +236,7 @@ class Indicadores:
                 UNION ALL
                 SELECT 'Custos Variáveis', SUM(valor) * -1
                 FROM fc
-                WHERE id_cliente = :id_cliente
+                WHERE id_cliente = ANY (:id_cliente)
                   AND visao = 'Realizado'
                   AND EXTRACT(YEAR FROM data) = :prev_year
                   AND EXTRACT(MONTH FROM data) = :prev_month
@@ -303,7 +303,7 @@ class Indicadores:
               receita AS (
                 SELECT SUM(valor) AS total_receita
                 FROM fc
-                WHERE id_cliente = :id_cliente
+                WHERE id_cliente = ANY (:id_cliente)
                   AND visao = 'Realizado'
                   AND EXTRACT(YEAR FROM data) = :year
                   AND EXTRACT(MONTH FROM data) = :month
@@ -317,7 +317,7 @@ class Indicadores:
                 JOIN plano_de_contas p
                   ON f.id_cliente = p.id_cliente
                   AND text(f.nivel_3_id) = p.nivel_3_id
-                WHERE f.id_cliente = :id_cliente
+                WHERE f.id_cliente = ANY (:id_cliente)
                   AND f.visao = 'Realizado'
                   AND f.nivel_1 = '5. Despesas Fixas'
                   AND EXTRACT(YEAR FROM f.data) = :prev_year
@@ -342,7 +342,7 @@ class Indicadores:
             CROSS JOIN receita r
             LEFT JOIN prev_despesas prev 
               ON prev.categoria_nivel_2 = p.nivel_2
-            WHERE f.id_cliente = :id_cliente
+            WHERE f.id_cliente = ANY (:id_cliente)
               AND f.visao = 'Realizado'
               AND f.nivel_1 = '5. Despesas Fixas'
               AND EXTRACT(YEAR FROM f.data) = :year
@@ -379,7 +379,7 @@ class Indicadores:
               totais_atual AS (
                 SELECT 'Receita' AS categoria, SUM(valor) AS valor
                 FROM fc
-                WHERE id_cliente = :id_cliente
+                WHERE id_cliente = ANY (:id_cliente)
                   AND visao = 'Realizado'
                   AND EXTRACT(YEAR FROM data) = :ano_atual
                   AND EXTRACT(MONTH FROM data) = :mes_atual
@@ -387,7 +387,7 @@ class Indicadores:
                 UNION ALL
                 SELECT 'Custos Variáveis', SUM(valor) * -1
                 FROM fc
-                WHERE id_cliente = :id_cliente
+                WHERE id_cliente = ANY (:id_cliente)
                   AND visao = 'Realizado'
                   AND EXTRACT(YEAR FROM data) = :ano_atual
                   AND EXTRACT(MONTH FROM data) = :mes_atual
@@ -395,7 +395,7 @@ class Indicadores:
                 UNION ALL
                 SELECT 'Despesas Fixas', SUM(valor) * -1
                 FROM fc
-                WHERE id_cliente = :id_cliente
+                WHERE id_cliente = ANY (:id_cliente)
                   AND visao = 'Realizado'
                   AND EXTRACT(YEAR FROM data) = :ano_atual
                   AND EXTRACT(MONTH FROM data) = :mes_atual
@@ -404,7 +404,7 @@ class Indicadores:
               totais_anterior AS (
                 SELECT 'Receita' AS categoria, SUM(valor) AS prev_valor
                 FROM fc
-                WHERE id_cliente = :id_cliente
+                WHERE id_cliente = ANY (:id_cliente)
                   AND visao = 'Realizado'
                   AND EXTRACT(YEAR FROM data) = :ano_anterior
                   AND EXTRACT(MONTH FROM data) = :mes_anterior
@@ -412,7 +412,7 @@ class Indicadores:
                 UNION ALL
                 SELECT 'Custos Variáveis', SUM(valor) * -1
                 FROM fc
-                WHERE id_cliente = :id_cliente
+                WHERE id_cliente = ANY (:id_cliente)
                   AND visao = 'Realizado'
                   AND EXTRACT(YEAR FROM data) = :ano_anterior
                   AND EXTRACT(MONTH FROM data) = :mes_anterior
@@ -420,7 +420,7 @@ class Indicadores:
                 UNION ALL
                 SELECT 'Despesas Fixas', SUM(valor) * -1
                 FROM fc
-                WHERE id_cliente = :id_cliente
+                WHERE id_cliente = ANY (:id_cliente)
                   AND visao = 'Realizado'
                   AND EXTRACT(YEAR FROM data) = :ano_anterior
                   AND EXTRACT(MONTH FROM data) = :mes_anterior
@@ -470,7 +470,7 @@ class Indicadores:
                 receita AS (
                   SELECT SUM(valor) AS total_receita
                   FROM fc
-                  WHERE id_cliente = :id_cliente
+                  WHERE id_cliente = ANY (:id_cliente)
                     AND visao = 'Realizado'
                     AND EXTRACT(YEAR FROM data) = :ano_atual
                     AND EXTRACT(MONTH FROM data) = :mes_atual
@@ -484,7 +484,7 @@ class Indicadores:
                   JOIN plano_de_contas p
                     ON f.id_cliente = p.id_cliente
                     AND text(f.nivel_3_id) = p.nivel_3_id
-                  WHERE f.id_cliente = :id_cliente
+                  WHERE f.id_cliente = ANY (:id_cliente)
                     AND f.visao = 'Realizado'
                     AND f.nivel_1 = '6. Investimentos'
                     AND EXTRACT(YEAR FROM f.data) = :ano_anterior
@@ -511,7 +511,7 @@ class Indicadores:
               CROSS JOIN receita r
               LEFT JOIN prev_custos prev 
                 ON prev.categoria = p.nivel_2
-              WHERE f.id_cliente = :id_cliente
+              WHERE f.id_cliente = ANY (:id_cliente)
                 AND f.visao = 'Realizado'
                 AND f.nivel_1 = '6. Investimentos'
                 AND EXTRACT(YEAR FROM f.data) = :ano_atual
@@ -545,7 +545,7 @@ class Indicadores:
             totais_atual AS (
               SELECT 'Receita' AS categoria, SUM(valor) AS valor
               FROM fc
-              WHERE id_cliente = :id_cliente
+              WHERE id_cliente = ANY (:id_cliente)
                 AND visao = 'Realizado'
                 AND EXTRACT(YEAR FROM data) = :year
                 AND EXTRACT(MONTH FROM data) = :month
@@ -553,7 +553,7 @@ class Indicadores:
               UNION ALL
               SELECT 'Custos Variáveis', SUM(valor) * -1
               FROM fc
-              WHERE id_cliente = :id_cliente
+              WHERE id_cliente = ANY (:id_cliente)
                 AND visao = 'Realizado'
                 AND EXTRACT(YEAR FROM data) = :year
                 AND EXTRACT(MONTH FROM data) = :month
@@ -561,7 +561,7 @@ class Indicadores:
               UNION ALL
               SELECT 'Despesas Fixas', SUM(valor) * -1
               FROM fc
-              WHERE id_cliente = :id_cliente
+              WHERE id_cliente = ANY (:id_cliente)
                 AND visao = 'Realizado'
                 AND EXTRACT(YEAR FROM data) = :year
                 AND EXTRACT(MONTH FROM data) = :month
@@ -569,7 +569,7 @@ class Indicadores:
               UNION ALL
               SELECT 'Investimentos', SUM(valor) * -1
               FROM fc
-              WHERE id_cliente = :id_cliente
+              WHERE id_cliente = ANY (:id_cliente)
                 AND visao = 'Realizado'
                 AND EXTRACT(YEAR FROM data) = :year
                 AND EXTRACT(MONTH FROM data) = :month
@@ -578,7 +578,7 @@ class Indicadores:
             totais_anterior AS (
               SELECT 'Receita' AS categoria, SUM(valor) AS prev_valor
               FROM fc
-              WHERE id_cliente = :id_cliente
+              WHERE id_cliente = ANY (:id_cliente)
                 AND visao = 'Realizado'
                 AND EXTRACT(YEAR FROM data) = :prev_year
                 AND EXTRACT(MONTH FROM data) = :prev_month
@@ -586,7 +586,7 @@ class Indicadores:
               UNION ALL
               SELECT 'Custos Variáveis', SUM(valor) * -1
               FROM fc
-              WHERE id_cliente = :id_cliente
+              WHERE id_cliente = ANY (:id_cliente)
                 AND visao = 'Realizado'
                 AND EXTRACT(YEAR FROM data) = :prev_year
                 AND EXTRACT(MONTH FROM data) = :prev_month
@@ -594,7 +594,7 @@ class Indicadores:
               UNION ALL
               SELECT 'Despesas Fixas', SUM(valor) * -1
               FROM fc
-              WHERE id_cliente = :id_cliente
+              WHERE id_cliente = ANY (:id_cliente)
                 AND visao = 'Realizado'
                 AND EXTRACT(YEAR FROM data) = :prev_year
                 AND EXTRACT(MONTH FROM data) = :prev_month
@@ -602,7 +602,7 @@ class Indicadores:
               UNION ALL
               SELECT 'Investimentos', SUM(valor) * -1
               FROM fc
-              WHERE id_cliente = :id_cliente
+              WHERE id_cliente = ANY (:id_cliente)
                 AND visao = 'Realizado'
                 AND EXTRACT(YEAR FROM data) = :prev_year
                 AND EXTRACT(MONTH FROM data) = :prev_month
@@ -672,7 +672,7 @@ class Indicadores:
                 SELECT 
                   SUM(valor) AS total_receita
                 FROM fc
-                WHERE id_cliente = :id_cliente
+                WHERE id_cliente = ANY (:id_cliente)
                   AND visao = 'Realizado'
                   AND EXTRACT(YEAR FROM data) = :year
                   AND EXTRACT(MONTH FROM data) = :month
@@ -683,7 +683,7 @@ class Indicadores:
                   categoria_nivel_3,
                   SUM(valor) AS prev_valor
                 FROM fc
-                WHERE id_cliente = :id_cliente
+                WHERE id_cliente = ANY (:id_cliente)
                   AND visao = 'Realizado'
                   AND EXTRACT(YEAR FROM data) = :prev_year
                   AND EXTRACT(MONTH FROM data) = :prev_month
@@ -695,7 +695,7 @@ class Indicadores:
                   categoria_nivel_3,
                   SUM(valor) AS total_valor
                 FROM fc
-                WHERE id_cliente = :id_cliente
+                WHERE id_cliente = ANY (:id_cliente)
                   AND visao = 'Realizado'
                   AND EXTRACT(YEAR FROM data) = :year
                   AND EXTRACT(MONTH FROM data) = :month
@@ -755,7 +755,7 @@ class Indicadores:
                 'Saídas Não Operacionais' AS categoria,
                 SUM(valor) AS total_valor
             FROM fc
-            WHERE id_cliente = :id_cliente
+            WHERE id_cliente = ANY (:id_cliente)
               AND visao = 'Realizado'
               AND EXTRACT(YEAR FROM data) = :year
               AND EXTRACT(MONTH FROM data) = :month
@@ -793,7 +793,7 @@ class Indicadores:
               SELECT 
                 SUM(valor) AS total_receita
               FROM fc
-              WHERE id_cliente = :id_cliente
+              WHERE id_cliente = ANY (:id_cliente)
                 AND visao = 'Realizado'
                 AND EXTRACT(YEAR FROM data) = :year
                 AND EXTRACT(MONTH FROM data) = :month
@@ -804,7 +804,7 @@ class Indicadores:
                 nivel_1,
                 SUM(valor) AS prev_valor
               FROM fc
-              WHERE id_cliente = :id_cliente
+              WHERE id_cliente = ANY (:id_cliente)
                 AND visao = 'Realizado'
                 AND EXTRACT(YEAR FROM data) = :prev_year
                 AND EXTRACT(MONTH FROM data) = :prev_month
@@ -816,7 +816,7 @@ class Indicadores:
                 nivel_1,
                 SUM(valor) AS total_valor
               FROM fc
-              WHERE id_cliente = :id_cliente
+              WHERE id_cliente = ANY (:id_cliente)
                 AND visao = 'Realizado'
                 AND EXTRACT(YEAR FROM data) = :year
                 AND EXTRACT(MONTH FROM data) = :month
@@ -876,7 +876,7 @@ class Indicadores:
               totais_atual AS (
                 SELECT 'Receita' AS categoria, SUM(valor) AS valor
                 FROM fc
-                WHERE id_cliente = :id_cliente
+                WHERE id_cliente = ANY (:id_cliente)
                   AND visao = 'Realizado'
                   AND EXTRACT(YEAR FROM data) = :year
                   AND EXTRACT(MONTH FROM data) = :month
@@ -884,7 +884,7 @@ class Indicadores:
                 UNION ALL
                 SELECT 'Custos Variáveis', SUM(valor) * -1
                 FROM fc
-                WHERE id_cliente = :id_cliente
+                WHERE id_cliente = ANY (:id_cliente)
                   AND visao = 'Realizado'
                   AND EXTRACT(YEAR FROM data) = :year
                   AND EXTRACT(MONTH FROM data) = :month
@@ -892,7 +892,7 @@ class Indicadores:
                 UNION ALL
                 SELECT 'Despesas Fixas', SUM(valor) * -1
                 FROM fc
-                WHERE id_cliente = :id_cliente
+                WHERE id_cliente = ANY (:id_cliente)
                   AND visao = 'Realizado'
                   AND EXTRACT(YEAR FROM data) = :year
                   AND EXTRACT(MONTH FROM data) = :month
@@ -900,7 +900,7 @@ class Indicadores:
                 UNION ALL
                 SELECT 'Investimentos', SUM(valor) * -1
                 FROM fc
-                WHERE id_cliente = :id_cliente
+                WHERE id_cliente = ANY (:id_cliente)
                   AND visao = 'Realizado'
                   AND EXTRACT(YEAR FROM data) = :year
                   AND EXTRACT(MONTH FROM data) = :month
@@ -908,7 +908,7 @@ class Indicadores:
                 UNION ALL
                 SELECT 'Entradas Não Operacionais', SUM(valor)
                 FROM fc
-                WHERE id_cliente = :id_cliente
+                WHERE id_cliente = ANY (:id_cliente)
                   AND visao = 'Realizado'
                   AND EXTRACT(YEAR FROM data) = :year
                   AND EXTRACT(MONTH FROM data) = :month
@@ -916,7 +916,7 @@ class Indicadores:
                 UNION ALL
                 SELECT 'Saídas Não Operacionais', SUM(valor) * -1
                 FROM fc
-                WHERE id_cliente = :id_cliente
+                WHERE id_cliente = ANY (:id_cliente)
                   AND visao = 'Realizado'
                   AND EXTRACT(YEAR FROM data) = :year
                   AND EXTRACT(MONTH FROM data) = :month
@@ -925,7 +925,7 @@ class Indicadores:
               totais_anterior AS (
                 SELECT 'Receita' AS categoria, SUM(valor) AS prev_valor
                 FROM fc
-                WHERE id_cliente = :id_cliente
+                WHERE id_cliente = ANY (:id_cliente)
                   AND visao = 'Realizado'
                   AND EXTRACT(YEAR FROM data) = :prev_year
                   AND EXTRACT(MONTH FROM data) = :prev_month
@@ -933,7 +933,7 @@ class Indicadores:
                 UNION ALL
                 SELECT 'Custos Variáveis', SUM(valor) * -1
                 FROM fc
-                WHERE id_cliente = :id_cliente
+                WHERE id_cliente = ANY (:id_cliente)
                   AND visao = 'Realizado'
                   AND EXTRACT(YEAR FROM data) = :prev_year
                   AND EXTRACT(MONTH FROM data) = :prev_month
@@ -941,7 +941,7 @@ class Indicadores:
                 UNION ALL
                 SELECT 'Despesas Fixas', SUM(valor) * -1
                 FROM fc
-                WHERE id_cliente = :id_cliente
+                WHERE id_cliente = ANY (:id_cliente)
                   AND visao = 'Realizado'
                   AND EXTRACT(YEAR FROM data) = :prev_year
                   AND EXTRACT(MONTH FROM data) = :prev_month
@@ -949,7 +949,7 @@ class Indicadores:
                 UNION ALL
                 SELECT 'Investimentos', SUM(valor) * -1
                 FROM fc
-                WHERE id_cliente = :id_cliente
+                WHERE id_cliente = ANY (:id_cliente)
                   AND visao = 'Realizado'
                   AND EXTRACT(YEAR FROM data) = :prev_year
                   AND EXTRACT(MONTH FROM data) = :prev_month
@@ -957,7 +957,7 @@ class Indicadores:
                 UNION ALL
                 SELECT 'Entradas Não Operacionais', SUM(valor)
                 FROM fc
-                WHERE id_cliente = :id_cliente
+                WHERE id_cliente = ANY (:id_cliente)
                   AND visao = 'Realizado'
                   AND EXTRACT(YEAR FROM data) = :prev_year
                   AND EXTRACT(MONTH FROM data) = :prev_month
@@ -965,7 +965,7 @@ class Indicadores:
                 UNION ALL
                 SELECT 'Saídas Não Operacionais', SUM(valor) * -1
                 FROM fc
-                WHERE id_cliente = :id_cliente
+                WHERE id_cliente = ANY (:id_cliente)
                   AND visao = 'Realizado'
                   AND EXTRACT(YEAR FROM data) = :prev_year
                   AND EXTRACT(MONTH FROM data) = :prev_month
@@ -1132,11 +1132,12 @@ class Indicadores:
             Returns:
                 Lista de dicionários com os indicadores, valores e análise vertical (av_dre).
             """
+            
             # Query para obter os dados do DRE
             query = text("""
               SELECT categoria, sum(valor) AS valor
               FROM dre
-              WHERE id_cliente = :id_cliente
+              WHERE id_cliente = ANY (:id_cliente)
                 AND visao = 'Competência'
                 AND EXTRACT(YEAR FROM data) = :year
                 AND EXTRACT(MONTH FROM data) = :month
@@ -1261,7 +1262,7 @@ class Indicadores:
                 ruim,
                 COALESCE(SUM(valor), 0) AS total_valor
             FROM indicador
-            WHERE id_cliente = :id_cliente
+            WHERE id_cliente = ANY (:id_cliente)
               AND EXTRACT(YEAR FROM data) = :year
               AND EXTRACT(MONTH FROM data) = :month
               AND bom IS NOT NULL

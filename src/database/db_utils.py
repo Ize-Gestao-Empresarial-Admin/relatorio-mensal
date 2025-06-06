@@ -73,3 +73,4 @@ def obter_anos(db: DatabaseConnection, id_cliente: int) -> List[int]:
     df = db.execute_query(query, params)
     anos = df['ano'].tolist() if not df.empty else [date.today().year]
     return anos
+
