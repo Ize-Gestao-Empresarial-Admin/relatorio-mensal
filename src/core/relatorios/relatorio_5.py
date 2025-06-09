@@ -3,6 +3,7 @@ from datetime import date
 from typing import Optional, List, Dict, Any
 from src.core.indicadores import Indicadores
 from dateutil.relativedelta import relativedelta
+from src.core.utils import safe_float
 
 class Relatorio5:
     def __init__(self, indicadores: Indicadores, nome_cliente: str):
@@ -27,21 +28,30 @@ class Relatorio5:
         saidas_nao_operacionais_resultado = self.indicadores.calcular_saidas_nao_operacionais_fc(mes_atual)
         geracao_de_caixa_resultado = self.indicadores.calcular_geracao_de_caixa_fc(mes_atual)
 
-        # Construir subcategorias para Geração de Caixa
-        geracao_de_caixa_categorias = [
-            {
-                "subcategoria": r["categoria"],
-                "valor": r["valor"],
-                "av": round(r["av"], 2) if r["av"] is not None else 0,
-                "ah": round(r["ah"], 2) if r["ah"] is not None else 0
-            } for r in geracao_de_caixa_resultado
-        ]
-
         # Calcular o valor total da Geração de Caixa corretamente
         lucro_liquido_valor = next((r["valor"] for r in geracao_de_caixa_resultado if r["categoria"] == "Lucro Líquido"), 0)
         entradas_nao_operacionais_valor = next((r["valor"] for r in geracao_de_caixa_resultado if r["categoria"] == "Entradas Não Operacionais"), 0)
         saidas_nao_operacionais_valor = next((r["valor"] for r in geracao_de_caixa_resultado if r["categoria"] == "Saídas Não Operacionais"), 0)
         total_geracao_de_caixa = lucro_liquido_valor + entradas_nao_operacionais_valor - saidas_nao_operacionais_valor
+
+        # Calcular a representatividade para o tamanho das barras
+        total_positivo = sum(safe_float(abs(r["valor"])) for r in geracao_de_caixa_resultado)
+        
+        # Construir subcategorias para Geração de Caixa com representatividade
+        geracao_de_caixa_categorias = []
+        for r in geracao_de_caixa_resultado:
+            # Calcular a representatividade para o gráfico de barras
+            representatividade = 0
+            if total_positivo > 0:
+                representatividade = round((abs(r["valor"]) / total_positivo) * 100, 2)
+                
+            geracao_de_caixa_categorias.append({
+                "subcategoria": r["categoria"],
+                "valor": r["valor"],
+                "av": round(r["av"], 2) if r["av"] is not None else 0,
+                "ah": round(r["ah"], 2) if r["ah"] is not None else 0,
+                "representatividade": representatividade  # Adiciona representatividade para as barras
+            })
 
         # Parte 2: Análise Temporal da Geração de Caixa (3 meses)
         analise_temporal_resultado = self.indicadores.calcular_geracao_de_caixa_temporal_fc(mes_atual)
@@ -67,11 +77,12 @@ class Relatorio5:
         return [
             {
                 "categoria": "Saídas Não Operacionais",
-                "valor": saidas_nao_operacionais_resultado[0]["valor"]
+                "valor": saidas_nao_operacionais_resultado[0]["valor"] if saidas_nao_operacionais_resultado else 0
             },
             {
                 "categoria": "Geração de Caixa",
                 "valor": total_geracao_de_caixa,
+                "av_categoria": round((total_geracao_de_caixa / total_positivo) * 100, 2) if total_positivo > 0 else 0,
                 "subcategorias": geracao_de_caixa_categorias,
                 "analise_temporal": {
                     "meses": [

@@ -160,7 +160,7 @@ def main():
             {"id": "Relatório 2", "nome": "Relatório 2 - Análise de Fluxo de Caixa 2", "status": "ativo"},
             {"id": "Relatório 3", "nome": "Relatório 3 - Análise de Fluxo de Caixa 3", "status": "ativo"},
             {"id": "Relatório 4", "nome": "Relatório 4 - Análise de Fluxo de Caixa 4", "status": "ativo"},
-            {"id": "Relatório 5", "nome": "Relatório 5 - Fechamento de Fluxo de Caixa", "status": "em_desenvolvimento"}
+            {"id": "Relatório 5", "nome": "Relatório 5 - Fechamento de Fluxo de Caixa", "status": "ativo"}
         ],
         "DRE": [
             {"id": "Relatório 6", "nome": "Relatório 6 - Análise por Competência - DRE", "status": "ativo"}
