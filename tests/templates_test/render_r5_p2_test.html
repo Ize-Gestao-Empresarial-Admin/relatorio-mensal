@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Relatório Financeiro - Cliente Exemplo - Junho/2024</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+
+        /* Resetar margens e definir layout base */
+        html, body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+            position: relative;
+            min-height: 100%; /* Garante que o body ocupe a página inteira */
+        }
+
+        /* Contêiner principal para o conteúdo */
+        .main-content {
+            padding: 20px 20px 140px 20px; /* Uniforme */
+            box-sizing: border-box;
+            position: relative;
+        }
+
+        .section-title {
+            font-size: 25px;
+            font-weight: bold;
+            margin-top: 6px;
+            margin-bottom: 40px;
+        }
+
+        .notes-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin: 15px 0 8px 0;
+            text-align: left;
+            page-break-before: avoid;
+        }
+
+        .notes-title + .box-frame {
+            margin-top: 12px;      /* antes era 45px na .box-frame geral */
+            margin-bottom: 8px;
+            padding: 30px;
+        }
+
+        .bar-container {
+            width: 100%;
+            height: 28px;
+            border-radius: 8px;
+            overflow: hidden;
+            margin: 2px 0 0 0;
+            display: flex; /* garante que não deixe de renderizar se der 100.01 */
+        }
+
+        .bar-segment {
+            float: left;
+            height: 100%;
+        }
+
+        .bar-total {
+            font-size: 17px;
+            text-align: right;
+            margin-top: 5px;
+        }
+
+        .value {
+            font-size: 25px;
+            margin-top: -25px;
+            margin-bottom: 40px;
+            font-weight: 580;
+        }
+
+        hr.section-separator {
+            border: none;
+            border-top: 1px solid #ddd;
+            margin: 20px 0;
+        }
+
+        .report-name, .report-period {
+            color: #A5A5A5;
+        }
+
+        table.cat-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+            border: none;
+        }
+
+        table.cat-table th, table.cat-table td {
+            border: none;
+            padding: 8px;
+            text-align: left;
+            background-color: #fff;
+            font-family: 'Inter', sans-serif;
+            font-weight: 200;
+            font-size: 17px;
+        }
+
+        table.cat-table td:nth-child(3) {
+            font-weight: 700;
+        }
+
+        table.cat-table td:nth-child(4), table.cat-table td:nth-child(5) {
+            font-size: 14px;
+        }
+
+        table.cat-table thead {
+            display: table-header-group;
+        }
+
+        table.cat-table thead th {
+            visibility: hidden;
+        }
+
+        table.cat-table thead th:nth-child(4),
+        table.cat-table thead th:nth-child(5) {
+            visibility: visible;
+            text-align: left;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .legend-box {
+            width: 12px;
+            height: 12px;
+            border-radius: 2px;
+        }
+
+        .var-up img, .var-down img {
+            vertical-align: middle;
+            width: 10px;
+            height: 7px;
+            margin-right: 3px;
+        }
+        
+        .header-accent {
+            width: 100px;
+            height: 6px;
+            background-color: #FF6900;
+            margin: 0 0 4px 583px;
+            border-radius: 3px 3px 0 0;
+        }
+
+        .report-header {
+            border-top: 1px solid #D9D9D9;
+            margin: 0 0 8px 0;
+        }
+
+        .report-header-info {
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+            width: 100%;
+            font-size: 14px;
+            margin: 4px 0 16px;
+            white-space: nowrap;
+        }
+
+        .report-header-info .report-period {
+            margin-left: auto;
+        }
+
+        .box-frame {
+            page-break-inside: avoid;
+            border: 1px solid #D9D9D9;
+            border-radius: 16px;
+            padding: 32px;
+            margin-bottom: 18px;
+            margin-top: 30px;
+        }
+
+        .box-frame.blank {
+            height: 100px;
+            margin: 0 0 24px 0;
+        }
+
+        .notes-content {
+            white-space: pre-wrap;   /* preserva quebras de linha */
+            text-align: left;        /* garante que todo o texto fique alinhado à esquerda */
+            margin: 0;               /* zera qualquer margem interna */
+            padding: 0;              /* zera qualquer padding interno se houver */
+            font-size: 17px;
+            line-height: 1.7;
+        }
+        
+        .fixed-footer-bg {
+            position: fixed;           /* sai do fluxo normal */
+            bottom: 10px;              /* gruda na base da página */
+            left: 50%;                 /* centraliza horizontalmente */
+            transform: translateX(-50%);
+            z-index: -1;               /* garante que fique atrás de tudo */
+            width: 80px;               /* ajuste à largura que desejar */
+            height: auto;
+            /* opacity: 1;           — opcional, se quiser "esmaecer" um pouco */
+        }
+        
+        .var-up {
+            color: #007F4F;
+        }
+        
+        .var-down {
+            color: #E75F00; 
+        }
+        
+        .section {
+            margin-bottom: 30px;
+        }
+
+        /* Estilos específicos para o gráfico de histograma */
+        .chart-section {
+            margin-top: 20px; /* Espaçamento após a primeira seção */
+        }
+
+        .chart-wrapper {
+            width: 100%;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .chart-wrapper img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+        }
+
+        .legend {
+            display: flex;
+            justify-content: center;
+            gap: 25px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            font-size: 14px;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .legend-color {
+            width: 14px;
+            height: 14px;
+            border-radius: 3px;
+            margin-right: 8px;
+        }
+
+        /* Estilos específicos para o histograma */
+        .histogram-wrapper {
+            width: 100%;
+            margin: 30px 0;
+        }
+
+        .histogram-wrapper img {
+            max-width: 100%;
+            height: auto;
+            display: block;
+            margin: 0 auto;
+            border-radius: 8px;
+        }
+
+        .histogram-legend {
+            display: flex;
+            justify-content: center;
+            gap: 25px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            font-size: 14px;
+        }
+
+        .legend-color {
+            width: 14px;
+            height: 14px;
+            border-radius: 3px;
+            margin-right: 8px;
+        }
+        
+        .line-indicator {
+            width: 20px;
+            height: 2px;
+            background-color: #333;
+            margin-right: 8px;
+        }
+    </style>
+</head>
+<body>
+    <img src="data:image/png;base64,{{ icon_rodape }}" class="fixed-footer-bg" alt=""/>
+    <div class="main-content">
+        <div class="header-accent"></div>
+        <div class="report-header"></div>
+        <table style="width:100%; border-collapse:collapse; margin:4px 0 16px;">
+            <tr>
+                <td class="report-name" style="padding:0; text-align:left; font-size:14px;">
+                    Cliente Exemplo
+                </td>
+                <td class="report-period" style="padding:0; text-align:right; font-size:14px;">
+                    Junho/2024
+                </td>
+            </tr>
+        </table>
+        <div class="box-frame">
+            <div class="section">
+                <div class="section-title">Geração de Caixa</div>
+                
+                <div class="bar-container">
+                    <div class="bar-segment" style="width: 65.0%; background-color: #007F4F;"></div>
+                    <div class="bar-segment" style="width: 20.0%; background-color: #33B283;"></div>
+                    <div class="bar-segment" style="width: 15.0%; background-color: #7FCEB1;"></div>
+                </div>
+                <div class="bar-total">100%</div>
+                <div class="value">R$ 350.000,00</div>
+                <table class="cat-table">
+                    <colgroup>
+                        <col style="width:5%" />
+                        <col style="width:35%" />
+                        <col style="width:30%" />
+                        <col style="width:15%" />
+                        <col style="width:15%" />
+                    </colgroup>
+                    <thead>
+                        <tr>
+                            <th></th>
+                            <th>Categoria</th>
+                            <th>Valor</th>
+                            <th>AV</th>
+                            <th>AH</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><div class="legend-box" style="background-color:#007F4F;"></div></td>
+                            <td>Receitas Operacionais</td>
+                            <td>R$ 227.500,00</td>
+                            <td>65,0%</td>
+                            <td>
+                                <span class="var-up">
+                                    <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAiIGhlaWdodD0iNyIgdmlld0JveD0iMCAwIDEwIDciIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxwYXRoIGQ9Ik01IDFMOSA2SDF6IiBmaWxsPSIjMDA3RjRGIi8+Cjwvc3ZnPgo=" alt="↑"/>
+                                    5,0%
+                                </span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><div class="legend-box" style="background-color:#33B283;"></div></td>
+                            <td>Operações Financeiras</td>
+                            <td>R$ 70.000,00</td>
+                            <td>20,0%</td>
+                            <td>
+                                <span class="var-down">
+                                    <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAiIGhlaWdodD0iNyIgdmlld0JveD0iMCAwIDEwIDciIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxwYXRoIGQ9Ik01IDZMOSAxSDF6IiBmaWxsPSIjRTc1RjAwIi8+Cjwvc3ZnPgo=" alt="↓"/>
+                                    -3,0%
+                                </span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><div class="legend-box" style="background-color:#7FCEB1;"></div></td>
+                            <td>Recuperação de Ativos</td>
+                            <td>R$ 52.500,00</td>
+                            <td>15,0%</td>
+                            <td>
+                                <span class="var-down">
+                                    <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAiIGhlaWdodD0iNyIgdmlld0JveD0iMCAwIDEwIDciIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxwYXRoIGQ9Ik01IDZMOSAxSDF6IiBmaWxsPSIjRTc1RjAwIi8+Cjwvc3ZnPgo=" alt="↓"/>
+                                    -3,0%
+                                </span>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Segunda seção - Análise de Fluxo de Caixa com gráfico -->
+            <hr class="section-separator"/>
+            <div class="section chart-section">
+                <div class="section-title">Análise Temporal - Caixa Acumulado</div>
+                
+                <div class="chart-wrapper">
+                    <img src="data:image/png;base64,{{ histogram_base64 }}" alt="Histograma de Caixa" />
+                </div>
+            </div>
+        </div>
+        <div class="notes-title">Notas</div>
+        <div class="box-frame">
+            <div class="notes-content">Estas são notas fictícias para testar a formatação do Relatório 5.
+
+A Geração de Caixa representa o resultado financeiro do período, considerando os fluxos de entrada e saída de recursos.
+
+As categorias apresentadas mostram os principais componentes desta geração.
+
+A Análise Temporal de Caixa demonstra a evolução do caixa no período, permitindo comparar o desempenho atual com meses anteriores e identificar tendências.</div>
+        </div>
+    </div>
+</body>
+</html>
