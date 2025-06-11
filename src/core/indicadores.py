@@ -1253,13 +1253,15 @@ class Indicadores:
             mes: Data do mês a ser calculado (o dia é ignorado, apenas ano e mês são usados).
 
         Returns:
-            Lista de dicionários com 'indicador' e 'total_valor'.
+            Lista de dicionários com 'indicador', 'total_valor', 'bom', 'ruim', 'sentido' e 'unidade'.
         """
         query = text("""
             SELECT
                 indicador,
                 bom,
                 ruim,
+                sentido,
+                unidade,
                 COALESCE(SUM(valor), 0) AS total_valor
             FROM indicador
             WHERE id_cliente = ANY (:id_cliente)
@@ -1267,7 +1269,7 @@ class Indicadores:
               AND EXTRACT(MONTH FROM data) = :month
               AND bom IS NOT NULL
               AND ruim IS NOT NULL
-            GROUP BY indicador, bom, ruim
+            GROUP BY indicador, bom, ruim, sentido, unidade
             ORDER BY indicador;
         """)
         params = {
@@ -1282,7 +1284,9 @@ class Indicadores:
                     "indicador": row["indicador"],
                     "total_valor": float(row["total_valor"]) if row["total_valor"] is not None else 0.0,
                     "bom": float(row["bom"]),
-                    "ruim":float(row["ruim"])
+                    "ruim":float(row["ruim"]),
+                    "sentido": row["sentido"],
+                    "unidade": row["unidade"]
                 }
                 for _, row in result.iterrows()
             ] if not result.empty else []

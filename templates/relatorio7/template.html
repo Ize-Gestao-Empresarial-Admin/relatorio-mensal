@@ -1,94 +1,238 @@
-{% extends "base/layout.html" %}
-
-{% block styles %}
-<style>
-    {% include "relatorio7/style.css" %}
-</style>
-{% endblock %}
-
-{% block content %}
-<div class="relatorio-header">
-    <h1>Indicadores Operacionais</h1>
-    <p>Visão geral dos principais indicadores de desempenho</p>
-</div>
-
-<!-- Indicadores Financeiros -->
-<h2>Indicadores Financeiros</h2>
-<div class="indicadores-grid">
-    {% for indicador in indicadores_financeiros %}
-    <div class="indicador-valor">
-        <div class="indicador-nome">{{ indicador.nome }}</div>
-        <div class="{% if indicador.valor > 0 %}valor-positivo{% elif indicador.valor < 0 %}valor-negativo{% else %}valor-neutral{% endif %}">
-            {% if "%" in indicador.nome %}
-                {{ indicador.valor|format_percentage }}
-            {% else %}
-                {{ indicador.valor|format_currency }}
-            {% endif %}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Relatório Financeiro - {{ cliente_nome }} - {{ mes_nome }}/{{ ano }}</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@200;400;600;700&family=Poppins:wght@400;600;700&display=swap');
+        
+        /* Resetar margens e definir layout base */
+        html, body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+            position: relative;
+            min-height: 100%;
+        }
+        
+        /* Contêiner principal para o conteúdo */
+        .main-content {
+            padding: 20px 20px 60px 20px;
+            box-sizing: border-box;
+            position: relative;
+        }
+        
+        /* Cor do nome do relatório */
+        .report-name {
+            color: #A5A5A5; 
+        }
+        
+        /* Cor do período */
+        .report-period {
+            color: #A5A5A5; 
+        }
+        
+        /* Barra laranja acima do cabeçalho */
+        .header-accent {
+            width: 100px;
+            height: 6px;
+            background-color: #FF6900;
+            margin: 0 0 4px 793px;
+            border-radius: 3px 3px 0 0;
+        }
+        
+        /* Cabeçalho acima da primeira caixa */
+        .report-header {
+            border-top: 1px solid #D9D9D9;
+            margin: 0 0 8px 0;
+        }
+        
+        /* Container com nome e período */
+        .report-header-info {
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+            width: 100%;
+            font-size: 14px;
+            margin: 4px 0 16px;
+            white-space: nowrap;  
+        }
+        
+        /* Empurra o segundo span para a margem direita */
+        .report-header-info .report-period {
+            margin-left: auto;
+        }
+        
+        .cards-container {
+            margin-top: 30px;
+            position: relative;
+            margin-left: 60px;
+            page-break-inside: avoid; /* Evita quebra de página dentro do container */
+        }
+        
+        .cards-container::after {
+            content: "";
+            display: table;
+            clear: both;
+        }
+        
+        .indicator-card {
+            position: relative;
+            float: left;
+            margin-right: 30px;
+            margin-bottom: 35px;
+            width: 245px;
+            height: 112px;
+            border: 1px solid #CFCFCF;
+            border-radius: 9px;
+            box-sizing: border-box;
+            overflow: hidden;
+            page-break-inside: avoid; /* Evita quebra de página dentro do card */
+        }
+        
+        /* Faixa verde no topo */
+        .indicator-card .card-header {
+            position: absolute;
+            top: 0; 
+            left: 0; 
+            right: 0;
+            height: 7px;
+            background-color: #009F64;
+            border-top-left-radius: 9px;
+            border-top-right-radius: 9px;
+        }
+        
+        /* Círculo com o ícone, sempre fixo */
+        .indicator-card .icon-circle {
+            position: absolute;
+            top: 30px;
+            left: 16px;
+            width: 48px;
+            height: 48px;
+            background-color: #FFFFFF;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        /* Bloco de texto (nome + valor) sempre alinhado ao mesmo top */
+        .indicator-card .text-block {
+            position: absolute;
+            left: 80px;    /* 16px padding + 48px ícone + 16px gap */
+            right: 16px;   /* padding direito */
+        }
+        
+        /* Nome do indicador */
+        .indicator-card .indicator-name {
+            font-weight: 200;
+            line-height: 1;
+            margin: 0 0 4px 0;
+            font-family: 'Inter', sans-serif;
+        }
+        
+        /* Valor principal */
+        .indicator-card .indicator-value {
+            font-weight: 700;
+            font-family: 'Poppins', sans-serif;
+            margin: 0;
+        }
+        
+        /* Frase colado na base direita */
+        .scenario-text {
+            position: absolute;
+            bottom: 5px;
+            right: 7px;
+            color: #878787;
+            margin: 0;
+            text-align: right;
+        }
+        
+        .fixed-footer-bg {
+            position: fixed;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: -1;
+            width: 80px;
+            height: auto;
+        }
+        
+        /* Estilos específicos para impressão/PDF */
+        @media print {
+            .cards-container {
+                page-break-inside: avoid;
+                orphans: 2; /* Mínimo de 2 linhas no final da página */
+                widows: 2;  /* Mínimo de 2 linhas no início da página */
+            }
+            
+            .indicator-card {
+                page-break-inside: avoid;
+                break-inside: avoid;
+            }
+            
+            /* Evita página em branco no final */
+            body {
+                page-break-after: avoid;
+            }
+            
+            .main-content {
+                page-break-after: avoid;
+            }
+        }
+        
+    </style>
+</head>
+<body>
+    <img src="data:image/png;base64,{{ icon_rodape }}" class="fixed-footer-bg" alt=""/>
+    <div class="main-content">
+        <div class="header-accent"></div>
+        <div class="report-header"></div>
+        <table style="width:100%; border-collapse:collapse; margin:4px 0 16px;">
+            <tr>
+                <td class="report-name" style="padding:0; text-align:left; font-size:14px;">
+                    {{ data.nome }}
+                </td>
+                <td class="report-period" style="padding:0; text-align:right; font-size:14px;">
+                    {{ data.Periodo }}
+                </td>
+            </tr>
+        </table>
+        
+        <div class="cards-container">
+            {% for ind in data.indicadores %}
+            <div class="indicator-card">
+                <div class="card-header"></div>
+                
+                <!-- Ícone fixo -->
+                <div class="icon-circle">
+                    <img src="data:image/png;base64,{{ ind.icon_base64 }}" width="48" alt="ícone">
+                </div>
+                
+                <!-- Texto (nome + valor) sempre posicionado a partir do mesmo top -->
+                <div class="text-block" style="top: {{ ind.text_top }};">
+                    <div class="indicator-name" style="font-size: {{ ind.nome_font_size }};">
+                        {{ ind.nome }}
+                    </div>
+                    
+                    <div class="indicator-value" style="font-size: {{ ind.valor_font_size }};">
+                        {% if ind.unidade == '%' %}
+                            {% set valor_para_formatar = ind.valor * 100 %}
+                            {{ "{:,.2f}%".format(valor_para_formatar).replace(',', 'X').replace('.', ',').replace('X', '.') }}
+                        {% elif ind.unidade == 'R$' %}
+                            R$ {{ "{:,.2f}".format(ind.valor).replace(',', 'X').replace('.', ',').replace('X', '.') }}
+                        {% else %}
+                            {{ "{:,.2f}".format(ind.valor).replace(',', 'X').replace('.', ',').replace('X', '.') }}
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="scenario-text" style="font-size: {{ ind.cenario_font_size }};">
+                    {{ ind.cenario_texto }}
+                </div>
+            </div>
+            {% endfor %}
         </div>
     </div>
-    {% endfor %}
-</div>
-
-<!-- Indicadores de Vendas -->
-<h2>Indicadores de Vendas</h2>
-<div class="indicadores-grid">
-    {% for indicador in indicadores_vendas %}
-    <div class="indicador-valor">
-        <div class="indicador-nome">{{ indicador.nome }}</div>
-        <div class="{% if indicador.valor > 0 %}valor-positivo{% elif indicador.valor < 0 %}valor-negativo{% else %}valor-neutral{% endif %}">
-            {% if "%" in indicador.nome %}
-                {{ indicador.valor|format_percentage }}
-            {% elif "Assessor" in indicador.nome %}
-                {{ indicador.valor|format_currency }}
-            {% elif "Crescimento" in indicador.nome %}
-                {{ indicador.valor|format_percentage }}
-            {% else %}
-                {{ indicador.valor|format_number }}
-            {% endif %}
-        </div>
-    </div>
-    {% endfor %}
-</div>
-
-<!-- Indicadores de Clientes -->
-<h2>Indicadores de Clientes</h2>
-<div class="indicadores-grid">
-    {% for indicador in indicadores_clientes %}
-    <div class="indicador-valor">
-        <div class="indicador-nome">{{ indicador.nome }}</div>
-        <div class="valor-neutral">
-            {% if "Ticket" in indicador.nome %}
-                {{ indicador.valor|format_currency }}
-            {% elif "Quantidade" in indicador.nome %}
-                {{ indicador.valor|format_number(0) }}
-            {% else %}
-                {{ indicador.valor|format_number }}
-            {% endif %}
-        </div>
-    </div>
-    {% endfor %}
-</div>
-
-<!-- Outros Indicadores -->
-{% if indicadores_outros %}
-<h2>Outros Indicadores</h2>
-<div class="indicadores-grid">
-    {% for indicador in indicadores_outros %}
-    <div class="indicador-valor">
-        <div class="indicador-nome">{{ indicador.nome }}</div>
-        <div class="{% if indicador.valor > 0 %}valor-positivo{% elif indicador.valor < 0 %}valor-negativo{% else %}valor-neutral{% endif %}">
-            {% if "PE" in indicador.nome or "Ponto de Equilíbrio" in indicador.nome %}
-                {{ indicador.valor|format_currency }}
-            {% elif "%" in indicador.nome %}
-                {{ indicador.valor|format_percentage }}
-            {% else %}
-                {{ indicador.valor|format_number }}
-            {% endif %}
-        </div>
-    </div>
-    {% endfor %}
-</div>
-{% endif %}
-
-<div class="page-break"></div>
-{% endblock %}
+</body>
+</html>

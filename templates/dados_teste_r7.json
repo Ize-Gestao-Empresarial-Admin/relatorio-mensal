@@ -1,0 +1,40 @@
+{
+  "relatorio_7_dados_teste": [
+    {
+      "categoria": "Faturamento",
+      "valor": 934387.91,
+      "cenario_bom": 1000000.0,
+      "cenario_ruim": 500000.0,
+      "unidade": "R$"
+    },
+    {
+      "categoria": "Margem de Contribuição (Lucro Bruto)",
+      "valor": 415505.3,
+      "cenario_bom": 450000.0,
+      "cenario_ruim": 300000.0,
+      "unidade": "R$"
+    },
+    {
+      "categoria": "Lucro Líquido",
+      "valor": 75740.03,
+      "cenario_bom": 100000.0,
+      "cenario_ruim": 50000.0,
+      "unidade": "R$"
+    },
+    {
+      "categoria": "Crescimento do Mês",
+      "valor": 0.3498,
+      "cenario_bom": 0.25,
+      "cenario_ruim": 0.05,
+      "unidade": "%"
+    },
+    {
+      "categoria": "Quantidade de Clientes",
+      "valor": 38.0,
+      "cenario_bom": 50.0,
+      "cenario_ruim": 20.0,
+      "unidade": "SU"
+    }
+  ],
+  "notas": "Os indicadores apresentados fornecem uma visão abrangente do desempenho operacional da empresa."
+}

@@ -78,24 +78,45 @@ class Relatorio5:
             if total_geracao_de_caixa_anterior != 0 else 0, 2
         )
         
-        # Identifica a categoria mais representativa
-        categoria_maior_peso = max(
-            geracao_de_caixa_categorias, 
-            key=lambda x: x['representatividade'], 
-            default={'subcategoria': 'N/A'}
-        )['subcategoria']
+        # CORRIGIDO: Buscar receita total corretamente
+        receita_total = 0
+        try:
+            # Primeiro tentar buscar diretamente da função de receitas
+            receitas_fc = self.indicadores.calcular_receitas_fc(mes_atual, "3.%")
+            receita_total = sum(r["total_categoria"] for r in receitas_fc)
+        except:
+            # Se falhar, tentar buscar do lucro líquido
+            lucro_liquido_resultado = self.indicadores.calcular_lucro_liquido_fc(mes_atual)
+            receita_total = next((r["valor"] for r in lucro_liquido_resultado if r["categoria"] == "Receita"), 0)
 
-        # Formata a nota automatizada seguindo o padrão dos outros relatórios
-        notas_automatizadas = (
-            f"A Geração de Caixa total do período foi de R$ {total_geracao_de_caixa:,.2f} "
-            f"({round(total_geracao_de_caixa/total_positivo * 100, 2) if total_positivo > 0 else 0}% em relação ao total), "
-            f"apresentando uma variação de {geracao_caixa_ah}% em relação ao mês anterior, "
-            f"com maior impacto na categoria {categoria_maior_peso}. "
-            f"A média da Geração de Caixa dos últimos 3 meses foi de R$ {round(media_geracao_de_caixa, 2):,.2f}."
-        )
+        # NOVO: Calcular caixa acumulado (último valor da análise temporal)
+        caixa_acumulado = 0
+        if analise_temporal_resultado:
+            # Somar todos os valores da análise temporal para obter o acumulado
+            caixa_acumulado = sum(r["valor"] for r in analise_temporal_resultado)
 
-        # Mensagem padrão se não houver dados
-        if not geracao_de_caixa_resultado and not saidas_nao_operacionais_resultado:
+        # NOVO: Formatar as notas automáticas seguindo o padrão solicitado
+        if total_geracao_de_caixa != 0 and receita_total != 0:
+            # Determinar se é composição ou decomposição
+            tipo_movimento = "composição" if total_geracao_de_caixa > 0 else "decomposição"
+            
+            # Calcular percentual em relação à receita
+            percentual_receita = round((abs(total_geracao_de_caixa) / abs(receita_total)) * 100, 2)
+            
+            # Formatar o valor com sinal
+            valor_formatado = f"R$ {abs(total_geracao_de_caixa):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+            sinal = "+" if total_geracao_de_caixa > 0 else "-"
+            
+            # Formatar caixa acumulado
+            caixa_acumulado_formatado = f"R$ {caixa_acumulado:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+            
+            notas_automatizadas = (
+                f"Por fim, ao confrontar todas as entradas e saídas registradas no mês, "
+                f"ficamos com um resultado de ({sinal} {valor_formatado}), que representa uma "
+                f"{tipo_movimento} de caixa de {percentual_receita}% em relação à Receita Total. "
+                f"Assim, fechamos o mês com um resultado caixa acumulado de {caixa_acumulado_formatado}."
+            )
+        else:
             notas_automatizadas = "Não há dados disponíveis para o período selecionado."
 
         return [

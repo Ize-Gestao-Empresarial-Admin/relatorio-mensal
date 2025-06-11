@@ -9,8 +9,30 @@ from src.core.relatorios import (
 )
 from src.rendering.engine import RenderingEngine
 import os
+import re
 
-
+def processar_html_parecer(html_content: str) -> str:
+    """Processa o HTML do editor Quill para torná-lo compatível com PDF"""
+    if not html_content:
+        return ""
+    
+    # Mapear classes do Quill para CSS inline
+    size_mapping = {
+        'ql-size-small': 'font-size: 12px;',
+        'ql-size-normal': 'font-size: 14px;',
+        'ql-size-large': 'font-size: 20px;',
+        'ql-size-huge': 'font-size: 24px;'
+    }
+    
+    # Substituir classes por CSS inline
+    processed_html = html_content
+    for quill_class, css_style in size_mapping.items():
+        # Procurar por spans com a classe específica
+        pattern = rf'<span class="{quill_class}">(.*?)</span>'
+        replacement = rf'<span style="{css_style}">\1</span>'
+        processed_html = re.sub(pattern, replacement, processed_html, flags=re.DOTALL)
+    
+    return processed_html
 
 def render_parecer_tecnico(relatorios_selecionados: list) -> str:
     """Renderiza o editor de texto rico para o Parecer Técnico se o Relatório 8 estiver selecionado."""
@@ -23,14 +45,16 @@ def render_parecer_tecnico(relatorios_selecionados: list) -> str:
         content = st_quill(
             placeholder="Digite aqui suas observações e análises...",
             toolbar=[
-            ["bold", "italic"], 
-            [{"list": "bullet"}],
-            [{"size": ["small", False, "large", "huge"]}]
+                ["bold"], 
+                [{"list": "bullet"}],
+                [{"size": ["small", False, "large", "huge"]}]
             ],
             key="quill_editor",
             html=True  # Retorna o conteúdo como HTML
         )
-        return content
+        
+        # Processar o HTML para torná-lo compatível com PDF
+        return processar_html_parecer(content)
     return ""
 
 def main():
@@ -166,7 +190,7 @@ def main():
             {"id": "Relatório 6", "nome": "Relatório 6 - Análise por Competência - DRE", "status": "ativo"}
         ],
         "Indicadores": [
-            {"id": "Relatório 7", "nome": "Relatório 7 - Indicadores", "status": "em_desenvolvimento"}
+            {"id": "Relatório 7", "nome": "Relatório 7 - Indicadores", "status": "ativo"}
         ]
     }
     
@@ -192,7 +216,7 @@ def main():
             "Agrupamentos",
             agrupamentos_opcoes,
             default=["Fluxo de Caixa"],
-            help="VERSÃO BETA: Os relatórios 5 (fechamento FC) e 7 (Indicadores) estão em desenvolvimento e podem não exibir dados completos."
+            help="VERSÃO BETA: O relatório 7 (Indicadores) está em desenvolvimento e podem não exibir dados completos."
         )
         
         # Mapear agrupamentos para relatórios
@@ -205,7 +229,7 @@ def main():
             relatorios_selecionados.append("Relatório 8")
         
         if agrupamentos_selecionados:
-            st.markdown("<span class='dev-note'>Versão BETA: Os relatórios 5 (fechamento FC) e 7 (Indicadores) estão em desenvolvimento.</span>", unsafe_allow_html=True)
+            st.markdown("<span class='dev-note'>Versão BETA: O 7 (Indicadores) está em desenvolvimento.</span>", unsafe_allow_html=True)
     else:
         relatorios_selecionados = [
             "Relatório 1", "Relatório 2", "Relatório 3", "Relatório 4",

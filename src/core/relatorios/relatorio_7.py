@@ -1,6 +1,6 @@
 # src/core/relatorios/relatorio_7.py
 from datetime import date
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Tuple
 from src.core.indicadores import Indicadores
 
 class Relatorio7:
@@ -8,7 +8,7 @@ class Relatorio7:
         self.indicadores = indicadores
         self.nome_cliente = nome_cliente
 
-    def gerar_relatorio(self, mes_atual: date, mes_anterior: Optional[date] = None) -> List[Dict[str, Any]]:
+    def gerar_relatorio(self, mes_atual: date, mes_anterior: Optional[date] = None) -> Tuple[List[Dict[str, Any]], Dict[str, str]]:
         """Gera o relatório financeiro 7 com indicadores operacionais e seus valores.
 
         Args:
@@ -34,14 +34,22 @@ class Relatorio7:
         UNIDADES_VALIDAS = {"%", "R$", "SU"}
 
         # Construir lista de categorias (cada indicador é uma categoria)
-        return [
-            {
+        indicadores_formatados = []
+        for i in indicadores_resultado:
+            # Verificar se a unidade está nos valores válidos
+            unidade = i.get("unidade", "SU")
+            if unidade not in UNIDADES_VALIDAS:
+                unidade = "SU"  # Usar padrão se inválido
+            
+            indicador_formatado = {
                 "categoria": i["indicador"],
                 "valor": i["total_valor"],
                 "cenario_bom": i["bom"],
                 "cenario_ruim": i["ruim"],
-                "unidade": i.get("SU", "SU") if i.get("SU") in UNIDADES_VALIDAS else "SU"
-            } for i in indicadores_resultado
-        ], {
+                "unidade": unidade
+            }
+            indicadores_formatados.append(indicador_formatado)
+        
+        return indicadores_formatados, {
             "notas": notas_automatizadas
-         } # type: ignore
+        }

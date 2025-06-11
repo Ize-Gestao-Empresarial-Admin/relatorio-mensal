@@ -15,5 +15,8 @@ pdfkit
 matplotlib
 pypdf
 PyPDF2
-dotenv
+scipy
+numpy
+jinja2
+python-dateutil
 
