@@ -215,8 +215,7 @@ def main():
         agrupamentos_selecionados = st.multiselect(
             "Agrupamentos",
             agrupamentos_opcoes,
-            default=["Fluxo de Caixa"],
-            help="VERSÃO BETA: O relatório 7 (Indicadores) está em desenvolvimento e podem não exibir dados completos."
+            default=["Fluxo de Caixa"]
         )
         
         # Mapear agrupamentos para relatórios
@@ -227,9 +226,6 @@ def main():
         
         if incluir_parecer:
             relatorios_selecionados.append("Relatório 8")
-        
-        if agrupamentos_selecionados:
-            st.markdown("<span class='dev-note'>Versão BETA: O 7 (Indicadores) está em desenvolvimento.</span>", unsafe_allow_html=True)
     else:
         relatorios_selecionados = [
             "Relatório 1", "Relatório 2", "Relatório 3", "Relatório 4",
@@ -237,7 +233,6 @@ def main():
         ]
         if incluir_parecer:
             relatorios_selecionados.append("Relatório 8")
-        st.info("Versão BETA: O relatório completo incluirá todas as 7 seções principais. Os relatórios 5 (fechamento FC) e 7 (Indicadores) estão em desenvolvimento.")
     
     analise_text = render_parecer_tecnico(relatorios_selecionados)
     
