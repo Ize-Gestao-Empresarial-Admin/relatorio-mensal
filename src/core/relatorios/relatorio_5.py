@@ -27,12 +27,22 @@ class Relatorio5:
         # Parte 1: Cálculo das categorias principais (Saídas Não Operacionais e Geração de Caixa)
         saidas_nao_operacionais_resultado = self.indicadores.calcular_saidas_nao_operacionais_fc(mes_atual)
         geracao_de_caixa_resultado = self.indicadores.calcular_geracao_de_caixa_fc(mes_atual)
+        
+        # Dados do mês anterior para comparação
+        saidas_nao_operacionais_anterior = self.indicadores.calcular_saidas_nao_operacionais_fc(mes_anterior)
+        geracao_de_caixa_anterior = self.indicadores.calcular_geracao_de_caixa_fc(mes_anterior)
 
-        # Calcular o valor total da Geração de Caixa corretamente
+        # Calcular o valor total da Geração de Caixa do mês atual
         lucro_liquido_valor = next((r["valor"] for r in geracao_de_caixa_resultado if r["categoria"] == "Lucro Líquido"), 0)
         entradas_nao_operacionais_valor = next((r["valor"] for r in geracao_de_caixa_resultado if r["categoria"] == "Entradas Não Operacionais"), 0)
         saidas_nao_operacionais_valor = next((r["valor"] for r in geracao_de_caixa_resultado if r["categoria"] == "Saídas Não Operacionais"), 0)
         total_geracao_de_caixa = lucro_liquido_valor + entradas_nao_operacionais_valor - saidas_nao_operacionais_valor
+
+        # Calcular o valor total da Geração de Caixa do mês anterior
+        lucro_liquido_anterior = next((r["valor"] for r in geracao_de_caixa_anterior if r["categoria"] == "Lucro Líquido"), 0)
+        entradas_nao_operacionais_anterior = next((r["valor"] for r in geracao_de_caixa_anterior if r["categoria"] == "Entradas Não Operacionais"), 0)
+        saidas_nao_operacionais_anterior = next((r["valor"] for r in geracao_de_caixa_anterior if r["categoria"] == "Saídas Não Operacionais"), 0)
+        total_geracao_de_caixa_anterior = lucro_liquido_anterior + entradas_nao_operacionais_anterior - saidas_nao_operacionais_anterior
 
         # Calcular a representatividade para o tamanho das barras
         total_positivo = sum(safe_float(abs(r["valor"])) for r in geracao_de_caixa_resultado)
@@ -62,12 +72,26 @@ class Relatorio5:
         else:
             media_geracao_de_caixa = 0.0
 
-        # Notas automatizadas para a Parte 1
-        destaques = [f"{r['categoria']}: AV={round(r['av'], 2)}%" for r in geracao_de_caixa_resultado if r['av'] is not None]
+        # Calcula variações (AH)
+        geracao_caixa_ah = round(
+            ((total_geracao_de_caixa / total_geracao_de_caixa_anterior - 1) * 100)
+            if total_geracao_de_caixa_anterior != 0 else 0, 2
+        )
+        
+        # Identifica a categoria mais representativa
+        categoria_maior_peso = max(
+            geracao_de_caixa_categorias, 
+            key=lambda x: x['representatividade'], 
+            default={'subcategoria': 'N/A'}
+        )['subcategoria']
+
+        # Formata a nota automatizada seguindo o padrão dos outros relatórios
         notas_automatizadas = (
-            "A Geração de Caixa é calculada como  "
-            f"Destaques: {', '.join(destaques)}. "
-            f"Média da Geração de Caixa (últimos 3 meses): {round(media_geracao_de_caixa, 2)}."
+            f"A Geração de Caixa total do período foi de R$ {total_geracao_de_caixa:,.2f} "
+            f"({round(total_geracao_de_caixa/total_positivo * 100, 2) if total_positivo > 0 else 0}% em relação ao total), "
+            f"apresentando uma variação de {geracao_caixa_ah}% em relação ao mês anterior, "
+            f"com maior impacto na categoria {categoria_maior_peso}. "
+            f"A média da Geração de Caixa dos últimos 3 meses foi de R$ {round(media_geracao_de_caixa, 2):,.2f}."
         )
 
         # Mensagem padrão se não houver dados
@@ -98,6 +122,3 @@ class Relatorio5:
         ], {
             "notas": notas_automatizadas
         }
-        
-        
-#FICOU FALTANDO O CAIXA ACUMULADO, NAO CONSEGUI DESCOBRIR COMO CALCULAR

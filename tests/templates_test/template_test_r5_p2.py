@@ -5,13 +5,14 @@ import base64
 import io
 from matplotlib.patches import Rectangle
 from matplotlib.ticker import FuncFormatter
+from matplotlib.colors import LinearSegmentedColormap
 
 def generate_histogram_base64(config=None):
     # Configurações padrão adaptadas do estilo do relatorio6
     default_config = {
         'bar_width': 0.09,           # Largura das barras 
         'figure_size': (10, 6),      # Tamanho da figura (largura, altura)
-        'dpi': 300,                  # Resolução
+        'dpi': 500,                  # Resolução
         'show_legend': False,        # Legenda no gráfico (você tem externa no HTML)
         'legend_position': 'upper right',  # Posição da legenda
         'line_width': 1.9,           # Espessura da linha de acumulado
@@ -23,7 +24,9 @@ def generate_histogram_base64(config=None):
             'accumulated_points': '#000000',  # Preto - pontos do acumulado
             'mean_line': "#6A6969",     # Cinza - linha da média
             'text': '#2D2B3A',          # Texto principal
-            'axis_text': '#69696F'      # Texto dos eixos
+            'axis_text': '#69696F',     # Texto dos eixos
+            'gradient_start': '#B1B1B1',  # Cor inicial do degradê (mesmo cinza da linha)
+            'gradient_end': '#F5F5F5'     # Cor final do degradê (mais clara)
         },
         'margins': {
             'top': 1.2,     # Margem superior (multiplicador)
@@ -35,7 +38,9 @@ def generate_histogram_base64(config=None):
             'show_mean_label': True,    # Mostrar label da média
             'font_size_bars': 10,       # Tamanho fonte valores barras
             'font_size_acc': 10,        # Tamanho fonte valores acumulado
-            'font_size_mean': 10        # Tamanho fonte média
+            'font_size_mean': 10,       # Tamanho fonte média
+            'show_legend': True,        # NOVO: Mostrar legenda
+            'font_size_legend': 9       # NOVO: Tamanho fonte legenda
         },
         'styling': {
             'title_size': 14,           # Tamanho título
@@ -44,10 +49,12 @@ def generate_histogram_base64(config=None):
             'title_pad': 20,            # Espaçamento título
             'bar_edge_width': 8,        # Espessura borda barras
             'marker_edge_width': 2,     # Espessura borda pontos
-            'mean_line_style': '--',    # Estilo linha média
+            'mean_line_style': '--',  # ALTERADO: estilo linha média com espaços maiores
             'mean_line_width': 1.5,     # Espessura linha média
             'spine_color': '#69696F',   # Cor das linhas dos eixos
-            'spine_width': 0.5          # Espessura das linhas dos eixos
+            'spine_width': 0.5,         # Espessura das linhas dos eixos
+            'gradient_alpha_start': 0.4,  # NOVO: Alpha inicial (na linha)
+            'gradient_alpha_end': 0.0     # NOVO: Alpha final (transparente)
         },
         'bar_radius': 0.5              # Raio para arredondamento das barras
     }
@@ -103,18 +110,18 @@ def generate_histogram_base64(config=None):
         ax.add_patch(rect)
         barras.append(rect)
     
-    # Adicionar valores nas barras - CORRIGIDO: mostra valores completos
+    # Adicionar valores nas barras - CORRIGIDO: posição na base
     if cfg['annotations']['show_bar_values']:
         for i, height in enumerate(geracao_caixa):
-            # Posicionar no centro da barra verticalmente (sempre positivo para posicionamento)
-            y_position = abs(height) / 2
+            # Posicionar na base da barra (sempre positivo para posicionamento)
+            y_position = abs(height) * 0.05  # 5% da altura da barra a partir da base
             
             # Formatação brasileira para valores nas barras (manter sinal original)
             valor_formatado = f"R${height:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
             
             ax.annotate(valor_formatado,
                         xy=(i, y_position),
-                        ha='center', va='center', 
+                        ha='center', va='bottom',  # ALTERADO: va='bottom' para alinhar na base
                         fontsize=cfg['annotations']['font_size_bars'], 
                         fontweight='bold',
                         color='black',
@@ -132,13 +139,57 @@ def generate_histogram_base64(config=None):
         spl = make_interp_spline(x, y, k=k)
         y_smooth = spl(x_smooth)
         
+        # NOVO: Criar degradê linear suave (cinza para transparente)
+        # Converter cor hex para RGB
+        from matplotlib.colors import to_rgb
+        cor_cinza = to_rgb(cfg['colors']['gradient_start'])  # RGB da cor cinza
+        
+        # Criar colormap customizado: de cinza (alpha inicial) para transparente (alpha 0)
+        colors = [
+            (*cor_cinza, cfg['styling']['gradient_alpha_end']),   # Transparente na base (y=0)
+            (*cor_cinza, cfg['styling']['gradient_alpha_start'])  # Cinza na linha (y=linha)
+        ]
+        
+        # Criar o colormap linear
+        cmap = LinearSegmentedColormap.from_list('gradient_cinza', colors, N=256)
+        
+        # Aplicar o degradê usando imshow para criar o efeito linear
+        y_min = 0
+        y_max = np.max(y_smooth)
+        
+        # Criar uma grade para o degradê
+        X, Y = np.meshgrid(x_smooth, np.linspace(y_min, y_max, 256))
+        
+        # Criar máscara onde o degradê deve aparecer (abaixo da linha)
+        Z = np.zeros_like(Y)
+        for i, x_val in enumerate(x_smooth):
+            y_linha = y_smooth[i]
+            mask = Y[:, i] <= y_linha
+            # Valor de 0 a 1 baseado na altura (0 = base, 1 = linha)
+            Z[:, i] = Y[:, i] / y_max
+            Z[~mask, i] = np.nan  # Mascarar área acima da linha
+        
+        # Aplicar o degradê
+        im = ax.imshow(Z, extent=[x_smooth.min(), x_smooth.max(), y_min, y_max], 
+                      aspect='auto', origin='lower', cmap=cmap, 
+                      alpha=1.0, zorder=1, interpolation='bilinear')
+        
         # Plotar linha de acumulado
         line = ax.plot(x_smooth, y_smooth, 
                       color=cfg['colors']['accumulated'], 
                       linewidth=cfg['line_width'], 
                       zorder=4)
     else:
-        # Se houver poucos pontos, plotar linha direta
+        # Se houver poucos pontos, plotar linha direta com degradê simples
+        from matplotlib.colors import to_rgb
+        cor_cinza = to_rgb(cfg['colors']['gradient_start'])
+        
+        # Degradê simples para linha direta
+        ax.fill_between(x, 0, y, 
+                       color=cor_cinza,
+                       alpha=cfg['styling']['gradient_alpha_start'],
+                       zorder=1)
+        
         line = ax.plot(x, y, 
                       color=cfg['colors']['accumulated'], 
                       linewidth=cfg['line_width'], 
@@ -152,7 +203,7 @@ def generate_histogram_base64(config=None):
                         linewidth=cfg['styling']['marker_edge_width'], 
                         zorder=5)
     
-    # Adicionar valores de acumulado - CORRIGIDO: mostra valores completos
+    # Adicionar valores de acumulado - CORRIGIDO: cor mais escura
     if cfg['annotations']['show_acc_values']:
         for i, valor in enumerate(acumulado):
             # Formatação brasileira para valores acumulados
@@ -161,11 +212,11 @@ def generate_histogram_base64(config=None):
             ax.annotate(valor_formatado, 
                        (i, valor), 
                        textcoords="offset points", 
-                       xytext=(0,10), 
+                       xytext=(0,15), 
                        ha='center', 
                        fontsize=cfg['annotations']['font_size_acc'],
                        fontweight='bold',
-                       color=cfg['colors']['accumulated'])
+                       color='#4A4A4A')  # ALTERADO: cor mais escura ao invés de cfg['colors']['accumulated']
     
     # Linha de média tracejada (só mostrar se for positiva)
     if media >= 0:
@@ -173,30 +224,42 @@ def generate_histogram_base64(config=None):
                               color=cfg['colors']['mean_line'],
                               linestyle=cfg['styling']['mean_line_style'], 
                               linewidth=cfg['styling']['mean_line_width'], 
-                              zorder=2)
+                              zorder=2,
+                              label='Média dos últimos 3 meses')  # NOVO: Label para legenda
         
-        # Adicionar label da média - NOVO: posição no espaço extra criado
+        # Adicionar label da média - AJUSTADO: posição acima da linha
         if cfg['annotations']['show_mean_label']:
             # Formatação brasileira para a média
-            media_formatada = f"Média: R${media:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+            media_formatada = f"R${media:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
             
-            # Posicionar no espaço extra criado à direita
-            posicao_x_media = len(meses) - 0.2  # Posição no espaço extra
+            # Posicionar bem próximo da terceira barra
+            posicao_x_media = len(meses) - 1 + 0.35  # Próximo à terceira barra (posição 2 + 0.35)
             
             ax.annotate(media_formatada, 
                         (posicao_x_media, media), 
-                        ha='left',       # Alinhado à esquerda
-                        va='center',     # Centralizado verticalmente na linha
+                        textcoords="offset points",  # ADICIONADO: usar offset points
+                        xytext=(0, 2),              # ADICIONADO: 2 pontos acima da linha
+                        ha='left',                   # Alinhado à esquerda
+                        va='bottom',                 # ALTERADO: ancorado na parte inferior do texto
                         fontsize=cfg['annotations']['font_size_mean'],
                         fontweight='bold',
-                        color=cfg['colors']['mean_line'],
-                        bbox=dict(boxstyle="round,pad=0.3", 
-                                 facecolor='#FFFFFF', 
-                                 edgecolor=cfg['colors']['mean_line'],
-                                 alpha=1.0))  # Caixa de fundo totalmente opaca (fosca)
+                        color=cfg['colors']['mean_line'])  # REMOVIDO bbox
     
-    # ESTENDER O EIXO X para criar espaço para o texto da média
-    ax.set_xlim(-0.5, len(meses) + 0.5)  # Adiciona 1 unidade extra à direita
+    # NOVO: Adicionar legenda no canto superior direito - REMOVIDO bbox
+    if cfg['annotations']['show_legend'] and media >= 0:
+        legend = ax.legend(loc='upper right',
+                          fontsize=cfg['annotations']['font_size_legend'],
+                          frameon=False,  # REMOVIDO frame
+                          handlelength=2.0,
+                          handletextpad=0.8)
+        
+        # Estilizar o texto da legenda
+        for text in legend.get_texts():
+            text.set_color(cfg['colors']['text'])
+            text.set_fontweight('normal')
+    
+    # ESTENDER O EIXO X - AJUSTADO: espaço mínimo necessário
+    ax.set_xlim(-0.5, len(meses) - 1 + 0.8)  # Reduzido significativamente o espaço extra
     
     # Personalização do eixo Y - NOVA LÓGICA: começar sempre do 0
     y_max_barras = max([abs(val) for val in geracao_caixa])  # Maior valor absoluto das barras
