@@ -152,7 +152,7 @@ def main():
             "Mês",
             [m[0] for m in meses],
             key="mes_select",
-            help="Selecione o mês do relatório (por padrão selecionado o mês atual)",
+            help="Selecione o mês do relatório (por padrão selecionado o mês anterior ao atual)",
             index=(date.today().month - 2) % 12
         )
         mes = next(m[1] for m in meses if m[0] == mes_nome)
@@ -242,7 +242,11 @@ def main():
                 st.error("Selecione pelo menos um agrupamento ou a Nota do Consultor para gerar o PDF.")
                 return
 
+        # NOVO: Aviso informativo sobre o tempo de processamento
         with st.spinner("Gerando relatório, por favor aguarde..."):
+            # Adicionar informação sobre tempo estimado
+            st.info(" **Processando relatório...** O tempo estimado é de aproximadamente 30 segundos.")
+            
             try:
                 # Cria uma instância de indicadores com os ids de clientes escolhidos
                 indicadores = Indicadores(cliente_ids, db)  # Passar cliente_ids diretamente

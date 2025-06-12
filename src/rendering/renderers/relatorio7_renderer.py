@@ -16,11 +16,8 @@ class Relatorio7Renderer(BaseRenderer):
         # Carregar o template do relatório 7
         self.template = self.env.get_template("relatorio7/template.html")
     
-    def _get_icon_base64(self, indicador_info):
-        """Determina qual ícone usar baseado no tipo e valor do indicador"""
-        icons_dir = os.path.abspath("assets/icons")
-        
-        unidade = indicador_info.get('unidade', 'SU')
+    def _determine_performance(self, indicador_info):
+        """Determina se o indicador tem performance positiva ou negativa"""
         valor = indicador_info.get('valor', 0)
         cenario_bom = indicador_info.get('cenario_bom')
         cenario_ruim = indicador_info.get('cenario_ruim')
@@ -29,19 +26,34 @@ class Relatorio7Renderer(BaseRenderer):
         cenario_bom_valido = cenario_bom is not None and not (isinstance(cenario_bom, float) and math.isnan(cenario_bom))
         cenario_ruim_valido = cenario_ruim is not None and not (isinstance(cenario_ruim, float) and math.isnan(cenario_ruim))
         
-        # Determinar se é positivo/negativo
-        is_positive = True
+        # Determinar performance
         if cenario_bom_valido and cenario_ruim_valido:
             # Se temos cenários válidos, comparar com eles
             if valor >= cenario_bom:
-                is_positive = True
+                return True  # Positivo/Bom
             elif valor <= cenario_ruim:
-                is_positive = False
+                return False  # Negativo/Ruim
             else:
-                is_positive = valor >= 0
+                return valor >= 0  # Usar valor positivo/negativo como critério
         else:
             # Se não temos cenários válidos, usar valor positivo/negativo
-            is_positive = valor >= 0
+            return valor >= 0
+
+    def _get_header_color(self, is_positive):
+        """Retorna a cor do header baseada na performance"""
+        if is_positive:
+            return "#009F64"  # Verde (cor atual)
+        else:
+            return "#E75F00"  # Laranja (mesma cor usada nos outros relatórios)
+    
+    def _get_icon_base64(self, indicador_info):
+        """Determina qual ícone usar baseado no tipo e valor do indicador"""
+        icons_dir = os.path.abspath("assets/icons")
+        
+        unidade = indicador_info.get('unidade', 'SU')
+        
+        # Usar a mesma lógica de performance para os ícones
+        is_positive = self._determine_performance(indicador_info)
         
         # Mapear unidades para ícones
         icon_map = {
@@ -176,6 +188,10 @@ class Relatorio7Renderer(BaseRenderer):
             cenario_bom = indicador.get('cenario_bom')
             cenario_ruim = indicador.get('cenario_ruim')
             
+            # Determinar performance para cores
+            is_positive = self._determine_performance(indicador)
+            header_color = self._get_header_color(is_positive)
+            
             # Calcular tamanhos dinâmicos
             sizes = self._calculate_dynamic_sizes(nome, valor, cenario_bom)
             
@@ -189,6 +205,8 @@ class Relatorio7Renderer(BaseRenderer):
                 'valor_formatado': self._format_valor_display(valor, unidade),
                 'cenario_texto': self._format_cenario_text(indicador),
                 'icon_base64': self._get_icon_base64(indicador),
+                'header_color': header_color,  # NOVO: cor do header
+                'is_positive': is_positive,   # NOVO: para referência
                 'nome_font_size': sizes['nome_font_size'],
                 'text_top': sizes['text_top'],
                 'valor_font_size': sizes['valor_font_size'],
@@ -197,7 +215,7 @@ class Relatorio7Renderer(BaseRenderer):
             indicadores_processados.append(indicador_processado)
             
             # Log para debugging
-            logger.debug(f"Indicador processado: {nome} = {indicador_processado['valor_formatado']}")
+            logger.debug(f"Indicador processado: {nome} = {indicador_processado['valor_formatado']} - Header: {header_color}")
         
         # Dados para o template
         template_data = {

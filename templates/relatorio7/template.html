@@ -90,16 +90,16 @@
             page-break-inside: avoid; /* Evita quebra de página dentro do card */
         }
         
-        /* Faixa verde no topo */
+        /* Faixa do topo - REMOVIDO: cor fixa, agora é dinâmica via style inline */
         .indicator-card .card-header {
             position: absolute;
             top: 0; 
             left: 0; 
             right: 0;
             height: 7px;
-            background-color: #009F64;
             border-top-left-radius: 9px;
             border-top-right-radius: 9px;
+            /* background-color será definido dinamicamente no template */
         }
         
         /* Círculo com o ícone, sempre fixo */
@@ -202,7 +202,8 @@
         <div class="cards-container">
             {% for ind in data.indicadores %}
             <div class="indicator-card">
-                <div class="card-header"></div>
+                <!-- MODIFICADO: Header com cor dinâmica baseada na performance -->
+                <div class="card-header" style="background-color: {{ ind.header_color }};"></div>
                 
                 <!-- Ícone fixo -->
                 <div class="icon-circle">
