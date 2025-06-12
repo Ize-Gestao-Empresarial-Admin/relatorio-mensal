@@ -241,9 +241,11 @@ class Relatorio5Renderer(BaseRenderer):
                            fontweight='bold',
                            color='#4A4A4A')
         
-        # Linha de média tracejada
-        if media >= 0:
-            mean_line = ax.axhline(media, 
+        # Linha de média tracejada - MODIFICADO: sempre mostrar, usar valor absoluto para posicionamento
+        if media != 0:  # ALTERADO: mostrar sempre que não for zero
+            media_absoluta = abs(media)  # NOVO: usar valor absoluto para posicionamento
+            
+            mean_line = ax.axhline(media_absoluta,  # ALTERADO: posicionar no valor absoluto
                                   color=cfg['colors']['mean_line'],
                                   linestyle=cfg['styling']['mean_line_style'], 
                                   linewidth=cfg['styling']['mean_line_width'], 
@@ -251,11 +253,12 @@ class Relatorio5Renderer(BaseRenderer):
                                   label='Média dos últimos 3 meses')
             
             if cfg['annotations']['show_mean_label']:
+                # ALTERADO: formatar com valor real (com sinal), mas posicionar no absoluto
                 media_formatada = f"R${media:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
                 posicao_x_media = len(meses) - 1 + 0.35
                 
                 ax.annotate(media_formatada, 
-                            (posicao_x_media, media), 
+                            (posicao_x_media, media_absoluta),  # ALTERADO: posicionar no valor absoluto
                             textcoords="offset points",
                             xytext=(0, 2),
                             ha='left',
@@ -264,8 +267,8 @@ class Relatorio5Renderer(BaseRenderer):
                             fontweight='bold',
                             color=cfg['colors']['mean_line'])
         
-        # Adicionar legenda
-        if cfg['annotations']['show_legend'] and media >= 0:
+        # Adicionar legenda - MODIFICADO: sempre mostrar quando houver média
+        if cfg['annotations']['show_legend'] and media != 0:  # ALTERADO: condição mudada
             legend = ax.legend(loc='upper right',
                               fontsize=cfg['annotations']['font_size_legend'],
                               frameon=False,
@@ -276,12 +279,13 @@ class Relatorio5Renderer(BaseRenderer):
                 text.set_color('#2D2B3A')
                 text.set_fontweight('normal')
         
-        # Configurar eixos
+        # Configurar eixos - MODIFICADO: considerar média absoluta no y_max
         ax.set_xlim(-0.5, len(meses) - 1 + 0.8)
         
         y_max_barras = max([abs(val) for val in geracao_caixa]) if geracao_caixa else 0
-        y_max_acumulado = max(acumulado_absoluto) if len(acumulado_absoluto) > 0 else 0  # ALTERADO
-        y_max = max(y_max_barras, y_max_acumulado) * cfg['margins']['top']
+        y_max_acumulado = max(acumulado_absoluto) if len(acumulado_absoluto) > 0 else 0
+        y_max_media = abs(media) if media != 0 else 0  # NOVO: considerar média absoluta
+        y_max = max(y_max_barras, y_max_acumulado, y_max_media) * cfg['margins']['top']  # ALTERADO
         
         ax.set_ylim(0, y_max)  # Sempre começar do 0
         
