@@ -110,6 +110,9 @@ class Relatorio5Renderer(BaseRenderer):
         # Calcular valores acumulados na ordem cronológica
         acumulado = np.cumsum(geracao_caixa)
         
+        # NOVO: Criar valores absolutos para posicionamento da linha
+        acumulado_absoluto = np.abs(acumulado)
+        
         # Definir cores baseadas nos valores
         cores = [cfg['colors']['positive'] if valor >= 0 else cfg['colors']['negative'] 
                  for valor in geracao_caixa]
@@ -159,14 +162,15 @@ class Relatorio5Renderer(BaseRenderer):
                             color='black',
                             rotation=90)
         
-        # Criar linha de acumulado suavizada
+        # Criar linha de acumulado suavizada - MODIFICADO: usar valores absolutos para posicionamento
         x = np.array(range(len(meses)))
-        y = np.array(acumulado)
+        y = np.array(acumulado_absoluto)  # ALTERADO: usar valores absolutos
+        y_real = np.array(acumulado)      # NOVO: manter valores reais para os rótulos
         
         if len(meses) > 2:
             x_smooth = np.linspace(x.min(), x.max(), 300)
             k = min(2, len(meses)-1)
-            spl = make_interp_spline(x, y, k=k)
+            spl = make_interp_spline(x, y, k=k)  # usar valores absolutos para a curva
             y_smooth = spl(x_smooth)
             
             # Criar degradê linear
@@ -200,6 +204,7 @@ class Relatorio5Renderer(BaseRenderer):
                           linewidth=cfg['line_width'], 
                           zorder=4)
         else:
+            # Para poucos pontos, usar degradê simples
             from matplotlib.colors import to_rgb
             cor_cinza = to_rgb(cfg['colors']['gradient_start'])
             
@@ -213,7 +218,7 @@ class Relatorio5Renderer(BaseRenderer):
                           linewidth=cfg['line_width'], 
                           zorder=4)
         
-        # Adicionar pontos de acumulado
+        # Adicionar pontos de acumulado - MODIFICADO: usar posições absolutas
         scatter = ax.scatter(x, y, 
                             s=cfg['marker_size'], 
                             color=cfg['colors']['accumulated_points'],
@@ -221,13 +226,14 @@ class Relatorio5Renderer(BaseRenderer):
                             linewidth=cfg['styling']['marker_edge_width'], 
                             zorder=5)
         
-        # Adicionar valores de acumulado
+        # Adicionar valores de acumulado - MODIFICADO: usar valores reais nos rótulos
         if cfg['annotations']['show_acc_values']:
-            for i, valor in enumerate(acumulado):
-                valor_formatado = f"R${valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+            for i, (valor_real, valor_abs) in enumerate(zip(acumulado, acumulado_absoluto)):
+                # ALTERADO: formatar o valor real (com sinal), mas posicionar no valor absoluto
+                valor_formatado = f"R${valor_real:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
                 
                 ax.annotate(valor_formatado, 
-                           (i, valor), 
+                           (i, valor_abs),  # ALTERADO: posicionar no valor absoluto
                            textcoords="offset points", 
                            xytext=(0,15), 
                            ha='center', 
@@ -274,10 +280,10 @@ class Relatorio5Renderer(BaseRenderer):
         ax.set_xlim(-0.5, len(meses) - 1 + 0.8)
         
         y_max_barras = max([abs(val) for val in geracao_caixa]) if geracao_caixa else 0
-        y_max_acumulado = max(acumulado) if max(acumulado) > 0 else 0
+        y_max_acumulado = max(acumulado_absoluto) if len(acumulado_absoluto) > 0 else 0  # ALTERADO
         y_max = max(y_max_barras, y_max_acumulado) * cfg['margins']['top']
         
-        ax.set_ylim(0, y_max)
+        ax.set_ylim(0, y_max)  # Sempre começar do 0
         
         # Estilizar gráfico
         for spine in ("top", "right"):
