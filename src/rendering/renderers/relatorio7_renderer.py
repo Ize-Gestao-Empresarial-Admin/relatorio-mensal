@@ -17,52 +17,68 @@ class Relatorio7Renderer(BaseRenderer):
         self.template = self.env.get_template("relatorio7/template.html")
     
     def _determine_performance(self, indicador_info):
-        """Determina se o indicador tem performance positiva ou negativa"""
+        """Determina a performance do indicador baseado nos cenários bom/ruim"""
         valor = indicador_info.get('valor', 0)
         cenario_bom = indicador_info.get('cenario_bom')
         cenario_ruim = indicador_info.get('cenario_ruim')
         
-        # Verificar se os cenários são válidos (não NaN)
+        # Verificar se os cenários são válidos (não NaN e não None)
         cenario_bom_valido = cenario_bom is not None and not (isinstance(cenario_bom, float) and math.isnan(cenario_bom))
         cenario_ruim_valido = cenario_ruim is not None and not (isinstance(cenario_ruim, float) and math.isnan(cenario_ruim))
         
-        # Determinar performance
-        if cenario_bom_valido and cenario_ruim_valido:
-            # Se temos cenários válidos, comparar com eles
-            if valor >= cenario_bom:
-                return True  # Positivo/Bom
-            elif valor <= cenario_ruim:
-                return False  # Negativo/Ruim
-            else:
-                return valor >= 0  # Usar valor positivo/negativo como critério
+        # Se não temos cenários válidos, retornar 'neutro'
+        if not cenario_bom_valido or not cenario_ruim_valido:
+            return 'neutro'
+        
+        # Lógica de comparação com cenários
+        if valor >= cenario_bom:
+            return 'positivo'  # Verde
+        elif valor <= cenario_ruim:
+            return 'negativo'  # Laranja
         else:
-            # Se não temos cenários válidos, usar valor positivo/negativo
-            return valor >= 0
+            # Valor está entre cenário ruim e bom
+            # Decidir baseado em qual está mais próximo ou usar uma lógica específica
+            # Por enquanto, vamos considerar como neutro se está no meio
+            return 'neutro'  # Cinza
 
-    def _get_header_color(self, is_positive):
+    def _get_header_color(self, performance):
         """Retorna a cor do header baseada na performance"""
-        if is_positive:
-            return "#009F64"  # Verde (cor atual)
-        else:
-            return "#E75F00"  # Laranja (mesma cor usada nos outros relatórios)
+        color_map = {
+            'positivo': "#009F64",  # Verde
+            'negativo': "#E75F00",  # Laranja
+            'neutro': "#A5A5A5"     # Cinza
+        }
+        return color_map.get(performance, "#A5A5A5")
     
     def _get_icon_base64(self, indicador_info):
-        """Determina qual ícone usar baseado no tipo e valor do indicador"""
+        """Determina qual ícone usar baseado no tipo e performance do indicador"""
         icons_dir = os.path.abspath("assets/icons")
         
         unidade = indicador_info.get('unidade', 'SU')
         
-        # Usar a mesma lógica de performance para os ícones
-        is_positive = self._determine_performance(indicador_info)
+        # Usar a nova lógica de performance
+        performance = self._determine_performance(indicador_info)
         
-        # Mapear unidades para ícones
+        # Mapear unidades e performance para ícones
         icon_map = {
-            'R$': 'LOGO-DINHEIRO-VERDE.png' if is_positive else 'LOGO-DINHEIRO-LARANJA.png',
-            '%': 'LOGO-PERCENTUAL-VERDE.png' if is_positive else 'LOGO-PERCENTUAL-LARANJA.png',
-            'SU': 'LOGO-SU-VERDE.png' if is_positive else 'LOGO-SU-LARANJA.png'
+            'R$': {
+                'positivo': 'LOGO-DINHEIRO-VERDE.png',
+                'negativo': 'LOGO-DINHEIRO-LARANJA.png',
+                'neutro': 'LOGO-DINHEIRO-CINZA.png'
+            },
+            '%': {
+                'positivo': 'LOGO-PERCENTUAL-VERDE.png',
+                'negativo': 'LOGO-PERCENTUAL-LARANJA.png',
+                'neutro': 'LOGO-PERCENTUAL-CINZA.png'
+            },
+            'SU': {
+                'positivo': 'LOGO-SU-VERDE.png',
+                'negativo': 'LOGO-SU-LARANJA.png',
+                'neutro': 'LOGO-SU-CINZA.png'
+            }
         }
         
-        icon_file = icon_map.get(unidade, 'LOGO-SU-VERDE.png')
+        icon_file = icon_map.get(unidade, icon_map['SU']).get(performance, 'LOGO-SU-CINZA.png')
         icon_path = os.path.join(icons_dir, icon_file)
         
         try:
@@ -70,8 +86,8 @@ class Relatorio7Renderer(BaseRenderer):
                 return base64.b64encode(f.read()).decode("ascii")
         except FileNotFoundError:
             logger.warning(f"Ícone não encontrado: {icon_path}. Usando ícone padrão.")
-            # Usar ícone padrão (SU verde)
-            default_path = os.path.join(icons_dir, 'LOGO-SU-VERDE.png')
+            # Usar ícone padrão (SU cinza)
+            default_path = os.path.join(icons_dir, 'LOGO-SU-CINZA.png')
             try:
                 with open(default_path, "rb") as f:
                     return base64.b64encode(f.read()).decode("ascii")
@@ -209,9 +225,9 @@ class Relatorio7Renderer(BaseRenderer):
             cenario_bom = indicador.get('cenario_bom')
             cenario_ruim = indicador.get('cenario_ruim')
             
-            # Determinar performance para cores
-            is_positive = self._determine_performance(indicador)
-            header_color = self._get_header_color(is_positive)
+            # Determinar performance baseada nos cenários
+            performance = self._determine_performance(indicador)
+            header_color = self._get_header_color(performance)
             
             # Calcular tamanhos dinâmicos
             sizes = self._calculate_dynamic_sizes(nome, valor, cenario_bom)
@@ -227,7 +243,7 @@ class Relatorio7Renderer(BaseRenderer):
                 'cenario_texto': self._format_cenario_text(indicador),
                 'icon_base64': self._get_icon_base64(indicador),
                 'header_color': header_color,
-                'is_positive': is_positive,
+                'performance': performance,
                 'nome_font_size': sizes['nome_font_size'],
                 'text_top': sizes['text_top'],
                 'valor_font_size': sizes['valor_font_size'],
@@ -236,9 +252,9 @@ class Relatorio7Renderer(BaseRenderer):
             indicadores_processados.append(indicador_processado)
             
             # Log para debugging
-            logger.debug(f"Indicador processado: {nome} = {indicador_processado['valor_formatado']} - Header: {header_color}")
+            logger.debug(f"Indicador processado: {nome} = {indicador_processado['valor_formatado']} - Performance: {performance} - Header: {header_color}")
         
-        # NOVO: Dividir indicadores em páginas
+        # Dividir indicadores em páginas
         paginas = self._dividir_indicadores_em_paginas(indicadores_processados)
         
         # Dados para o template
@@ -246,7 +262,7 @@ class Relatorio7Renderer(BaseRenderer):
             "nome": cliente_nome,
             "Periodo": f"{mes_nome}/{ano}",
             "notas": notas,
-            "paginas": paginas,  # ALTERADO: usar páginas ao invés de indicadores
+            "paginas": paginas,
             "total_indicadores": len(indicadores_processados)
         }
         

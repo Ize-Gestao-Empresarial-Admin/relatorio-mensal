@@ -14,6 +14,6 @@ def testar_relatorio(cliente_ids: list, mes: date, display_cliente_nome: str = "
     print(json.dumps(resultado, indent=2, ensure_ascii=False))
 
 if __name__ == "__main__":
-    cliente_ids = [85]  # Você pode adicionar mais IDs conforme necessário (atual: expanzio 1)
-    mes = date(2025, 5, 1)
+    cliente_ids = [122]  # Você pode adicionar mais IDs conforme necessário (atual: ativa)
+    mes = date(2025, 3, 1)
     testar_relatorio(cliente_ids, mes)
