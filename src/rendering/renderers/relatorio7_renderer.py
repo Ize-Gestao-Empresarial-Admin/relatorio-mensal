@@ -134,25 +134,48 @@ class Relatorio7Renderer(BaseRenderer):
         """Calcula tamanhos dinâmicos para nome e valor baseado no tamanho do conteúdo"""
         nome_length = len(nome)
         
+        # Estimar se o nome vai quebrar em 3 linhas (aproximadamente 18 caracteres por linha)
+        caracteres_por_linha = 18
+        linhas_estimadas = math.ceil(nome_length / caracteres_por_linha)
+        
         # Tamanho da fonte e posição do texto baseado no comprimento do nome
-        if nome_length > 60:
-            nome_font_size = "12px"
-            text_top = "17px"
+        if linhas_estimadas >= 3 or nome_length > 54:  # 3 linhas * 18 chars = 54
+            nome_font_size = "11px"  # Reduzir fonte se for quebrar em 3 linhas
+            text_top = "15px"
         elif nome_length > 40:
             nome_font_size = "13px" 
             text_top = "20px"
+        elif nome_length > 30:
+            nome_font_size = "14px"
+            text_top = "22px"
         else:
             nome_font_size = "16px"
             text_top = "27px"
         
         # Tamanho da fonte do valor baseado no tamanho do número
-        valor_font_size = "15px" if abs(valor) >= 999999999 else "18px"
+        # Se passa de milhão (1.000.000) e tem casas decimais significativas
+        if abs(valor) >= 1000000:
+            # Verificar se tem casas decimais significativas (não são .00)
+            parte_decimal = valor - int(valor)
+            if abs(parte_decimal) > 0.01:  # Tem decimais significativos
+                valor_font_size = "14px"
+            else:
+                valor_font_size = "16px"
+        elif abs(valor) >= 999999999:
+            valor_font_size = "15px"
+        else:
+            valor_font_size = "18px"
         
         # Tamanho da fonte do cenário baseado no valor do "bom"
         if bom is not None and not (isinstance(bom, float) and math.isnan(bom)):
             cenario_font_size = "7px" if bom >= 10000000 else "8px"
         else:
             cenario_font_size = "8px"
+        
+        # Log para debugging casos problemáticos
+        if linhas_estimadas >= 3 or abs(valor) >= 1000000:
+            logger.debug(f"Ajuste: '{nome[:30]}...' (len={nome_length}, ~{linhas_estimadas} linhas) = {valor:,.2f} | "
+                        f"Nome: {nome_font_size}, Valor: {valor_font_size}")
         
         return {
             'nome_font_size': nome_font_size,
