@@ -144,6 +144,27 @@ class Relatorio7Renderer(BaseRenderer):
             'valor_font_size': valor_font_size,
             'cenario_font_size': cenario_font_size
         }
+
+    def _dividir_indicadores_em_paginas(self, indicadores_processados, indicadores_por_pagina=24):
+        """Divide os indicadores em grupos para páginas separadas"""
+        paginas = []
+        total_indicadores = len(indicadores_processados)
+        
+        for i in range(0, total_indicadores, indicadores_por_pagina):
+            grupo = indicadores_processados[i:i + indicadores_por_pagina]
+            numero_pagina = (i // indicadores_por_pagina) + 1
+            total_paginas = math.ceil(total_indicadores / indicadores_por_pagina)
+            
+            paginas.append({
+                'indicadores': grupo,
+                'numero_pagina': numero_pagina,
+                'total_paginas': total_paginas,
+                'eh_primeira_pagina': numero_pagina == 1,
+                'eh_ultima_pagina': numero_pagina == total_paginas
+            })
+        
+        logger.info(f"Divididos {total_indicadores} indicadores em {len(paginas)} páginas")
+        return paginas
     
     def render(self, data: Union[List[Dict[str, Any]], Tuple[List[Dict[str, Any]], Dict[str, str]]], 
                cliente_nome: str, mes_nome: str, ano: int) -> str:
@@ -205,8 +226,8 @@ class Relatorio7Renderer(BaseRenderer):
                 'valor_formatado': self._format_valor_display(valor, unidade),
                 'cenario_texto': self._format_cenario_text(indicador),
                 'icon_base64': self._get_icon_base64(indicador),
-                'header_color': header_color,  # NOVO: cor do header
-                'is_positive': is_positive,   # NOVO: para referência
+                'header_color': header_color,
+                'is_positive': is_positive,
                 'nome_font_size': sizes['nome_font_size'],
                 'text_top': sizes['text_top'],
                 'valor_font_size': sizes['valor_font_size'],
@@ -217,15 +238,19 @@ class Relatorio7Renderer(BaseRenderer):
             # Log para debugging
             logger.debug(f"Indicador processado: {nome} = {indicador_processado['valor_formatado']} - Header: {header_color}")
         
+        # NOVO: Dividir indicadores em páginas
+        paginas = self._dividir_indicadores_em_paginas(indicadores_processados)
+        
         # Dados para o template
         template_data = {
             "nome": cliente_nome,
             "Periodo": f"{mes_nome}/{ano}",
             "notas": notas,
-            "indicadores": indicadores_processados
+            "paginas": paginas,  # ALTERADO: usar páginas ao invés de indicadores
+            "total_indicadores": len(indicadores_processados)
         }
         
-        logger.info(f"Renderizando {len(indicadores_processados)} indicadores para o Relatório 7")
+        logger.info(f"Renderizando {len(indicadores_processados)} indicadores em {len(paginas)} páginas para o Relatório 7")
         
         # Renderizar o template
         return self.template.render(

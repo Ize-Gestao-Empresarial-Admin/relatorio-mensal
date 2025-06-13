@@ -387,9 +387,9 @@ class Relatorio5Renderer(BaseRenderer):
             geracao_de_caixa_categories.append({
                 "name": subcat['subcategoria'],
                 "value": subcat['valor'],
-                "representatividade": abs(subcat['av']),
+                "representatividade": abs(subcat['av']),  # AV em relação à receita
                 "variacao": subcat['ah'],
-                "barra_rep": abs(subcat['representatividade'])
+                "barra_rep": abs(subcat['barra_rep'])  # CORRIGIDO: usar barra_rep para largura das barras
             })
 
         # Dados para o template

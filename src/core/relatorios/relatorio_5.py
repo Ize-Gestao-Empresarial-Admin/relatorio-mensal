@@ -76,32 +76,48 @@ class Relatorio5:
         
         total_geracao_de_caixa_anterior = lucro_liquido_anterior + entradas_nao_operacionais_anterior - saidas_nao_operacionais_anterior_val
 
-        # Calcular a representatividade para o tamanho das barras - MELHORADO: usar safe_float
-        valores_absolutos = []
-        for r in geracao_de_caixa_resultado:
-            valor = safe_float(r.get("valor", 0))
-            valores_absolutos.append(abs(valor))
-        
-        total_positivo = sum(valores_absolutos) if valores_absolutos else 0
-        
-        # Construir subcategorias para Geração de Caixa com representatividade - MELHORADO: usar safe_float
+        # CORRIGIDO: Buscar receita total corretamente - MELHORADO: usar safe_float
+        receita_total = 0
+        try:
+            # Primeiro tentar buscar diretamente da função de receitas
+            receitas_fc = self.indicadores.calcular_receitas_fc(mes_atual, "3.%")
+            receita_total = sum(safe_float(r.get("total_categoria", 0)) for r in receitas_fc)
+        except:
+            # Se falhar, tentar buscar do lucro líquido
+            try:
+                lucro_liquido_resultado = self.indicadores.calcular_lucro_liquido_fc(mes_atual)
+                for r in lucro_liquido_resultado:
+                    if r.get("categoria") == "Receita":
+                        receita_total = safe_float(r.get("valor", 0))
+                        break
+            except:
+                receita_total = 0
+
+        # CORRIGIDO: Construir subcategorias para Geração de Caixa seguindo o padrão dos outros relatórios
         geracao_de_caixa_categorias = []
         for r in geracao_de_caixa_resultado:
             valor = safe_float(r.get("valor", 0))
             av = safe_float(r.get("av", 0))
             ah = safe_float(r.get("ah", 0))
             
-            # Calcular a representatividade para o gráfico de barras
-            representatividade = 0
-            if total_positivo > 0:
-                representatividade = round((abs(valor) / total_positivo) * 100, 2)
+            # CORRIGIDO: Usar AV (Análise Vertical) já calculado pelo indicador
+            # que representa o percentual em relação à receita total
+            representatividade_av = abs(av)  # Usar o AV que vem do indicador
+            
+            # CORRIGIDO: Para barra_rep, usar a mesma lógica dos outros relatórios
+            # Calcular proporção do valor absoluto em relação ao total de valores absolutos
+            total_valores_absolutos = sum(abs(safe_float(item.get("valor", 0))) for item in geracao_de_caixa_resultado)
+            barra_rep = 0
+            if total_valores_absolutos > 0:
+                barra_rep = round((abs(valor) / total_valores_absolutos) * 100, 2)
                 
             geracao_de_caixa_categorias.append({
                 "subcategoria": r.get("categoria", "N/A"),
                 "valor": valor,
                 "av": round(av, 2),
                 "ah": round(ah, 2),
-                "representatividade": representatividade
+                "representatividade": representatividade_av,  # CORRIGIDO: usar AV do indicador
+                "barra_rep": barra_rep  # NOVO: adicionar barra_rep seguindo padrão dos outros relatórios
             })
 
         # Parte 2: Análise Temporal da Geração de Caixa (3 meses) - MELHORADO: usar safe_float
@@ -129,23 +145,6 @@ class Relatorio5:
                 geracao_caixa_ah = round(safe_float(ah_calculado), 2)
             except (ZeroDivisionError, TypeError, ValueError):
                 geracao_caixa_ah = 0
-        
-        # CORRIGIDO: Buscar receita total corretamente - MELHORADO: usar safe_float
-        receita_total = 0
-        try:
-            # Primeiro tentar buscar diretamente da função de receitas
-            receitas_fc = self.indicadores.calcular_receitas_fc(mes_atual, "3.%")
-            receita_total = sum(safe_float(r.get("total_categoria", 0)) for r in receitas_fc)
-        except:
-            # Se falhar, tentar buscar do lucro líquido
-            try:
-                lucro_liquido_resultado = self.indicadores.calcular_lucro_liquido_fc(mes_atual)
-                for r in lucro_liquido_resultado:
-                    if r.get("categoria") == "Receita":
-                        receita_total = safe_float(r.get("valor", 0))
-                        break
-            except:
-                receita_total = 0
 
         # NOVO: Calcular caixa acumulado - MELHORADO: usar safe_float
         caixa_acumulado = 0
@@ -202,10 +201,10 @@ class Relatorio5:
                 "ah": round(ah, 2)
             })
 
-        # MELHORADO: Usar safe_float para cálculos finais
+        # CORRIGIDO: Calcular AV da categoria principal seguindo padrão dos outros relatórios
         av_categoria = 0
-        if total_positivo > 0:
-            av_categoria = round(safe_float((total_geracao_de_caixa / total_positivo) * 100), 2)
+        if receita_total != 0:
+            av_categoria = round(safe_float((total_geracao_de_caixa / receita_total) * 100), 2)
 
         return [
             {
@@ -215,7 +214,7 @@ class Relatorio5:
             {
                 "categoria": "Geração de Caixa",
                 "valor": total_geracao_de_caixa,
-                "av_categoria": av_categoria,
+                "av_categoria": av_categoria,  # CORRIGIDO: usar percentual em relação à receita
                 "subcategorias": geracao_de_caixa_categorias,
                 "analise_temporal": {
                     "meses": meses_processados,
