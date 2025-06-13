@@ -226,7 +226,7 @@ class Relatorio5Renderer(BaseRenderer):
                             linewidth=cfg['styling']['marker_edge_width'], 
                             zorder=5)
         
-        # Adicionar valores de acumulado - MODIFICADO: usar valores reais nos rótulos
+        # Adicionar valores de acumulado - MODIFICADO: z-order alto para sobrepor qualquer elemento
         if cfg['annotations']['show_acc_values']:
             for i, (valor_real, valor_abs) in enumerate(zip(acumulado, acumulado_absoluto)):
                 # ALTERADO: formatar o valor real (com sinal), mas posicionar no valor absoluto
@@ -239,7 +239,8 @@ class Relatorio5Renderer(BaseRenderer):
                            ha='center', 
                            fontsize=cfg['annotations']['font_size_acc'],
                            fontweight='bold',
-                           color='#4A4A4A')
+                           color='#4A4A4A',
+                           zorder=20)  # ALTERADO: z-order muito alto (20) para sobrepor tudo, sem bbox
         
         # Linha de média tracejada - MODIFICADO: sempre mostrar, usar valor absoluto para posicionamento
         if media != 0:  # ALTERADO: mostrar sempre que não for zero
