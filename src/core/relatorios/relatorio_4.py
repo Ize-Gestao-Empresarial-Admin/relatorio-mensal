@@ -70,7 +70,7 @@ class Relatorio4:
             receita_total=receita_atual,
             chave_valor="valor",
             chave_nome="categoria",
-            top_n=3,
+            top_n=4,  # Alterado de 3 para 4 para incluir todas as categorias: Receita, Custos Variáveis, Despesas Fixas, Investimentos
             usar_valor_abs=False  # Ordenação natural para Receita, Custos, Despesas, Investimentos
         )
 

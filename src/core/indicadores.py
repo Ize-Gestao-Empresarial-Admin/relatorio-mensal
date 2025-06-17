@@ -1090,17 +1090,24 @@ class Indicadores:
         for i, mes in enumerate(meses):
             # Calcular a Geração de Caixa do mês atual
             geracao_de_caixa = self.calcular_geracao_de_caixa_fc(mes)
+            
+            # CORREÇÃO: Usar safe_float para lidar com valores NaN que estavam quebrando o cálculo
+            from src.core.utils import safe_float
             total = sum(
-                r["valor"] if r["categoria"] != "Saídas Não Operacionais" else -r["valor"]
+                safe_float(r.get("valor", 0)) if r.get("categoria") != "Saídas Não Operacionais" 
+                else -safe_float(r.get("valor", 0))
                 for r in geracao_de_caixa
             )
 
             # Calcular o valor do mês anterior para o ah
             mes_anterior = date(mes.year if mes.month > 1 else mes.year - 1,
-                              mes.month - 1 if mes.month > 1 else 12, 1)
+                             mes.month - 1 if mes.month > 1 else 12, 1)
             geracao_de_caixa_anterior = self.calcular_geracao_de_caixa_fc(mes_anterior)
+            
+            # CORREÇÃO: Também usar safe_float aqui
             total_anterior = sum(
-                r["valor"] if r["categoria"] != "Saídas Não Operacionais" else -r["valor"]
+                safe_float(r.get("valor", 0)) if r.get("categoria") != "Saídas Não Operacionais" 
+                else -safe_float(r.get("valor", 0))
                 for r in geracao_de_caixa_anterior
             )
 

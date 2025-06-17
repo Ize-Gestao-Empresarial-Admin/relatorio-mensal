@@ -5,15 +5,15 @@ from src.database.db_utils import DatabaseConnection
 from src.core.indicadores import Indicadores
 from src.core.relatorios.relatorio_6 import Relatorio6
 
-def testar_relatorio(id_cliente: int, mes: date):
+def testar_relatorio(cliente_ids: list, mes: date, display_cliente_nome: str = "Cliente Teste"):
     db_connection = DatabaseConnection()
-    indicadores = Indicadores(id_cliente, db_connection)
-    relatorio = Relatorio6(indicadores, "GrupoRedesul")
+    indicadores = Indicadores(cliente_ids, db_connection)
+    relatorio = Relatorio6(indicadores, display_cliente_nome)
     
     resultado, notas = relatorio.gerar_relatorio(mes)
     print(json.dumps({"resultado": resultado, "notas": notas}, indent=2, ensure_ascii=False))
 
 if __name__ == "__main__":
-    id_cliente = 106
-    mes = date(2025, 4, 1)  # Março de 2025
-    testar_relatorio(id_cliente, mes)
+    cliente_ids = [236]  # Você pode adicionar mais IDs conforme necessário (atual: AR Advocacia)
+    mes = date(2025, 5, 1)
+    testar_relatorio(cliente_ids, mes)

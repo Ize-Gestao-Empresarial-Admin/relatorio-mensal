@@ -110,7 +110,7 @@ class Relatorio1Renderer(BaseRenderer):
             custo_categories.append({
                 "name": subcat['subcategoria'],
                 "value": abs(subcat['valor']),
-                "representatividade": rep,
+                "representatividade": abs(subcat['av']),  # ALTERADO: usar AV em vez de rep
                 "variacao": subcat['ah'],
                 "barra_rep": barra_rep 
             })
