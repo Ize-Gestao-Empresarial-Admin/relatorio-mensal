@@ -24,7 +24,20 @@ class Relatorio7:
         # Buscar indicadores
         indicadores_resultado = self.indicadores.calcular_indicadores_operacionais(mes_atual)
         
-        # Notas automatizadas
+        # Verificar se há indicadores disponíveis
+        if not indicadores_resultado:
+            # Retornar lista vazia e nota explicativa
+            notas_sem_indicadores = (
+                "Não há indicadores configurados para este cliente no período selecionado. "
+                "Entre em contato com a equipe de desenvolvimento."
+            )
+            
+            return [], {
+                "notas": notas_sem_indicadores,
+                "sem_indicadores": True
+            }
+        
+        # Notas automatizadas para quando há indicadores
         notas_automatizadas = (
             "O cenário bom/ruim representa x" 
             #bom/ruim devem ser dinâmicos, na tabela puxar "ruim" e "bom" do banco equivalente a "ruim" e "bom" do banco equivalente a categoria
@@ -51,5 +64,6 @@ class Relatorio7:
             indicadores_formatados.append(indicador_formatado)
         
         return indicadores_formatados, {
-            "notas": notas_automatizadas
+            "notas": notas_automatizadas,
+            "sem_indicadores": False
         }

@@ -1,4 +1,3 @@
-#src/interfaces/streamlit_ui.py
 import streamlit as st
 from streamlit_quill import st_quill
 from datetime import date, timedelta
@@ -10,6 +9,65 @@ from src.core.relatorios import (
 from src.rendering.engine import RenderingEngine
 import os
 import re
+
+def verificar_permissoes():
+    """
+    Verifica se o usuário tem permissão para acessar os relatórios
+    baseado nos parâmetros da URL
+    """
+    # CORREÇÃO: Usar st.query_params em vez de st.experimental_get_query_params
+    params = st.query_params
+    
+    # CORREÇÃO: st.query_params retorna valores diretamente, não listas
+    is_admin = params.get('is_admin', 'false').lower() == 'true'
+    is_consultant = params.get('is_consultant', 'false').lower() == 'true'
+    user_id = params.get('user_id', '')
+    user_name = params.get('user_name', '')
+    
+    # Verificar se tem permissão
+    if not (is_admin or is_consultant):
+        return False, user_name, is_admin, is_consultant
+    
+    return True, user_name, is_admin, is_consultant
+
+def mostrar_acesso_negado(user_name=""):
+    """Mostra a tela de acesso negado"""
+    st.markdown("""
+    <style>
+    .access-denied-container {
+        text-align: center;
+        padding: 2rem;
+        background-color: #f8f9fa;
+        border-radius: 10px;
+        border-left: 5px solid #dc3545;
+        margin: 2rem 0;
+    }
+    .access-denied-title {
+        color: #dc3545;
+        font-size: 2rem;
+        margin-bottom: 1rem;
+    }
+    .access-denied-message {
+        color: #6c757d;
+        font-size: 1.1rem;
+        margin-bottom: 0.5rem;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("""
+    <div class="access-denied-container">
+        <h1 class="access-denied-title">🚫 Acesso Negado</h1>
+        <p class="access-denied-message">Você não tem permissão para acessar os relatórios.</p>
+        <p class="access-denied-message">Apenas administradores e consultores podem visualizar esta página.</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    if user_name:
+        st.info(f"Usuário: {user_name}")
+    
+    st.markdown("---")
+    st.markdown("**Entre em contato com o administrador do sistema para obter acesso.**")
 
 def processar_html_parecer(html_content: str) -> str:
     """Processa o HTML do editor Quill para torná-lo compatível com PDF"""
@@ -58,8 +116,19 @@ def render_parecer_tecnico(relatorios_selecionados: list) -> str:
     return ""
 
 def main():
+    # PRIMEIRO: Configurar a página ANTES de qualquer outra coisa
     st.set_page_config(page_title="IZE Relatórios Financeiros", page_icon="📊", layout="centered")
     
+    # SEGUNDO: Verificar permissões (SEM fazer st.write ainda)
+    tem_permissao, user_name, is_admin, is_consultant = verificar_permissoes()
+    
+    if not tem_permissao:
+        # Debug apenas se não tem permissão
+        mostrar_acesso_negado(user_name)
+        return
+    
+    # Se chegou até aqui, o usuário tem permissão - continua com o código original
+
     # Estilo personalizado
     st.markdown("""
     <style>
@@ -71,6 +140,7 @@ def main():
     .main-header { font-size: 2.5rem; color: #0f52ba; text-align: center; margin-bottom: 2rem; }
     .subheader { font-size: 1.5rem; color: #333; margin-top: 1.5rem; margin-bottom: 1rem; }
     .dev-note { font-style: italic; color: #666; font-size: 0.9rem; }
+    .user-info { background-color: #e3f2fd; padding: 0.5rem; border-radius: 5px; margin-bottom: 1rem; }
     </style>
     """, unsafe_allow_html=True)
     
@@ -81,6 +151,12 @@ def main():
     
     # Título principal
     st.markdown("<h1 class='main-header'>Relatório Mensal</h1>", unsafe_allow_html=True)
+    
+    # Mostrar informações do usuário
+    if user_name:
+        st.markdown(f"<div class='user-info'>Seja bem-vindo(a) <strong>{user_name}</strong>! 🚀</div>", 
+                   unsafe_allow_html=True)
+    
     st.markdown("---")
     
     # Conexão com o banco

@@ -169,6 +169,64 @@
             text-align: right;
         }
         
+        /* NOVO: Estilos para mensagem de sem indicadores */
+        .no-indicators-container {
+            text-align: center;
+            padding: 60px 40px;
+            background-color: #f8f9fa;
+            border-radius: 16px;
+            border: 1px solid #e9ecef;
+            margin: 40px 0;
+            min-height: 300px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .no-indicators-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+            opacity: 0.6;
+        }
+        
+        .no-indicators-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 15px;
+            font-family: 'Inter', sans-serif;
+        }
+        
+        .no-indicators-message {
+            font-size: 16px;
+            color: #6c757d;
+            line-height: 1.6;
+            max-width: 500px;
+            margin: 0 auto;
+            font-family: 'Inter', sans-serif;
+        }
+        
+        /* Estilos para a seção de notas */
+        .notes-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin: 40px 0 12px 0;
+            text-align: left;
+            page-break-before: avoid;
+        }
+        
+        .notes-content {
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            border-left: 4px solid #FF6900;
+            margin-bottom: 20px;
+            font-size: 14px;
+            line-height: 1.6;
+            color: #495057;
+        }
+        
         .fixed-footer-bg {
             position: fixed;
             bottom: 10px;
@@ -199,6 +257,10 @@
             .indicator-card {
                 page-break-inside: avoid;
                 break-inside: avoid;
+            }
+            
+            .no-indicators-container {
+                page-break-inside: avoid;
             }
             
             body {
@@ -246,42 +308,56 @@
                 </tr>
             </table>
             
-            <!-- Cards dos indicadores desta página -->
-            <div class="cards-container">
-                {% for ind in pagina.indicadores %}
-                <div class="indicator-card">
-                    <!-- Header com cor dinâmica baseada na performance -->
-                    <div class="card-header" style="background-color: {{ ind.header_color }};"></div>
-                    
-                    <!-- Ícone fixo -->
-                    <div class="icon-circle">
-                        <img src="data:image/png;base64,{{ ind.icon_base64 }}" width="48" alt="ícone">
-                    </div>
-                    
-                    <!-- Texto (nome + valor) sempre posicionado a partir do mesmo top -->
-                    <div class="text-block" style="top: {{ ind.text_top }};">
-                        <div class="indicator-name" style="font-size: {{ ind.nome_font_size }};">
-                            {{ ind.nome }}
+            <!-- Condicional: Se há indicadores, mostrar cards; se não, mostrar mensagem -->
+            {% if data.sem_indicadores %}
+                <!-- Mensagem quando não há indicadores -->
+                <div class="no-indicators-container">
+                    <div class="no-indicators-icon">📊</div>
+                    <h2 class="no-indicators-title">Não há indicadores disponíveis</h2>
+                    <p class="no-indicators-message">
+                        Não foram encontrados indicadores configurados para este cliente no período selecionado. 
+                        Entre em contato com o administrador do sistema para configurar os indicadores 
+                        necessários para a análise do seu negócio.
+                    </p>
+                </div>
+            {% else %}
+                <!-- Cards dos indicadores desta página -->
+                <div class="cards-container">
+                    {% for ind in pagina.indicadores %}
+                    <div class="indicator-card">
+                        <!-- Header com cor dinâmica baseada na performance -->
+                        <div class="card-header" style="background-color: {{ ind.header_color }};"></div>
+                        
+                        <!-- Ícone fixo -->
+                        <div class="icon-circle">
+                            <img src="data:image/png;base64,{{ ind.icon_base64 }}" width="48" alt="ícone">
                         </div>
                         
-                        <div class="indicator-value" style="font-size: {{ ind.valor_font_size }};">
-                            {% if ind.unidade == '%' %}
-                                {% set valor_para_formatar = ind.valor * 100 %}
-                                {{ "{:,.2f}%".format(valor_para_formatar).replace(',', 'X').replace('.', ',').replace('X', '.') }}
-                            {% elif ind.unidade == 'R$' %}
-                                R$ {{ "{:,.2f}".format(ind.valor).replace(',', 'X').replace('.', ',').replace('X', '.') }}
-                            {% else %}
-                                {{ "{:,.2f}".format(ind.valor).replace(',', 'X').replace('.', ',').replace('X', '.') }}
-                            {% endif %}
+                        <!-- Texto (nome + valor) sempre posicionado a partir do mesmo top -->
+                        <div class="text-block" style="top: {{ ind.text_top }};">
+                            <div class="indicator-name" style="font-size: {{ ind.nome_font_size }};">
+                                {{ ind.nome }}
+                            </div>
+                            
+                            <div class="indicator-value" style="font-size: {{ ind.valor_font_size }};">
+                                {% if ind.unidade == '%' %}
+                                    {% set valor_para_formatar = ind.valor * 100 %}
+                                    {{ "{:,.2f}%".format(valor_para_formatar).replace(',', 'X').replace('.', ',').replace('X', '.') }}
+                                {% elif ind.unidade == 'R$' %}
+                                    R$ {{ "{:,.2f}".format(ind.valor).replace(',', 'X').replace('.', ',').replace('X', '.') }}
+                                {% else %}
+                                    {{ "{:,.2f}".format(ind.valor).replace(',', 'X').replace('.', ',').replace('X', '.') }}
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="scenario-text" style="font-size: {{ ind.cenario_font_size }};">
+                            {{ ind.cenario_texto }}
                         </div>
                     </div>
-                    
-                    <div class="scenario-text" style="font-size: {{ ind.cenario_font_size }};">
-                        {{ ind.cenario_texto }}
-                    </div>
+                    {% endfor %}
                 </div>
-                {% endfor %}
-            </div>
+            {% endif %}
         </div>
     </div>
     {% endfor %}

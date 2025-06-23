@@ -223,9 +223,11 @@ class Relatorio7Renderer(BaseRenderer):
         if isinstance(data, tuple) and len(data) == 2:
             indicadores_data, notas_data = data
             notas = notas_data.get("notas", "")
+            sem_indicadores = notas_data.get("sem_indicadores", False)
         else:
             indicadores_data = data
             notas = ""
+            sem_indicadores = False
         
         # Carregar rodapé
         icons_dir = os.path.abspath("assets/icons")
@@ -239,7 +241,35 @@ class Relatorio7Renderer(BaseRenderer):
             logger.error(f"Erro ao carregar rodapé: {str(e)}")
             icon_rodape = ""
         
-        # Processar cada indicador
+        # Se não há indicadores, preparar dados para renderizar página vazia
+        if sem_indicadores or not indicadores_data:
+            logger.info(f"Renderizando Relatório 7 sem indicadores para cliente {cliente_nome}")
+            
+            # Dados para o template quando não há indicadores
+            template_data = {
+                "nome": cliente_nome,
+                "Periodo": f"{mes_nome}/{ano}",
+                "notas": notas,
+                "sem_indicadores": True,
+                "paginas": [{
+                    'indicadores': [],
+                    'numero_pagina': 1,
+                    'total_paginas': 1,
+                    'eh_primeira_pagina': True,
+                    'eh_ultima_pagina': True
+                }],
+                "total_indicadores": 0
+            }
+            
+            return self.template.render(
+                data=template_data,
+                icon_rodape=icon_rodape,
+                cliente_nome=cliente_nome,
+                mes_nome=mes_nome,
+                ano=ano
+            )
+        
+        # Processar cada indicador (código original)
         indicadores_processados = []
         for indicador in indicadores_data:
             nome = indicador.get('categoria', '')
@@ -285,6 +315,7 @@ class Relatorio7Renderer(BaseRenderer):
             "nome": cliente_nome,
             "Periodo": f"{mes_nome}/{ano}",
             "notas": notas,
+            "sem_indicadores": False,
             "paginas": paginas,
             "total_indicadores": len(indicadores_processados)
         }
