@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from datetime import date, datetime
 import os
 import tempfile
+import logging
 
 from src.core.indicadores import Indicadores
 from src.core.relatorios.relatorio_1 import Relatorio1
@@ -16,9 +17,12 @@ from src.core.relatorios.relatorio_4 import Relatorio4
 from src.core.relatorios.relatorio_5 import Relatorio5
 from src.core.relatorios.relatorio_6 import Relatorio6
 from src.core.relatorios.relatorio_7 import Relatorio7
-from src.core.relatorios.relatorio_8 import Relatorio8
 from src.database.db_utils import DatabaseConnection, buscar_clientes, obter_meses
 from src.rendering.engine import RenderingEngine
+
+# Configure logger
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="API de Relatórios Financeiros",
@@ -352,16 +356,10 @@ def gerar_pdf(
     input_data: RelatorioPdfInput,
     db: DatabaseConnection = Depends(get_db)
 ):
-    """
-    Gera um PDF com os relatórios selecionados.
+    """Gera um PDF com os relatórios selecionados usando processamento paralelo."""
+    import time
+    start_time = time.time()
     
-    - **id_cliente**: ID do cliente
-    - **mes**: Número do mês (1-12)
-    - **ano**: Ano do relatório
-    - **nome_cliente**: Nome do cliente (para o cabeçalho)
-    - **relatorios**: Lista de tipos de relatórios a incluir (1-8)
-    - **analise_qualitativa**: Texto opcional da análise qualitativa (relatório 8)
-    """
     try:
         # Instancia serviços
         indicadores = Indicadores(input_data.id_cliente, db)
@@ -432,8 +430,8 @@ def gerar_pdf(
             
             relatorios_dados.append((rel_nome, dados))
         
-        # Gera o PDF usando o RenderingEngine
-        rendering_engine = RenderingEngine()
+        # Gera o PDF usando processamento paralelo
+        rendering_engine = RenderingEngine(max_workers=4)  # Ajuste conforme necessário
         
         # Cria arquivo temporário para o PDF
         output_filename = f"Relatorio_{input_data.nome_cliente.replace(' ', '_')}_{mes_nome}_{input_data.ano}.pdf"
@@ -449,6 +447,10 @@ def gerar_pdf(
             output_path
         )
         
+        end_time = time.time()
+        processing_time = end_time - start_time
+        logger.info(f"PDF gerado em {processing_time:.2f} segundos")
+        
         # Retorna o arquivo PDF
         return FileResponse(
             path=pdf_file,
@@ -457,6 +459,7 @@ def gerar_pdf(
         )
         
     except Exception as e:
+        logger.error(f"Erro ao gerar PDF: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Erro ao gerar PDF: {str(e)}")
 
 @app.get("/health", 

@@ -271,7 +271,7 @@ def render_pdf(data):
         <span class="item-number">04</span>
         <div class="item-texts">
           <div class="item-title">Análise de Fluxo de Caixa – Parte 4</div>
-          <div class="item-subtitle">Análise de lucro líquido e entradas não operacionais</div>
+          <div class="item-subtitle">Análise de lucro líquido e resultados não operacionais</div>
         </div>
       </div>
 
