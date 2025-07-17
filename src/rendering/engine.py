@@ -180,7 +180,7 @@ class RenderingEngine:
                 pdf_path
             ]
             
-            subprocess.run(cmd, check=True, capture_output=True, timeout=30)  # Timeout de 30s
+            subprocess.run(cmd, check=True, capture_output=True, timeout=60)  # Timeout de 60s
             conversion_time = time.time() - conversion_start
             logger.info(f"🎯 {rel_name} convertido em {conversion_time:.2f}s")
             return pdf_path
@@ -235,11 +235,20 @@ class RenderingEngine:
                 return None, rel_nome, "HTML inválido"
             
             pdf_path = self._render_html_to_pdf_safe(html, rel_nome)
-            return pdf_path, rel_nome, "Sucesso" if pdf_path else "Falha na conversão PDF"
+            
+            # Verificar se a conversão foi bem-sucedida
+            if pdf_path:
+                return pdf_path, rel_nome, "Sucesso"
+            else:
+                # Capturar e retornar o erro específico da conversão
+                error_msg = f"Falha na conversão PDF para {rel_nome}"
+                logger.error(error_msg)
+                return None, rel_nome, error_msg
             
         except Exception as e:
-            logger.error(f"Erro ao processar {rel_nome}: {str(e)}")
-            return None, rel_nome, f"Erro: {str(e)}"
+            error_msg = f"Erro ao processar {rel_nome}: {str(e)}"
+            logger.error(error_msg)
+            return None, rel_nome, error_msg
 
     def render_to_pdf(self, relatorios_data: List[Tuple[str, Any]], cliente_nome: str, 
                       mes_nome: str, ano: int, output_path: str = None) -> str:

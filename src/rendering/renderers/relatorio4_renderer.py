@@ -31,9 +31,9 @@ class Relatorio4Renderer(BaseRenderer):
             HTML formatado.
         """
         # Diagnóstico: imprimir a estrutura dos dados recebidos
-        import json
-        print("DADOS RECEBIDOS NO RENDERER:")
-        print(json.dumps(data, indent=2))
+        #import json
+        #print("DADOS RECEBIDOS NO RENDERER:")
+        #print(json.dumps(data, indent=2))
         
         # Extrair dados na estrutura correta
         if isinstance(data, tuple) and len(data) == 2:

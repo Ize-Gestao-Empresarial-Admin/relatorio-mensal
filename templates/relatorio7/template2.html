@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Relatório Financeiro - {{ nome_relatorio }} - {{ periodo }}</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@200;400;600;700&family=Poppins:wght@400;600;700&display=swap');
+        
+        /* Resetar margens e definir layout base - IDÊNTICO AO TEMPLATE1 */
+        html, body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+            position: relative;
+            min-height: 100%;
+        }
+        
+        /* Classe para páginas individuais - IDÊNTICO AO TEMPLATE1 */
+        .page {
+            min-height: 100vh;
+            position: relative;
+            page-break-after: always;
+        }
+        
+        /* Remove quebra de página da última página - IDÊNTICO AO TEMPLATE1 */
+        .page:last-child {
+            page-break-after: avoid;
+        }
+        
+        /* Contêiner principal para o conteúdo - IDÊNTICO AO TEMPLATE1 */
+        .main-content {
+            padding: 20px 20px 60px 20px;
+            box-sizing: border-box;
+            position: relative;
+        }
+        
+        /* Cor do nome do relatório - IDÊNTICO AO TEMPLATE1 */
+        .report-name {
+            color: #A5A5A5; 
+        }
+        
+        /* Cor do período - IDÊNTICO AO TEMPLATE1 */
+        .report-period {
+            color: #A5A5A5; 
+        }
+        
+        /* Barra laranja acima do cabeçalho - IDÊNTICO AO TEMPLATE1 */
+        .header-accent {
+            width: 100px;
+            height: 6px;
+            background-color: #FF6900;
+            margin: 0 0 4px 793px;
+            border-radius: 3px 3px 0 0;
+        }
+        
+        /* Cabeçalho acima da primeira caixa - IDÊNTICO AO TEMPLATE1 */
+        .report-header {
+            border-top: 1px solid #D9D9D9;
+            margin: 0 0 8px 0;
+        }
+        
+        /* Container com nome e período - IDÊNTICO AO TEMPLATE1 */
+        .report-header-info {
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+            width: 100%;
+            font-size: 14px;
+            margin: 4px 0 16px;
+            white-space: nowrap;  
+        }
+        
+        /* Empurra o segundo span para a margem direita - IDÊNTICO AO TEMPLATE1 */
+        .report-header-info .report-period {
+            margin-left: auto;
+        }
+        
+        .cards-container {
+            margin-top: 30px;
+            position: relative;
+            margin-left: 60px;
+            page-break-inside: avoid;
+        }
+        
+        .cards-container::after {
+            content: "";
+            display: table;
+            clear: both;
+        }
+        
+        .indicator-card {
+            position: relative;
+            float: left;
+            margin-right: 30px;
+            margin-bottom: 35px;
+            width: 245px;
+            height: 112px;
+            border: 1px solid #CFCFCF;
+            border-radius: 9px;
+            box-sizing: border-box;
+            overflow: hidden;
+            page-break-inside: avoid;
+        }
+        
+        /* Faixa do topo - cor dinâmica via style inline - IDÊNTICO AO TEMPLATE1 */
+        .indicator-card .card-header {
+            position: absolute;
+            top: 0; 
+            left: 0; 
+            right: 0;
+            height: 7px;
+            border-top-left-radius: 9px;
+            border-top-right-radius: 9px;
+        }
+        
+        /* Círculo com o ícone, sempre fixo - IDÊNTICO AO TEMPLATE1 */
+        .indicator-card .icon-circle {
+            position: absolute;
+            top: 30px;
+            left: 16px;
+            width: 48px;
+            height: 48px;
+            background-color: #FFFFFF;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        /* Bloco de texto (nome + valor) sempre alinhado ao mesmo top - IDÊNTICO AO TEMPLATE1 */
+        .indicator-card .text-block {
+            position: absolute;
+            left: 80px;
+            right: 16px;
+        }
+        
+        /* Nome do indicador - IDÊNTICO AO TEMPLATE1 */
+        .indicator-card .indicator-name {
+            font-weight: 200;
+            line-height: 1;
+            margin: 0 0 4px 0;
+            font-family: 'Inter', sans-serif;
+        }
+        
+        /* Valor principal - IDÊNTICO AO TEMPLATE1 */
+        .indicator-card .indicator-value {
+            font-weight: 700;
+            font-family: 'Poppins', sans-serif;
+            margin: 0;
+        }
+        
+        /* Frase colado na base direita - IDÊNTICO AO TEMPLATE1 */
+        .scenario-text {
+            position: absolute;
+            bottom: 5px;
+            right: 7px;
+            color: #878787;
+            margin: 0;
+            text-align: right;
+        }
+        
+        /* RODAPÉ ESPECIAL PARA PÁGINAS DE CONTINUAÇÃO - DESCE MUITO MAIS */
+        .fixed-footer-bg {
+            position: fixed !important;
+            bottom: -330px !important;  /* NOVO: Desce 200px para baixo da página */
+            left: 50% !important;
+            transform: translateX(-50%) !important;
+            z-index: -1 !important;
+            width: 80px !important;
+            height: auto !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+        
+        /* Estilos específicos para impressão/PDF */
+        @media print {
+            .page {
+                page-break-after: always;
+                min-height: 100vh;
+            }
+            
+            .page:last-child {
+                page-break-after: avoid;
+            }
+            
+            .cards-container {
+                page-break-inside: avoid;
+                orphans: 2;
+                widows: 2;
+            }
+            
+            .indicator-card {
+                page-break-inside: avoid;
+                break-inside: avoid;
+            }
+            
+            /* RODAPÉ ESPECIAL PARA IMPRESSÃO - AINDA MAIS BAIXO */
+            .fixed-footer-bg {
+                position: fixed !important;
+                bottom: -380px !important;  /* NOVO: Na impressão desce ainda mais (250px) */
+                left: 50% !important;
+                transform: translateX(-50%) !important;
+                z-index: -1 !important;
+                width: 80px !important;
+                height: auto !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                print-color-adjust: exact !important;
+                -webkit-print-color-adjust: exact !important;
+            }
+        }
+        
+    </style>
+</head>
+<body>
+    <!-- RODAPÉ ESPECIAL PARA PÁGINAS DE CONTINUAÇÃO -->
+    <img src="data:image/png;base64,{{ icon_rodape }}" class="fixed-footer-bg" alt=""/>
+    
+    <!-- ESTRUTURA IDÊNTICA AO TEMPLATE1, MAS PARA UMA ÚNICA PÁGINA -->
+    <div class="page">
+        <div class="main-content">
+            <!-- Cabeçalho -->
+            <div class="header-accent"></div>
+            <div class="report-header"></div>
+            <table style="width:100%; border-collapse:collapse; margin:4px 0 16px;">
+                <tr>
+                    <td class="report-name" style="padding:0; text-align:left; font-size:14px;">
+                        {{ nome_relatorio }} (continuação)
+                    </td>
+                    <td class="report-period" style="padding:0; text-align:right; font-size:14px;">
+                        {{ periodo }}
+                    </td>
+                </tr>
+            </table>
+            
+            <!-- Cards dos indicadores desta página -->
+            <div class="cards-container">
+                {% for ind in indicadores %}
+                <div class="indicator-card">
+                    <!-- Header com cor dinâmica baseada na performance -->
+                    <div class="card-header" style="background-color: {{ ind.header_color }};"></div>
+                    
+                    <!-- Ícone fixo -->
+                    <div class="icon-circle">
+                        <img src="data:image/png;base64,{{ ind.icon_base64 }}" width="48" alt="ícone">
+                    </div>
+                    
+                    <!-- Texto (nome + valor) sempre posicionado a partir do mesmo top -->
+                    <div class="text-block" style="top: {{ ind.text_top }};">
+                        <div class="indicator-name" style="font-size: {{ ind.nome_font_size }};">
+                            {{ ind.nome }}
+                        </div>
+                        
+                        <div class="indicator-value" style="font-size: {{ ind.valor_font_size }};">
+                            {% if ind.unidade == '%' %}
+                                {% set valor_para_formatar = ind.valor * 100 %}
+                                {{ "{:,.2f}%".format(valor_para_formatar).replace(',', 'X').replace('.', ',').replace('X', '.') }}
+                            {% elif ind.unidade == 'R$' %}
+                                R$ {{ "{:,.2f}".format(ind.valor).replace(',', 'X').replace('.', ',').replace('X', '.') }}
+                            {% else %}
+                                {{ "{:,.2f}".format(ind.valor).replace(',', 'X').replace('.', ',').replace('X', '.') }}
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="scenario-text" style="font-size: {{ ind.cenario_font_size }};">
+                        {{ ind.cenario_texto }}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</body>
+</html>
