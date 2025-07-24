@@ -1,6 +1,7 @@
 # src/core/relatorios/relatorio_7.py
 from datetime import date
 from typing import Optional, List, Dict, Any, Tuple
+from src.core.utils import safe_float 
 from src.core.indicadores import Indicadores
 
 class Relatorio7:
@@ -56,9 +57,9 @@ class Relatorio7:
             
             indicador_formatado = {
                 "categoria": i["indicador"],
-                "valor": i["total_valor"],
-                "cenario_bom": i["bom"],
-                "cenario_ruim": i["ruim"],
+                "valor": safe_float(i["total_valor"]),
+                "cenario_bom": safe_float(i["bom"]),
+                "cenario_ruim": safe_float(i["ruim"]),
                 "unidade": unidade
             }
             indicadores_formatados.append(indicador_formatado)

@@ -1,15 +1,27 @@
 # src/core/utils.py
+from cmath import nan
 from typing import List, Dict, Any
 import math
 
-def safe_float(value: Any, default: float = 0.0) -> float:
-    """Converte um valor para float, tratando NaN e None como o valor padrão."""
-    if value is None or (isinstance(value, float) and math.isnan(value)):
-        return default
+import math
+from typing import Any, Union
+
+def safe_float(value: Any, default: float = 0.0) -> Union[float, str]:
+    """
+    Converte um valor para float de forma segura.
+    - Retorna default para None, NaN e conversões inválidas.
+    - Retorna "N/A" para valores infinitos.
+    """
     try:
-        return float(value)
+        f = float(value)
+        if math.isnan(f):
+            return default
+        if math.isinf(f):
+            return 0
+        return f
     except (TypeError, ValueError):
         return default
+
 
 def calcular_outras_categorias(
     items: List[Dict[str, Any]],
