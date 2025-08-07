@@ -13,8 +13,6 @@ import time
 import shutil
 import uuid
 from datetime import datetime
-import concurrent.futures
-from multiprocessing import cpu_count
 import threading
 
 # Configurar logging
@@ -81,7 +79,7 @@ class PdfUtils:
 class RenderingEngine:
     """Motor central de renderização que coordena a geração de relatórios em PDF."""
     
-    def __init__(self, max_workers: int = None):
+    def __init__(self):
         # Configuração do ambiente Jinja2
         templates_dir = os.path.abspath("templates")
         self.env = Environment(
@@ -89,9 +87,6 @@ class RenderingEngine:
             autoescape=True
         )
         self.temp_files: List[str] = []
-        self.temp_files_lock = threading.Lock()
-        # Usar metade dos CPUs disponíveis para evitar sobrecarga
-        self.max_workers = max_workers or max(1, cpu_count() // 2)
 
     def _clean_temp_files(self) -> None:
         """Remove arquivos temporários gerados durante a renderização."""
@@ -135,75 +130,9 @@ class RenderingEngine:
             os.unlink(html_path)
             self.temp_files.remove(html_path)
 
-    def _render_html_to_pdf_safe(self, html: str, rel_name: str) -> str:
-        """Versão thread-safe e otimizada do _render_html_to_pdf."""
+    def _process_single_report(self, rel_nome: str, dados: Any, cliente_nome: str, mes_nome: str, ano: int) -> tuple:
+        """Processa um único relatório sequencialmente."""
         conversion_start = time.time()
-        
-        # Gerar identificador único para evitar conflitos
-        unique_id = str(uuid.uuid4())
-        html_path = tempfile.NamedTemporaryFile(
-            delete=False, 
-            suffix=f'_{rel_name}_{unique_id}.html', 
-            mode='w', 
-            encoding='utf-8'
-        ).name
-        pdf_path = tempfile.NamedTemporaryFile(
-            delete=False, 
-            suffix=f'_{rel_name}_{unique_id}.pdf'
-        ).name
-        
-        # Thread-safe addition to temp_files
-        with self.temp_files_lock:
-            self.temp_files.extend([html_path, pdf_path])
-        
-        try:
-            # Salvar HTML
-            with open(html_path, 'w', encoding='utf-8') as f:
-                f.write(html)
-            
-            # Converter para PDF com configurações otimizadas
-            cmd = [
-                'wkhtmltopdf', 
-                '--enable-local-file-access', 
-                '--page-size', 'A4',
-                '--margin-top', '5mm', 
-                '--margin-bottom', '5mm',
-                '--margin-left', '10mm', 
-                '--margin-right', '10mm',
-                '--no-footer-line', 
-                '--quiet',  # Reduzir output verboso
-                '--disable-plugins',  # Desabilitar plugins para acelerar
-                '--no-images',  # Se não precisar de imagens externas
-                '--load-error-handling', 'ignore',  # Ignorar erros de carregamento
-                '--load-media-error-handling', 'ignore',  # Ignorar erros de mídia
-                html_path, 
-                pdf_path
-            ]
-            
-            subprocess.run(cmd, check=True, capture_output=True, timeout=60)  # Timeout de 60s
-            conversion_time = time.time() - conversion_start
-            logger.info(f"🎯 {rel_name} convertido em {conversion_time:.2f}s")
-            return pdf_path
-            
-        except subprocess.CalledProcessError as e:
-            logger.error(f"Erro ao converter HTML para PDF ({rel_name}): {e}")
-            return None
-        except subprocess.TimeoutExpired:
-            logger.error(f"Timeout na conversão PDF ({rel_name})")
-            return None
-        finally:
-            # Remover arquivo HTML imediatamente após conversão
-            try:
-                os.unlink(html_path)
-                with self.temp_files_lock:
-                    if html_path in self.temp_files:
-                        self.temp_files.remove(html_path)
-            except Exception:
-                pass
-
-    def _process_single_report(self, args: tuple) -> tuple:
-        """Processa um único relatório. Para uso com ThreadPoolExecutor."""
-        rel_nome, dados, cliente_nome, mes_nome, ano = args
         
         try:
             if rel_nome == "Índice":
@@ -234,13 +163,15 @@ class RenderingEngine:
             if not isinstance(html, str) or not html.strip():
                 return None, rel_nome, "HTML inválido"
             
-            pdf_path = self._render_html_to_pdf_safe(html, rel_nome)
+            pdf_path = self._render_html_to_pdf(html, rel_nome)
+            
+            conversion_time = time.time() - conversion_start
             
             # Verificar se a conversão foi bem-sucedida
             if pdf_path:
+                logger.info(f"🎯 {rel_nome} convertido em {conversion_time:.2f}s")
                 return pdf_path, rel_nome, "Sucesso"
             else:
-                # Capturar e retornar o erro específico da conversão
                 error_msg = f"Falha na conversão PDF para {rel_nome}"
                 logger.error(error_msg)
                 return None, rel_nome, error_msg
@@ -252,7 +183,7 @@ class RenderingEngine:
 
     def render_to_pdf(self, relatorios_data: List[Tuple[str, Any]], cliente_nome: str, 
                       mes_nome: str, ano: int, output_path: str = None) -> str:
-        """Renderiza relatórios em paralelo para PDF mantendo a ordem correta."""
+        """Renderiza relatórios sequencialmente para PDF mantendo a ordem correta."""
         try:
             
             start_time = time.time() 
@@ -266,68 +197,39 @@ class RenderingEngine:
                 "Relatório 5", "Relatório 6", "Relatório 7", "Relatório 8"
             ]
             
-            # Preparar argumentos para processamento paralelo
-            process_args = [
-                (rel_nome, dados, cliente_nome, mes_nome, ano) 
-                for rel_nome, dados in relatorios_data
-            ]
-            
             pdf_paths = []
             processed_reports = []
             index_pdf_path = None
             
-            # Dicionário para mapear nome do relatório -> resultado
-            relatorios_resultados = {}
+            logger.info(f"Processando {len(relatorios_data)} relatórios sequencialmente...")
             
-            # Processar relatórios em paralelo
-            with concurrent.futures.ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-                logger.info(f"Processando {len(process_args)} relatórios com {self.max_workers} workers...")
-                
-                # Submeter todas as tarefas
-                future_to_rel_nome = {
-                    executor.submit(self._process_single_report, args): args[0]
-                    for args in process_args
-                }
-                
-                # Coletar resultados conforme completam (sem ordem específica)
-                for future in concurrent.futures.as_completed(future_to_rel_nome):
-                    rel_nome = future_to_rel_nome[future]
-                    
-                    try:
-                        pdf_path, rel_nome_result, status = future.result()
-                        
-                        # Armazenar resultado no dicionário
-                        relatorios_resultados[rel_nome] = {
-                            'pdf_path': pdf_path,
-                            'rel_nome_result': rel_nome_result,
-                            'status': status
-                        }
-                        
-                        if pdf_path:
-                            logger.info(f"✓ {rel_nome_result} processado com sucesso")
-                        else:
-                            logger.warning(f"✗ {rel_nome_result}: {status}")
-                            
-                    except Exception as e:
-                        logger.error(f"✗ Erro no processamento de {rel_nome}: {str(e)}")
-                        relatorios_resultados[rel_nome] = {
-                            'pdf_path': None,
-                            'rel_nome_result': rel_nome,
-                            'status': f"Erro: {str(e)}"
-                        }
-            
-            # Organizar PDFs na ordem correta
+            # Processar relatórios sequencialmente na ordem correta
             for rel_nome in ordem_relatorios:
-                if rel_nome in relatorios_resultados:
-                    resultado = relatorios_resultados[rel_nome]
-                    pdf_path = resultado['pdf_path']
-                    
-                    if pdf_path:
-                        if rel_nome == "Índice":
-                            index_pdf_path = pdf_path
-                        else:
-                            pdf_paths.append(pdf_path)
-                        processed_reports.append(resultado['rel_nome_result'])
+                # Encontrar os dados correspondentes ao relatório atual
+                dados_relatorio = None
+                for rel_nome_data, dados in relatorios_data:
+                    if rel_nome_data == rel_nome:
+                        dados_relatorio = dados
+                        break
+                
+                if dados_relatorio is None:
+                    logger.warning(f"Dados não encontrados para: {rel_nome}")
+                    continue
+                
+                # Processar o relatório
+                pdf_path, rel_nome_result, status = self._process_single_report(
+                    rel_nome, dados_relatorio, cliente_nome, mes_nome, ano
+                )
+                
+                if pdf_path:
+                    if rel_nome == "Índice":
+                        index_pdf_path = pdf_path
+                    else:
+                        pdf_paths.append(pdf_path)
+                    processed_reports.append(rel_nome_result)
+                    logger.info(f"✓ {rel_nome_result} processado com sucesso")
+                else:
+                    logger.warning(f"✗ {rel_nome_result}: {status}")
             
             # Adicionar índice no início se existir
             if index_pdf_path:

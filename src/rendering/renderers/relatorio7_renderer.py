@@ -24,9 +24,9 @@ class Relatorio7Renderer(BaseRenderer):
         cenario_bom = indicador_info.get('cenario_bom')
         cenario_ruim = indicador_info.get('cenario_ruim')
         
-        # Verificar se os cenários são válidos (não NaN e não None)
-        cenario_bom_valido = cenario_bom is not None and not (isinstance(cenario_bom, float) and math.isnan(cenario_bom))
-        cenario_ruim_valido = cenario_ruim is not None and not (isinstance(cenario_ruim, float) and math.isnan(cenario_ruim))
+        # Verificar se os cenários são válidos (não NaN, não None e não 0)
+        cenario_bom_valido = cenario_bom is not None and not (isinstance(cenario_bom, float) and math.isnan(cenario_bom)) and cenario_bom != 0
+        cenario_ruim_valido = cenario_ruim is not None and not (isinstance(cenario_ruim, float) and math.isnan(cenario_ruim)) and cenario_ruim != 0
         
         # Se não temos cenários válidos, retornar 'neutro'
         if not cenario_bom_valido or not cenario_ruim_valido:
@@ -39,8 +39,6 @@ class Relatorio7Renderer(BaseRenderer):
             return 'negativo'  # Laranja
         else:
             # Valor está entre cenário ruim e bom
-            # Decidir baseado em qual está mais próximo ou usar uma lógica específica
-            # Por enquanto, vamos considerar como neutro se está no meio
             return 'neutro'  # Cinza
 
     def _get_header_color(self, performance):
@@ -102,11 +100,16 @@ class Relatorio7Renderer(BaseRenderer):
         ruim = indicador.get('cenario_ruim')
         unidade = indicador.get('unidade', 'SU')
         
-        # Verificar se os valores são válidos (não NaN)
+        # Verificar se os valores são válidos (não NaN e não None)
         bom_valido = bom is not None and not (isinstance(bom, float) and math.isnan(bom))
         ruim_valido = ruim is not None and not (isinstance(ruim, float) and math.isnan(ruim))
         
+        # Se algum valor não é válido, retornar cenário não definido
         if not bom_valido or not ruim_valido:
+            return "Cenário não definido"
+        
+        # Se AMBOS os valores são zero, retornar cenário não definido
+        if bom == 0 and ruim == 0:
             return "Cenário não definido"
         
         # Formatação baseada na unidade
