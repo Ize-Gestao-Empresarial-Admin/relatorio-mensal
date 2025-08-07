@@ -13,18 +13,20 @@ class Relatorio7Renderer(BaseRenderer):
     
     def __init__(self):
         super().__init__()
-        # Carregar o template do relatório 7
+        # Carregar o template principal do relatório 7
         self.template = self.env.get_template("relatorio7/template.html")
-    
+        # Carregar o template para páginas adicionais
+        self.template2 = self.env.get_template("relatorio7/template2.html")
+
     def _determine_performance(self, indicador_info):
         """Determina a performance do indicador baseado nos cenários bom/ruim"""
         valor = indicador_info.get('valor', 0)
         cenario_bom = indicador_info.get('cenario_bom')
         cenario_ruim = indicador_info.get('cenario_ruim')
         
-        # Verificar se os cenários são válidos (não NaN e não None)
-        cenario_bom_valido = cenario_bom is not None and not (isinstance(cenario_bom, float) and math.isnan(cenario_bom))
-        cenario_ruim_valido = cenario_ruim is not None and not (isinstance(cenario_ruim, float) and math.isnan(cenario_ruim))
+        # Verificar se os cenários são válidos (não NaN, não None e não 0)
+        cenario_bom_valido = cenario_bom is not None and not (isinstance(cenario_bom, float) and math.isnan(cenario_bom)) and cenario_bom != 0
+        cenario_ruim_valido = cenario_ruim is not None and not (isinstance(cenario_ruim, float) and math.isnan(cenario_ruim)) and cenario_ruim != 0
         
         # Se não temos cenários válidos, retornar 'neutro'
         if not cenario_bom_valido or not cenario_ruim_valido:
@@ -37,8 +39,6 @@ class Relatorio7Renderer(BaseRenderer):
             return 'negativo'  # Laranja
         else:
             # Valor está entre cenário ruim e bom
-            # Decidir baseado em qual está mais próximo ou usar uma lógica específica
-            # Por enquanto, vamos considerar como neutro se está no meio
             return 'neutro'  # Cinza
 
     def _get_header_color(self, performance):
@@ -100,11 +100,16 @@ class Relatorio7Renderer(BaseRenderer):
         ruim = indicador.get('cenario_ruim')
         unidade = indicador.get('unidade', 'SU')
         
-        # Verificar se os valores são válidos (não NaN)
+        # Verificar se os valores são válidos (não NaN e não None)
         bom_valido = bom is not None and not (isinstance(bom, float) and math.isnan(bom))
         ruim_valido = ruim is not None and not (isinstance(ruim, float) and math.isnan(ruim))
         
+        # Se algum valor não é válido, retornar cenário não definido
         if not bom_valido or not ruim_valido:
+            return "Cenário não definido"
+        
+        # Se AMBOS os valores são zero, retornar cenário não definido
+        if bom == 0 and ruim == 0:
             return "Cenário não definido"
         
         # Formatação baseada na unidade
@@ -208,7 +213,9 @@ class Relatorio7Renderer(BaseRenderer):
     def render(self, data: Union[List[Dict[str, Any]], Tuple[List[Dict[str, Any]], Dict[str, str]]], 
                cliente_nome: str, mes_nome: str, ano: int) -> str:
         """
-        Renderiza os dados do Relatório 7 em HTML.
+        Renderiza os dados do Relatório 7 em HTML usando templates separados por página.
+        Template1 = primeira página (até 24 indicadores)
+        Template2 = páginas subsequentes (24 indicadores cada)
 
         Args:
             data: Lista de dados do relatório ou tupla com dados e notas.
@@ -222,34 +229,31 @@ class Relatorio7Renderer(BaseRenderer):
         # Extrair dados na estrutura correta
         if isinstance(data, tuple) and len(data) == 2:
             indicadores_data, notas_data = data
-            notas = notas_data.get("notas", "")
             sem_indicadores = notas_data.get("sem_indicadores", False)
         else:
             indicadores_data = data
-            notas = ""
             sem_indicadores = False
         
-        # Carregar rodapé
+        # Carregar rodapé (será usado em ambos os templates)
         icons_dir = os.path.abspath("assets/icons")
         rodape_path = os.path.join(icons_dir, "rodape.png")
         try:
             with open(rodape_path, "rb") as f:
                 icon_bytes = f.read()
+                logger.info(f"Arquivo rodapé lido com sucesso: {rodape_path}, tamanho: {len(icon_bytes)} bytes")
                 icon_rodape = base64.b64encode(icon_bytes).decode("ascii")
-                logger.info(f"Rodapé carregado com sucesso")
+                logger.info(f"Base64 do rodapé gerado com sucesso, tamanho: {len(icon_rodape)}")
         except Exception as e:
             logger.error(f"Erro ao carregar rodapé: {str(e)}")
             icon_rodape = ""
         
-        # Se não há indicadores, preparar dados para renderizar página vazia
+        # Se não há indicadores, renderizar apenas a primeira página vazia
         if sem_indicadores or not indicadores_data:
             logger.info(f"Renderizando Relatório 7 sem indicadores para cliente {cliente_nome}")
             
-            # Dados para o template quando não há indicadores
             template_data = {
                 "nome": cliente_nome,
                 "Periodo": f"{mes_nome}/{ano}",
-                "notas": notas,
                 "sem_indicadores": True,
                 "paginas": [{
                     'indicadores': [],
@@ -269,7 +273,7 @@ class Relatorio7Renderer(BaseRenderer):
                 ano=ano
             )
         
-        # Processar cada indicador (código original)
+        # Processar cada indicador
         indicadores_processados = []
         for indicador in indicadores_data:
             nome = indicador.get('categoria', '')
@@ -304,29 +308,101 @@ class Relatorio7Renderer(BaseRenderer):
             }
             indicadores_processados.append(indicador_processado)
             
-            # Log para debugging
-            logger.debug(f"Indicador processado: {nome} = {indicador_processado['valor_formatado']} - Performance: {performance} - Header: {header_color}")
+            logger.debug(f"Indicador processado: {nome} = {indicador_processado['valor_formatado']} - Performance: {performance}")
         
-        # Dividir indicadores em páginas
-        paginas = self._dividir_indicadores_em_paginas(indicadores_processados)
+        # Configuração de páginas
+        indicadores_por_pagina = 24  # Limite de indicadores por página
+        total_indicadores = len(indicadores_processados)
         
-        # Dados para o template
-        template_data = {
-            "nome": cliente_nome,
-            "Periodo": f"{mes_nome}/{ano}",
-            "notas": notas,
-            "sem_indicadores": False,
-            "paginas": paginas,
-            "total_indicadores": len(indicadores_processados)
-        }
+        # LÓGICA SIMPLIFICADA: TEMPLATES INDEPENDENTES
         
-        logger.info(f"Renderizando {len(indicadores_processados)} indicadores em {len(paginas)} páginas para o Relatório 7")
+        # Se cabem todos na primeira página (≤ 24 indicadores)
+        if total_indicadores <= indicadores_por_pagina:
+            logger.info(f"Renderizando {total_indicadores} indicadores em 1 página (template1)")
+            
+            # Usar apenas template1
+            paginas = [{
+                'indicadores': indicadores_processados,
+                'numero_pagina': 1,
+                'total_paginas': 1,
+                'eh_primeira_pagina': True,
+                'eh_ultima_pagina': True
+            }]
+            
+            template_data = {
+                "nome": cliente_nome,
+                "Periodo": f"{mes_nome}/{ano}",
+                "sem_indicadores": False,
+                "paginas": paginas,
+                "total_indicadores": total_indicadores
+            }
+            
+            return self.template.render(
+                data=template_data,
+                icon_rodape=icon_rodape,
+                cliente_nome=cliente_nome,
+                mes_nome=mes_nome,
+                ano=ano
+            )
         
-        # Renderizar o template
-        return self.template.render(
-            data=template_data,
-            icon_rodape=icon_rodape,
-            cliente_nome=cliente_nome,
-            mes_nome=mes_nome,
-            ano=ano
-        )
+        # Se precisamos de múltiplas páginas (> 24 indicadores)
+        else:
+            logger.info(f"Renderizando {total_indicadores} indicadores em múltiplas páginas")
+            
+            # Dividir indicadores
+            primeira_pagina_indicadores = indicadores_processados[:indicadores_por_pagina]
+            indicadores_restantes = indicadores_processados[indicadores_por_pagina:]
+            
+            # Calcular total de páginas
+            total_paginas = math.ceil(total_indicadores / indicadores_por_pagina)
+            
+            logger.info(f"Primeira página: {len(primeira_pagina_indicadores)} indicadores")
+            logger.info(f"Páginas restantes: {len(indicadores_restantes)} indicadores em {total_paginas - 1} páginas")
+            
+            # TEMPLATE 1: Primeira página (independente)
+            paginas_primeira = [{
+                'indicadores': primeira_pagina_indicadores,
+                'numero_pagina': 1,
+                'total_paginas': total_paginas,
+                'eh_primeira_pagina': True,
+                'eh_ultima_pagina': total_paginas == 1
+            }]
+            
+            template_data_primeira = {
+                "nome": cliente_nome,
+                "Periodo": f"{mes_nome}/{ano}",
+                "sem_indicadores": False,
+                "paginas": paginas_primeira,
+                "total_indicadores": len(primeira_pagina_indicadores)
+            }
+            
+            html_primeira_pagina = self.template.render(
+                data=template_data_primeira,
+                icon_rodape=icon_rodape,
+                cliente_nome=cliente_nome,
+                mes_nome=mes_nome,
+                ano=ano
+            )
+            
+            # TEMPLATE 2: Páginas subsequentes (independentes)
+            html_completo = html_primeira_pagina
+            
+            for pagina_num in range(2, total_paginas + 1):
+                inicio_idx = (pagina_num - 2) * indicadores_por_pagina
+                fim_idx = inicio_idx + indicadores_por_pagina
+                indicadores_pagina = indicadores_restantes[inicio_idx:fim_idx]
+                
+                logger.info(f"Renderizando página {pagina_num} com {len(indicadores_pagina)} indicadores (template2)")
+                
+                # Cada página do template2 é independente
+                html_pagina = self.template2.render(
+                    indicadores=indicadores_pagina,
+                    nome_relatorio=cliente_nome,
+                    periodo=f"{mes_nome}/{ano}",
+                    icon_rodape=icon_rodape  # Rodapé em todas as páginas
+                )
+                
+                html_completo += html_pagina
+            
+            logger.info(f"HTML completo gerado: {total_paginas} páginas")
+            return html_completo

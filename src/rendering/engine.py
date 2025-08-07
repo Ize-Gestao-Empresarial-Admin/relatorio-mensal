@@ -12,6 +12,8 @@ import glob
 import time
 import shutil
 import uuid
+from datetime import datetime
+import threading
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
@@ -128,91 +130,136 @@ class RenderingEngine:
             os.unlink(html_path)
             self.temp_files.remove(html_path)
 
-    def render_to_pdf(self, relatorios_data: List[Tuple[str, Any]], cliente_nome: str, 
-                  mes_nome: str, ano: int, output_path: str = None) -> str: # type: ignore
-        from src.rendering.renderers import get_renderer
-
+    def _process_single_report(self, rel_nome: str, dados: Any, cliente_nome: str, mes_nome: str, ano: int) -> tuple:
+        """Processa um único relatório sequencialmente."""
+        conversion_start = time.time()
+        
         try:
+            if rel_nome == "Índice":
+                from src.rendering.renderers import get_renderer
+                renderer = get_renderer(0)
+                if not renderer or not isinstance(dados, dict):
+                    return None, rel_nome, "Dados inválidos para índice"
+                
+                html = renderer.render(dados, cliente_nome, mes_nome, ano)
+                
+            else:
+                # Extrair número do relatório
+                try:
+                    rel_num = int(rel_nome.split()[1])
+                except (IndexError, ValueError):
+                    return None, rel_nome, "Nome de relatório inválido"
+                
+                from src.rendering.renderers import get_renderer
+                renderer = get_renderer(rel_num)
+                if not renderer:
+                    return None, rel_nome, "Renderizador não encontrado"
+                
+                if not dados or not isinstance(dados, tuple) or len(dados) < 2:
+                    return None, rel_nome, "Dados inválidos"
+                
+                html = renderer.render(dados, cliente_nome, mes_nome, ano)
+            
+            if not isinstance(html, str) or not html.strip():
+                return None, rel_nome, "HTML inválido"
+            
+            pdf_path = self._render_html_to_pdf(html, rel_nome)
+            
+            conversion_time = time.time() - conversion_start
+            
+            # Verificar se a conversão foi bem-sucedida
+            if pdf_path:
+                logger.info(f"🎯 {rel_nome} convertido em {conversion_time:.2f}s")
+                return pdf_path, rel_nome, "Sucesso"
+            else:
+                error_msg = f"Falha na conversão PDF para {rel_nome}"
+                logger.error(error_msg)
+                return None, rel_nome, error_msg
+            
+        except Exception as e:
+            error_msg = f"Erro ao processar {rel_nome}: {str(e)}"
+            logger.error(error_msg)
+            return None, rel_nome, error_msg
+
+    def render_to_pdf(self, relatorios_data: List[Tuple[str, Any]], cliente_nome: str, 
+                      mes_nome: str, ano: int, output_path: str = None) -> str:
+        """Renderiza relatórios sequencialmente para PDF mantendo a ordem correta."""
+        try:
+            
+            start_time = time.time() 
+            
             self._clean_temp_files()
+
+            # Definir ordem correta dos relatórios
+            ordem_relatorios = [
+                "Índice",
+                "Relatório 1", "Relatório 2", "Relatório 3", "Relatório 4",
+                "Relatório 5", "Relatório 6", "Relatório 7", "Relatório 8"
+            ]
+            
             pdf_paths = []
             processed_reports = []
-            relatorios_selecionados = [rel_nome for rel_nome, _ in relatorios_data if rel_nome != "Índice"]
-
-            for index, (rel_nome, dados) in enumerate(relatorios_data):
-                if rel_nome == "Índice":
-                    renderer = get_renderer(0)
-                    if not renderer:
-                        logger.warning("Renderizador do índice não encontrado. Ignorando.")
-                        continue
-                    try:
-                        if not isinstance(dados, dict):
-                            logger.error(f"Dados inválidos para o índice: esperado dicionário, recebido {type(dados)}: {dados}")
-                            raise ValueError(f"Dados inválidos para o índice: esperado dicionário, recebido {type(dados)}")
-                        logger.debug(f"Renderizando índice com dados: {dados}")
-                        html = renderer.render(dados, cliente_nome, mes_nome, ano)
-                        if not isinstance(html, str) or not html.strip():
-                            logger.warning("HTML inválido para o índice. Ignorando.")
-                            continue
-                        pdf_path = self._render_html_to_pdf(html, "Indice")
-                        if pdf_path:
-                            pdf_paths.insert(0, pdf_path)
-                            processed_reports.append("Índice")
-                        else:
-                            logger.error("Falha ao gerar PDF do índice.")
-                    except Exception as e:
-                        logger.error(f"Erro ao processar índice: {str(e)}", exc_info=True)
-                        continue
+            index_pdf_path = None
+            
+            logger.info(f"Processando {len(relatorios_data)} relatórios sequencialmente...")
+            
+            # Processar relatórios sequencialmente na ordem correta
+            for rel_nome in ordem_relatorios:
+                # Encontrar os dados correspondentes ao relatório atual
+                dados_relatorio = None
+                for rel_nome_data, dados in relatorios_data:
+                    if rel_nome_data == rel_nome:
+                        dados_relatorio = dados
+                        break
+                
+                if dados_relatorio is None:
+                    logger.warning(f"Dados não encontrados para: {rel_nome}")
+                    continue
+                
+                # Processar o relatório
+                pdf_path, rel_nome_result, status = self._process_single_report(
+                    rel_nome, dados_relatorio, cliente_nome, mes_nome, ano
+                )
+                
+                if pdf_path:
+                    if rel_nome == "Índice":
+                        index_pdf_path = pdf_path
+                    else:
+                        pdf_paths.append(pdf_path)
+                    processed_reports.append(rel_nome_result)
+                    logger.info(f"✓ {rel_nome_result} processado com sucesso")
                 else:
-                    try:
-                        rel_num = int(rel_nome.split()[1])
-                        expected_name = f"Relatório {rel_num}"
-                        if rel_nome != expected_name:
-                            logger.warning(f"Nome do relatório '{rel_nome}' corrigido para '{expected_name}'.")
-                            rel_nome = expected_name
-                    except (IndexError, ValueError) as e:
-                        logger.warning(f"Ignorando relatório '{rel_nome}' devido a nome inválido: {e}")
-                        continue
-
-                    renderer = get_renderer(rel_num)
-                    if not renderer:
-                        logger.info(f"Renderizador não encontrado para relatório {rel_num}. Ignorando.")
-                        continue
-
-                    if not dados or not isinstance(dados, tuple) or len(dados) < 2:
-                        logger.warning(f"Dados inválidos para relatório {rel_num}. Ignorando.")
-                        continue
-
-                    try:
-                        html = renderer.render(dados, cliente_nome, mes_nome, ano)
-                        if not isinstance(html, str) or not html.strip():
-                            logger.warning(f"HTML inválido para relatório {rel_num}. Tipo: {type(html)}, Conteúdo: {html[:100] if isinstance(html, str) else html}")
-                            continue
-                        pdf_path = self._render_html_to_pdf(html, rel_nome)
-                        if pdf_path:
-                            pdf_paths.append(pdf_path)
-                            processed_reports.append(rel_nome)
-                    except Exception as e:
-                        logger.error(f"Erro ao processar relatório {rel_num}: {str(e)}")
-                        continue
-
+                    logger.warning(f"✗ {rel_nome_result}: {status}")
+            
+            # Adicionar índice no início se existir
+            if index_pdf_path:
+                pdf_paths.insert(0, index_pdf_path)
+            
             if not pdf_paths:
                 raise ValueError("Nenhum relatório válido foi renderizado.")
-
+            
+            # Combinar PDFs na ordem correta: capa, índice, relatórios, marketing
             capa_path = os.path.abspath("assets/images/capa.pdf")
             marketing_paths = [
                 os.path.abspath("assets/images/pdf_marketing_1.pdf"),
                 os.path.abspath("assets/images/pdf_marketing_2.pdf")
             ]
-
+            
             if not output_path:
                 output_path = os.path.join(
                     "outputs", 
                     f"Relatorio_{cliente_nome.replace(' ', '_')}_{mes_nome}_{ano}.pdf"
                 )
-
+            
             PdfUtils.combine_pdfs(pdf_paths, output_path, capa_path, marketing_paths)
-            logger.info(f"Relatórios processados: {', '.join(processed_reports)}")
+            logger.info(f"✓ PDF final gerado: {output_path}")
+            logger.info(f"Relatórios processados na ordem correta: {', '.join(processed_reports)}")
+            
+            processing_time = time.time() - start_time
+            logger.info(f"✓ Processamento concluído em {processing_time:.2f}s")
+            logger.info(f"Performance: {len(processed_reports)/processing_time:.1f} relatórios/segundo")
+            
             return output_path
-
+            
         finally:
             self._clean_temp_files()
