@@ -2,7 +2,7 @@
 from datetime import date
 import json
 from src.database.db_utils import DatabaseConnection
-from debug_indicadores import IndicadoresDebug
+from tests.debug_indicadores import IndicadoresDebug
 
 def testar_debug():
     """Teste de debug para verificar onde estão os zeros."""

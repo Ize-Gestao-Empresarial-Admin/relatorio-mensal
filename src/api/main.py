@@ -21,6 +21,17 @@ from src.core.relatorios import (
 )
 from src.rendering.engine import RenderingEngine
 
+# --- Mapas: ID numérico -> Classe e Nome de exibição ---
+RELATORIO_CLASSES = {
+    1: Relatorio1, 2: Relatorio2, 3: Relatorio3, 4: Relatorio4,
+    5: Relatorio5, 6: Relatorio6, 7: Relatorio7, 8: Relatorio8
+}
+
+RELATORIO_LABELS = {
+    1: "Relatório 1", 2: "Relatório 2", 3: "Relatório 3", 4: "Relatório 4",
+    5: "Relatório 5", 6: "Relatório 6", 7: "Relatório 7", 8: "Relatório 8"
+}
+
 # ---------------------------
 # Configuração FastAPI
 # ---------------------------
@@ -41,7 +52,6 @@ def get_jwt_token(auth: HTTPAuthorizationCredentials = Security(security)):
         if not JWT_SECRET:
             # Sem JWT_SECRET definido no servidor -> permite tudo (útil em dev)
             return True
-            
         # Verifica se o token é válido
         payload = jwt.decode(auth.credentials, JWT_SECRET, algorithms=["HS256"])
         return True
@@ -61,6 +71,11 @@ app.add_middleware(
 )
 
 # ---------------------------
+# Constantes de Negócio
+# ---------------------------
+MARCA_PADRAO = "Sim"  # <<< marca agora é fixa e interna
+
+# ---------------------------
 # Helpers (mesmos do Streamlit)
 # ---------------------------
 def processar_html_parecer(html_content: str) -> str:
@@ -75,16 +90,19 @@ def processar_html_parecer(html_content: str) -> str:
     }
     processed_html = html_content
     for quill_class, css_style in size_mapping.items():
+        # Substitui <span class="ql-size-X">...</span> por <span style="font-size: Ypx;">...</span>
         pattern = rf'<span class="{quill_class}">(.*?)</span>'
         replacement = rf'<span style="{css_style}">\1</span>'
         processed_html = re.sub(pattern, replacement, processed_html, flags=re.DOTALL)
     return processed_html
 
 def verificar_permissoes(is_admin: bool, is_consultant: bool):
+    # Regras de autorização simples: exige ser admin ou consultor
     if not (is_admin or is_consultant):
         raise HTTPException(status_code=403, detail="Acesso negado: apenas administradores ou consultores.")
 
 def slugify_filename(text: str) -> str:
+    # Sanitiza o nome do arquivo: espaços e caracteres especiais -> underscore
     text = re.sub(r"\s+", "_", text.strip())
     text = re.sub(r"[^\w\-\.]", "_", text, flags=re.UNICODE)
     return text
@@ -122,9 +140,7 @@ class RelatorioRequest(BaseModel):
     is_admin: bool = False
     is_consultant: bool = False
 
-
-    # Seleção de clientes
-    multi_cliente: bool = False
+    # Seleção de clientes (sem multi_cliente)
     id_cliente: List[int] = Field(..., min_length=1, description="IDs de cliente(s)")
     display_cliente_nome: Optional[str] = None
 
@@ -133,14 +149,57 @@ class RelatorioRequest(BaseModel):
     mes_nome: Optional[str] = None
     ano: Optional[int] = None
 
-    # Relatórios e opções
-    relatorios: List[RelatorioID] = Field(..., min_length=1)
+    # Relatórios e opções (podendo ser por números, 1 a 8)
+    relatorios: List[int] = Field(..., min_length=1, description="IDs dos relatórios (1 a 8)")
     analise_text: Optional[str] = None
-    marca: Literal["Sim", "Não"] = "Sim"
 
+    @field_validator("relatorios", mode="before")
+    @classmethod
+    def normalizar_relatorios_para_ids(cls, v):
+        """
+        Aceita:
+          - [1, 7, 8]
+          - ["1","7","8"]
+          - ["Relatório 7","Relatorio 8","3"]
+          - "7,8" ou "Relatório 7, Relatório 8"
+        Converte para lista de ints únicos 1..8, preservando a ordem.
+        """
+        def extrair_id(item):
+            if isinstance(item, int):
+                return item
+            if isinstance(item, str):
+                m = re.search(r"\d+", item)
+                if m:
+                    return int(m.group())
+            raise ValueError(f"Valor inválido em 'relatorios': {item}")
+
+        # Normaliza para lista de tokens
+        if isinstance(v, str):
+            tokens = re.split(r"[,\s]+", v.strip())
+            tokens = [t for t in tokens if t]  # remove vazios
+        elif isinstance(v, list):
+            tokens = v
+        else:
+            raise ValueError("Formato inválido para 'relatorios'.")
+
+        # Converte para int e valida faixa
+        ids = [extrair_id(t) for t in tokens]
+        for n in ids:
+            if not (1 <= n <= 8):
+                raise ValueError("IDs de relatório devem estar entre 1 e 8.")
+
+        # Deduplica preservando ordem
+        vistos, unicos = set(), []
+        for n in ids:
+            if n not in vistos:
+                vistos.add(n)
+                unicos.append(n)
+        return unicos
+    
+    # (Opcional) Mantém a mensagem amigável caso algo zere a lista no futuro.
     @field_validator("relatorios")
     @classmethod
-    def validar_relatorios(cls, v):
+    def validar_relatorios_nao_vazios(cls, v):
         if not v:
             raise ValueError("Selecione pelo menos um relatório.")
         return v
@@ -161,6 +220,7 @@ def listar_clientes():
 @app.get("/v1/anos", dependencies=[Depends(get_jwt_token)])
 def listar_anos(id_cliente: str = Query(..., description="IDs separados por vírgula, ex: 10,20")):
     db = DatabaseConnection()
+    # Converte CSV de IDs em lista de ints
     ids = [int(x) for x in id_cliente.split(",") if x.strip().isdigit()]
     if not ids:
         raise HTTPException(status_code=422, detail="Informe id_cliente válidos.")
@@ -196,29 +256,24 @@ def gerar_pdf(payload: RelatorioRequest):
     mes_anterior = (mes_atual - timedelta(days=1)).replace(day=1)
 
     # 3) Clientes
-    id_cliente = payload.id_cliente
+    id_cliente = payload.id_cliente  # SEMPRE lista
     display_nome = payload.display_cliente_nome
-    if not display_nome:
-        # gera um nome semelhante ao da UI
-        if payload.multi_cliente and len(id_cliente) > 1:
-            # vamos consultar o primeiro nome e sufixar "_Consolidado"
-            db_tmp = DatabaseConnection()
-            all_cli = buscar_clientes(db_tmp) or []
-            mapa = {c["id_cliente"]: c["nome"] for c in all_cli}
-            base = mapa.get(id_cliente[0], f"Cliente_{id_cliente[0]}")
-            display_nome = f"{base}_Consolidado"
-        else:
-            db_tmp = DatabaseConnection()
-            all_cli = buscar_clientes(db_tmp) or []
-            mapa = {c["id_cliente"]: c["nome"] for c in all_cli}
-            display_nome = mapa.get(id_cliente[0], f"Cliente_{id_cliente[0]}")
+    is_consolidado = len(id_cliente) > 1  # definição única de "consolidado"
 
-    # 4) Analise do consultor (se houver)
+    # Monta nome default (ex.: "Cliente_X_Consolidado" quando houver 2+ IDs)
+    if not display_nome:
+        db_tmp = DatabaseConnection()
+        all_cli = buscar_clientes(db_tmp) or []
+        mapa = {c["id_cliente"]: c["nome"] for c in all_cli}
+        base = mapa.get(id_cliente[0], f"Cliente_{id_cliente[0]}")
+        display_nome = f"{base}_Consolidado" if is_consolidado else base
+
+    # 4) Análise do consultor (se houver)
     analise_text = processar_html_parecer(payload.analise_text or "")
 
     # 5) Preparar geração (mesma lógica da UI)
     db = DatabaseConnection()
-    indicadores = Indicadores(id_cliente, db)
+    indicadores = Indicadores(id_cliente, db)  # passa a lista (suporta consolidado)
 
     relatorios_classes = {
         "Relatório 1": Relatorio1, "Relatório 2": Relatorio2,
@@ -240,7 +295,7 @@ def gerar_pdf(payload: RelatorioRequest):
         "ano": ano,
         "nome": display_nome,
         "Periodo": f"{nome_mes} {ano}",
-        "marca": payload.marca,
+        "marca": MARCA_PADRAO, 
     }
 
     relatorios_dados = [("Índice", indice_data)]
@@ -283,7 +338,6 @@ def gerar_pdf(payload: RelatorioRequest):
 def gerar_pdf_get(
     is_admin: bool = Query(False),
     is_consultant: bool = Query(False),
-    multi_cliente: bool = Query(False),
     id_cliente: str = Query(..., description="IDs separados por vírgula"),
     display_cliente_nome: Optional[str] = None,
     mes: Optional[int] = Query(None, ge=1, le=12),
@@ -291,19 +345,18 @@ def gerar_pdf_get(
     ano: Optional[int] = None,
     relatorios: str = Query(..., description="Lista separada por vírgula. Ex: Relatório 7,Relatório 8"),
     analise_text: Optional[str] = None,
-    marca: Literal["Sim","Não"] = "Sim"
 ):
+    # Converte os query params em payload Pydantic
     payload = RelatorioRequest(
         is_admin=is_admin,
         is_consultant=is_consultant,
-        multi_cliente=multi_cliente,
         id_cliente=[int(x) for x in id_cliente.split(",") if x.strip().isdigit()],
         display_cliente_nome=display_cliente_nome,
         mes=mes,
         mes_nome=mes_nome,
         ano=ano,
         relatorios=[x.strip() for x in relatorios.split(",") if x.strip()],
-        analise_text=analise_text,
-        marca=marca
+        analise_text=analise_text
+        # sem marca no payload <<<
     )
     return gerar_pdf(payload)

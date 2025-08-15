@@ -30,8 +30,8 @@ def testar_relatorio(cliente_ids: list, mes: date, display_cliente_nome: str = "
 
 if __name__ == "__main__":
     # Exemplo de teste com múltiplos clientes
-    cliente_ids = [120]  # Você pode adicionar mais IDs conforme necessário
-    mes = date(2025, 5, 1)
+    cliente_ids = [122]  # Você pode adicionar mais IDs conforme necessário
+    mes = date(2025, 6, 1)
     nome_exibicao = f"Cliente_{cliente_ids[0]}"
     
     testar_relatorio(cliente_ids, mes, nome_exibicao)

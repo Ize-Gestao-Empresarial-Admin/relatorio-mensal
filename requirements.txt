@@ -19,4 +19,11 @@ scipy
 numpy
 jinja2
 python-dateutil
+fastapi
+uvicorn[standard]
+pydantic>=2
+python-multipart
+python-jose
+python-dotenv
+
 
