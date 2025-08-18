@@ -1,241 +1,368 @@
-# Documentação da API de Relatórios Financeiros
+<!-- markdownlint-disable MD036 -->
 
-## Introdução
+# API de Relatórios Mensais IZE (FastAPI)
 
-Este documento explica como foi elaborada a API para o sistema de relatórios financeiros, suas características, decisões de design e como trabalhar com ela. Este guia é direcionado para desenvolvedores iniciantes que precisam entender, manter ou estender a API.
+## 1) Visão geral
 
-## Por que criamos esta API?
+A API expõe os mesmos fluxos e regras do app Streamlit (`src/interfaces/streamlit_ui.py`)para gerar relatórios financeiros (1 a 8) e consolidá-los em um PDF. Público-alvo desta documentação: devs que vão **entender, manter e estender** a API e o projeto.
 
-O sistema de relatórios financeiros precisava de uma camada de serviço que:
+**Principais blocos do sistema:**
 
-1. **Separasse a lógica de negócio da interface** - Permitindo que diferentes interfaces (web, mobile, desktop) possam consumir os mesmos dados
-2. **Documentasse automaticamente os endpoints** - Facilitando o entendimento e uso da API
-3. **Padronizasse o acesso aos relatórios** - Criando um fluxo consistente para todos os tipos de relatórios
-4. **Permitisse escalabilidade** - Possibilitando adicionar novos tipos de relatórios sem reescrever o sistema
+- **FastAPI**: camada HTTP + OpenAPI/Swagger.
+- **Pydantic**: validação de entrada/saída.
+- **Core de negócio** (`src/core/...`): `Indicadores.py` e `relatorios/Relatorio1..8 (.py)`.
+- **Camada de dados** (`src/database/db_utils.py` e `config/settings.py`): consultas (clientes, meses, anos) e conexão ao banco de dados (via `.env`).
+- **Renderização** (`src/rendering/engine.py` e `src/rendering/renderers/relatorioX_renderer.py`): HTML → PDF (wkhtmltopdf) e diferentes arquivos de rendererização para cada tipo de relatório (a formatação de valores segue o arquivo `base_renderer.py` presente na mesma pasta).
 
-Antes, o código estava acoplado à interface Streamlit, o que tornava difícil reutilizá-lo em outros contextos ou escalar o sistema.
-
-## Tecnologias escolhidas
-
-### FastAPI
-
-Escolhemos o FastAPI pelos seguintes motivos:
-
-- **Performance**: É um dos frameworks Python mais rápidos para APIs
-- **Documentação automática**: Gera Swagger e ReDoc automaticamente
-- **Validação automática**: Integração com Pydantic para validação de dados
-- **Tipagem**: Suporte a type hints para melhor documentação e autocompletar
-- **Simplicidade**: Sintaxe declarativa e intuitiva
-
-### Pydantic
-
-Usamos Pydantic para definir os modelos de dados porque:
-
-- Valida os dados de entrada automaticamente
-- Gera documentação para os modelos de dados
-- Permite conversões automáticas entre tipos
-- Integra-se perfeitamente com o FastAPI
-
-## Estrutura da API
-
-A API foi organizada em torno de recursos principais:
-
-1. **Clientes** - Listagem de clientes disponíveis
-2. **Relatórios** - Endpoints para gerar diferentes tipos de relatórios
-3. **Análises** - Endpoints para gerenciar análises qualitativas
-4. **PDF** - Endpoint para geração de relatórios em PDF
-
-## Endpoints principais e suas funções
-
-### Listagem de dados básicos
-
-- `/clientes` - Retorna todos os clientes disponíveis
-- `/meses` - Retorna a lista de meses para seleção
-
-### Relatórios individuais
-
-- `/relatorio/{tipo}/{id_cliente}/{mes}/{ano}` - Gera um relatório específico (tipo 1-7)
-
-### Gerenciamento de análises qualitativas
-
-- `GET /analise/{id_cliente}/{mes}/{ano}` - Obtém a análise qualitativa
-- `POST /analise/{id_cliente}/{mes}/{ano}` - Salva uma nova análise qualitativa
-- `DELETE /analise/{id_cliente}/{mes}/{ano}` - Remove uma análise qualitativa
-
-### Geração de PDF
-
-- `POST /gerar-pdf` - Gera um PDF combinando múltiplos relatórios
-
-### Monitoramento
-
-- `/health` - Verifica a saúde da API
-
-## Como foi implementada a API
-
-### 1. Modelos de dados
-
-Começamos definindo os modelos de dados com Pydantic:
-
-```python
-class AnaliseInput(BaseModel):
-    analise: str
-
-class RelatorioQuery(BaseModel):
-    id_cliente: int
-    mes: int 
-    ano: int
-    mes_anterior: Optional[bool] = True
-
-class RelatorioPdfInput(BaseModel):
-    id_cliente: int
-    mes: int
-    ano: int
-    nome_cliente: str
-    relatorios: List[int] = [1, 2, 3, 4, 5, 6, 7]
-    analise_qualitativa: Optional[str] = None
+```bash
+[Client] → [FastAPI] → [Indicadores / Relatorios] → [RenderingEngine] → PDF (Streaming)
+                                   ↑
+                              [Database]
 ```
 
-Estes modelos garantem que os dados recebidos pela API sejam validados automaticamente.
+## 2) Autenticação, autorização e CORS
 
-### 2. Reutilização de código existente
+- **Auth**: API Key via header `X-API-Key`.
+  - Servidor lê `API_KEY` do ambiente. Se **não** definido, gera um erro 500 (configuração inválida).
+  - **Importante**: em produção, sempre defina `API_KEY` para evitar acesso não autorizado.
+- **CORS**: liberado por padrão. **Configure** isso em produção (defina domínios permitidos por segurança).
 
-Em vez de reescrever a lógica de negócios, conectamos a API às classes já existentes:
+## 3) Como rodar localmente
 
-```python
-from src.core.indicadores import Indicadores
-from src.core.relatorios.relatorio_1 import Relatorio1
-# ... outros imports
-from src.database.db_utils import DatabaseConnection, buscar_clientes, obter_meses
-from src.interfaces.pdf_generator import PDFGenerator
+### Requisitos
+
+- Ambiente recomendado: `WSL Linux Ubuntu` (maior compatibilidade devido ao arquivo `packages.txt`)
+- Python 3.10+
+- wkhtmltopdf instalado no sistema
+  - Windows: [instalador oficial](https://wkhtmltopdf.org/downloads.html) ou via Chocolatey: `choco install wkhtmltopdf`
+  - Debian/Ubuntu: `sudo apt-get install wkhtmltopdf`
+  - macOS: `brew install wkhtmltopdf`
+- Variáveis de ambiente:
+  - `API_KEY=<sua_chave>` (obrigatória)
+  - as usadas por `DatabaseConnection` (ex.: host, dbname etc.), que são lidas dentro de `config/settings.py` (obs.: não alterar a chamada de envs do Streamlit, são importantes para o deploy do project pois as keys estão em `.streamlit/secrets.toml`).:
+
+### Instalação & run
+
+```bash
+pip install -r requirements.txt
+uvicorn src.api.main:app --reload --port 8000
+
 ```
 
-### 3. Injeção de dependências
+- Swagger: `http://localhost:8000/docs`
+- ReDoc: `http://localhost:8000/redoc`
 
-Criamos um sistema de injeção de dependências para facilitar os testes:
+**Como autenticar no Swagger:** clique em **Authorize** → informe a API key no campo `X-API-Key`.
 
-```python
-def get_db():
-    db = DatabaseConnection()
-    return db
+## 4) Convenções e versionamento
 
-@app.get("/clientes")
-def listar_clientes(db: DatabaseConnection = Depends(get_db)):
-    # ...
+- Prefixo de versão: `/v1/...`
+- Respostas de erro padronizadas (HTTPException do FastAPI):
+  - `401` API Key ausente/errada
+  - `422` erro de validação (Pydantic)
+  - `500` erro interno (ex.: renderização PDF ou API_KEY não configurada)
+
+## 5) Estrutura da API
+
+A API é organizada em torno do modelo principal `RelatorioRequest` que processa os parâmetros de geração de PDF. Características principais:
+
+- **Normalização de parâmetros**: O endpoint aceita flexibilidade no formato dos valores (ex: relatórios podem ser enviados como IDs numéricos, strings, ou combinação)
+- **Validação robusta**: Campos são validados tanto em tipo quanto em regras de negócio
+- **Índice**: sempre insere o "Índice" como primeira seção do PDF.
+- **Multi-cliente**: aceite de múltiplos `cliente_ids` e nome exibido automático derivado do cliente base ou com sufixo "_Consolidado".
+
+## 6) Estrutura do código (API)
+
+Arquivo principal: `src/api/main.py`
+
+- **Segurança**: API key (header `X-API-Key`)
+- **Constantes globais**:
+  - `RELATORIO_CLASSES`: mapeamento de IDs para classes de relatório
+  - `RELATORIO_LABELS`: mapeamento de IDs para nomes de exibição
+- **Utilitários**:
+  - `processar_html_parecer(html)`: converte classes Quill para CSS inline
+  - `slugify_filename(text)`: sanitiza nomes de arquivo
+  - `get_mes_numero(mes)`: validação e normalização do mês
+  - `default_ano(ano)`: fornece ano atual como default
+- **Endpoints**:
+  - `GET /v1/health`
+  - `GET /v1/clientes`
+  - `GET /v1/anos?id_cliente=...`
+  - `GET /v1/meta`
+  - `POST /v1/relatorios/pdf` *(principal)*
+  - `GET /v1/relatorios/pdf` *(teste via query params)*
+
+## 7) Estendendo a API
+
+### 7.1 Novos endpoints
+
+- Siga o padrão:
+  - Utilize o prefixo `/v1/`
+  - Utilize `response_model` claro (quando aplicável)
+  - Tipagem estrita nos parâmetros (Pydantic/Query)
+  - `summary`/`description` para Swagger
+  - Tratamento de erro com mensagens objetivas
+  - Sempre adicione a dependência `Depends(verify_api_key)` para autenticação
+
+## 8) Testes
+
+- Use `fastapi.testclient.TestClient` para testes de integração.
+- "Happy path" essencial:
+  - `GET /v1/health`
+  - `GET /v1/clientes`
+  - `GET /v1/anos?id_cliente=...`
+  - `POST /v1/relatorios/pdf` com 1 e com N clientes
+  - `Relatório 8` com `analise_text` (HTML)
+- "Sad path":
+  - 401 sem `X-API-Key` correta
+  - 422 com payload inválido (mês fora do range, listas vazias, etc.)
+  - 500 quando API_KEY não está configurada no ambiente
+
+## 9) Observabilidade & Operação
+
+- **/v1/health** para verificação se a API está funcionando (liveness).
+- Logs: delegados ao servidor/app (configure Uvicorn/Gunicorn + logging do projeto).
+- Storage:
+  - PDFs são gerados na pasta `outputs/` antes do streaming. Garanta **permissão de escrita** e **limpeza** periódica no ambiente.
+
+## 10) Checklist de Onboarding
+
+- [ ]  Instale wkhtmltopdf
+- [ ]  Configure variáveis de DB e **API_KEY**
+- [ ]  Rode `uvicorn src.api.main:app --reload`
+- [ ]  Teste `/docs` e gere um PDF simples
+- [ ]  Revise CORS/domínios em prod
+- [ ]  Habilite logs e rotação de arquivos de saída (se aplicável)
+
+## Endpoints & Payloads — Referência Rápida
+
+## Autenticação
+
+- **Header**: `X-API-Key: <sua-chave>` (obrigatório)
+- Falha se API_KEY não estiver configurada no servidor ou se a chave estiver incorreta
+
+## Tabela de endpoints
+
+| Método | Rota | Descrição |
+| --- | --- | --- |
+| GET | `/v1/health` | Health check |
+| GET | `/v1/clientes` | Lista clientes ativos (`id_cliente`, `nome`) |
+| GET | `/v1/anos` | Anos disponíveis para os clientes informados |
+| GET | `/v1/meta` | Metadados: meses (nome/número) e IDs de relatórios |
+| **POST** | **`/v1/relatorios/pdf`** | **Gera PDF dos relatórios selecionados** |
+| GET | `/v1/relatorios/pdf` | Igual ao POST, mas via query params (para testes) |
+
+---
+
+## `/v1/health` — GET
+
+**200** `{ "status": "ok" }`
+
+---
+
+## `/v1/clientes` — GET
+
+**200**
+
+```json
+{
+  "clientes": [
+    { "id_cliente": 10, "nome": "ACME Ltda" },
+    { "id_cliente": 20, "nome": "Foo Bar S/A" }
+  ]
+}
+
 ```
 
-### 4. Documentação extensiva
+---
 
-Cada endpoint foi documentado com:
+## `/v1/anos` — GET
 
-- **Summary**: Resumo curto da funcionalidade
-- **Description**: Descrição detalhada
-- **Docstring**: Explicação dos parâmetros e retornos
-- **Tipos**: Anotações de tipo para todos os parâmetros e retornos
+**Query**: `cliente_ids=10,20`
 
-Isso garante que a documentação automática gerada pelo FastAPI seja completa e útil.
+**200**
 
-### 5. Tratamento de erros
+```json
+{ "anos": [2025, 2024, 2023] }
 
-Implementamos tratamento de erros consistente:
-
-```python
-if tipo < 1 or tipo > 7:
-    raise HTTPException(status_code=400, detail="Tipo de relatório inválido (deve ser 1-7)")
-
-cliente = next((c for c in clientes if c["id_cliente"] == id_cliente), None)
-if not cliente:
-    raise HTTPException(status_code=404, detail="Cliente não encontrado")
-
-try:
-    # código
-except Exception as e:
-    raise HTTPException(status_code=500, detail=f"Erro ao gerar PDF: {str(e)}")
 ```
 
-## Como estender a API
+**422** se `cliente_ids` ausente/ inválido.
 
-### Adicionando um novo endpoint
+---
 
-Para adicionar um novo endpoint:
+## `/v1/meta` — GET
 
-1. **Defina o modelo de dados** (se necessário):
+**200**
 
-    ```python
-    class NovoModelo(BaseModel):
-        campo1: str
-        campo2: int
-    ```
+```json
+{
+  "meses": [
+    ["Janeiro", 1], ["Fevereiro", 2], ["Março", 3]
+    // ...
+  ],
+  "relatorios": [
+    "Relatório 1","Relatório 2","Relatório 3","Relatório 4",
+    "Relatório 5","Relatório 6","Relatório 7","Relatório 8"
+  ]
+}
 
-2. **Crie a função do endpoint**:
+```
 
-    ```python
-    @app.get("/novo-endpoint", 
-            response_model=Dict[str, Any],
-            summary="Descrição curta",
-            description="Descrição detalhada")
-    def novo_endpoint(parametro: str, db: DatabaseConnection = Depends(get_db)):
-        """Docstring explicando o endpoint."""
-        # Implementação
-        return {"resultado": "valor"}
-    ```
+---
 
-### Adicionando um novo tipo de relatório
+## `/v1/relatorios/pdf` — POST (principal)
 
-Se um novo tipo de relatório (8) for criado:
+Gera e **faz streaming** do PDF unificado (Content-Disposition: attachment).
 
-1. Crie a classe `Relatorio8` na estrutura de pasta correta
-2. Adicione o import no início do arquivo
-3. Adicione a classe ao dicionário de mapeamento:
+### Body (`application/json`)
 
-    ```python
-    relatorio_classes = {
-        # ... classes existentes
-        8: Relatorio8
+```json
+{
+  "id_cliente": [85],
+  "mes": 7,
+  "ano": 2025,
+  "relatorios": [1, 2, 3, 4, 5, 6, 7],
+  "analise_text": "<p><span class=\\"ql-size-large\\"><strong>Visão Geral:</strong></span> Margem saudável.</p>"
+}
+
+```
+
+### Regras importantes
+
+- **Período**:
+  - `mes` deve estar entre 1 e 12
+  - se ausente → mês **anterior** ao atual
+  - `ano` ausente → ano atual
+- **Multi-cliente**:
+  - `id_cliente` é sempre uma lista (mesmo com um único ID)
+  - Se lista tiver mais de um ID, o nome exibido será `"<NomeBase>_Consolidado"`
+- **Relatórios**:
+  - IDs numéricos (1-8) ou strings com nomes dos relatórios
+  - Aceita formatos flexíveis: [1,7,8], ["1","7","8"], ["Relatório 1", "Relatório 7"]
+  - `Relatório 8` (parecer) aceita `analise_text` (HTML) e normaliza CSS automaticamente (porém é opcional, caso seja automação o envio do relatório deve-se analisar com os consultores e a líder do time se há a necessidade de um parecer individual do cliente.
+- **Saída**: PDF é salvo em outputs e enviado no corpo da resposta (streaming)
+
+### Respostas
+
+- **200**: `application/pdf` (stream)
+- **401**: API Key ausente/errada
+- **422**: payload inválido (ex.: `mes` fora de 1–12, `relatorios` vazio)
+- **500**: erro interno (ex.: falha no wkhtmltopdf ou API_KEY não configurada)
+
+### Exemplos de chamada
+
+**cURL**
+
+```bash
+curl -X POST "<http://localhost:8000/v1/relatorios/pdf>" \\
+  -H "Content-Type: application/json" \\
+  -H "X-API-Key: $API_KEY" \\
+  --data '{
+    "id_cliente": [85],
+    "mes": 6,
+    "ano": 2025,
+    "relatorios": [1, 2, 3, 4, 5, 6, 7]
+  }' \\
+  --output Relatorio_ACME_Junho_2025.pdf
+```
+
+**Python (requests)**
+
+```python
+import requests
+
+url = "<http://localhost:8000/v1/relatorios/pdf>"
+headers = {"X-API-Key": "minha-chave", "Content-Type": "application/json"}
+payload = {
+    "id_cliente": [85],
+    "mes": 7,
+    "ano": 2025,
+    "relatorios": [1, 2, 3, 4, 5, 6, 7],
+    "analise_text": "<p><span class=\\"ql-size-large\\">OK</span></p>"
+}
+
+r = requests.post(url, headers=headers, json=payload)
+open("Relatorio_Consolidado.pdf", "wb").write(r.content)
+
+```
+
+**JavaScript (fetch)**
+
+```jsx
+const res = await fetch("<http://localhost:8000/v1/relatorios/pdf>", {
+  method: "POST",
+  headers: {
+    "X-API-Key": "minha-chave",
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({
+    "id_cliente": [10],
+    "relatorios": ["Relatório 6","Relatório 7"]
+  })
+});
+const blob = await res.blob();
+const url = URL.createObjectURL(blob);
+const a = document.createElement("a");
+a.href = url;
+a.download = "Relatorio.pdf";
+a.click();
+URL.revokeObjectURL(url);
+
+```
+
+---
+
+## `/v1/relatorios/pdf` — GET (modo "rápido", via query)
+
+Mesmos comportamentos do POST, mas usando query params. Útil para testar no navegador.
+
+**Exemplo**
+
+``` bash
+GET /v1/relatorios/pdf
+  ?id_cliente=10,20
+  &mes=5
+  &ano=2025
+  &relatorios=Relatório%206,Relatório%207
+
+```
+
+> Dica: analise_text também pode ser enviado por query, mas para HTML é mais seguro usar POST.
+
+---
+
+## Mapeamento de relatórios
+
+| ID | Classe | Observações de chamada |
+| --- | --- | --- |
+| Relatório 1–4 | `Relatorio1..4` | `gerar_relatorio(mes_atual, mes_anterior)` |
+| Relatório 5 | `Relatorio5` | `gerar_relatorio(mes_atual)` |
+| Relatório 6 | `Relatorio6` | `gerar_relatorio(mes_atual)` |
+| Relatório 7 | `Relatorio7` | `gerar_relatorio(mes_atual)` |
+| Relatório 8 | `Relatorio8` | aceita `salvar_analise(mes_atual, html)` |
+
+---
+
+## Mensagens de erro (amostras)
+
+``` bash
+// 401
+{ "detail": "Não autenticado: forneça X-API-Key válida." }
+
+// 422 (exemplo de validação)
+{
+  "detail": [
+    {
+      "type": "value_error",
+      "loc": ["body","relatorios"],
+      "msg": "Selecione pelo menos um relatório."
     }
-    ```
+  ]
+}
 
-4. Adicione o nome do relatório no dicionário de nomes:
+// 500
+{ "detail": "Configuração inválida: defina API_KEY no ambiente (.env)." }
+{ "detail": "Erro ao gerar PDF: <mensagem>" }
 
-    ```python
-    rel_nome = f"Relatório {rel_tipo} - " + {
-        # ... nomes existentes
-        8: "Nome do Novo Relatório"
-    }[rel_tipo]
-    ```
-
-## Por onde começar a entender esta API
-
-1. **Examine a documentação Swagger**: Acesse `/docs` quando a API estiver rodando
-2. **Entenda os modelos de dados**: Analise as classes `BaseModel` no início do código
-3. **Estude os endpoints principais**: Comece com `/relatorio/{tipo}/{id_cliente}/{mes}/{ano}` e `/gerar-pdf`
-4. **Veja os fluxos de uso comum**: Como listar clientes → obter relatório → gerar PDF
-
-## Como executar a API
-
-Para iniciar a API em modo de desenvolvimento:
-
-```bash
-python api.py
 ```
-
-Para produção, recomendamos usar um servidor ASGI como o uvicorn com workers:
-
-```bash
-uvicorn api:app --host 0.0.0.0 --port 8000 --workers 4
-```
-
-## Valor gerado para o sistema
-
-Esta API:
-
-1. **Aumenta a reutilização de código**: A lógica de negócios pode ser acessada por qualquer interface
-2. **Melhora a documentação**: O Swagger automático documenta todos os endpoints
-3. **Facilita a integração**: Sistemas externos podem consumir os dados facilmente
-4. **Permite escalabilidade**: Novos relatórios e funcionalidades podem ser adicionados sem impactar o existente
-5. **Possibilita monitoramento**: Endpoints de health check facilitam o monitoramento
-
-## Conclusão
-
-Esta API foi projetada pensando em escalabilidade, manutenção e facilidade de uso. Seguindo os princípios de design RESTful e aproveitando os recursos do FastAPI, criamos uma interface robusta e bem documentada para o sistema de relatórios financeiros.
-
-Lembre-se de que o código é vivo e deve evoluir com as necessidades do negócio. A documentação automática ajudará novos desenvolvedores a entenderem e contribuírem para o projeto.

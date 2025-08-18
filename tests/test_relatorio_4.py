@@ -7,13 +7,15 @@ from src.core.relatorios.relatorio_4 import Relatorio4
 
 def testar_relatorio(id_cliente: int, mes: date):
     db_connection = DatabaseConnection()
-    indicadores = Indicadores(id_cliente, db_connection)
+    # Convertemos o ID para lista para funcionar com o operador ANY
+    id_cliente_list = [id_cliente] if isinstance(id_cliente, int) else id_cliente
+    indicadores = Indicadores(id_cliente_list, db_connection)
     relatorio = Relatorio4(indicadores, "Teste Cliente")
     
     resultado = relatorio.gerar_relatorio(mes)
     print(json.dumps(resultado, indent=2, ensure_ascii=False))
 
 if __name__ == "__main__":
-    id_cliente = 95
-    mes = date(2025, 5, 1)
+    id_cliente = 122
+    mes = date(2025, 6, 1)
     testar_relatorio(id_cliente, mes)

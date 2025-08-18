@@ -676,31 +676,35 @@ class Indicadores:
                   AND visao = 'Realizado'
                   AND EXTRACT(YEAR FROM data) = :year
                   AND EXTRACT(MONTH FROM data) = :month
-                  AND nivel_1 = '3. Receitas'
+                  AND LOWER(TRIM(nivel_1)) = LOWER('3. Receitas')
               ),
               prev_entradas AS (
                 SELECT 
-                  categoria_nivel_3,
+                  LOWER(TRIM(categoria_nivel_3)) AS categoria_nivel_3,
                   SUM(valor) AS prev_valor
                 FROM fc
                 WHERE id_cliente = ANY (:id_cliente)
                   AND visao = 'Realizado'
                   AND EXTRACT(YEAR FROM data) = :prev_year
                   AND EXTRACT(MONTH FROM data) = :prev_month
-                  AND nivel_1 = '7.1 Entradas Não Operacionais'
-                GROUP BY categoria_nivel_3
+                  AND LOWER(TRIM(nivel_1)) IN (
+                    LOWER('7.1 Entradas Não Operacionais')
+                  )
+                GROUP BY LOWER(TRIM(categoria_nivel_3))
               ),
               current_entradas AS (
                 SELECT 
-                  categoria_nivel_3,
+                  LOWER(TRIM(categoria_nivel_3)) AS categoria_nivel_3,
                   SUM(valor) AS total_valor
                 FROM fc
                 WHERE id_cliente = ANY (:id_cliente)
                   AND visao = 'Realizado'
                   AND EXTRACT(YEAR FROM data) = :year
                   AND EXTRACT(MONTH FROM data) = :month
-                  AND nivel_1 = '7.1 Entradas Não Operacionais'
-                GROUP BY categoria_nivel_3
+                  AND LOWER(TRIM(nivel_1)) IN (
+                    LOWER('7.1 Entradas Não Operacionais')
+                  )
+                GROUP BY LOWER(TRIM(categoria_nivel_3))
               )
             SELECT
               c.categoria_nivel_3 AS categoria_nivel_3,
@@ -759,7 +763,7 @@ class Indicadores:
               AND visao = 'Realizado'
               AND EXTRACT(YEAR FROM data) = :year
               AND EXTRACT(MONTH FROM data) = :month
-              AND nivel_1 = '7.2 Saídas Não Operacionais';
+              AND LOWER(TRIM(nivel_1)) = LOWER('7.2 Saídas Não Operacionais');
         """)
         params = {
             "id_cliente": self.id_cliente,
@@ -797,7 +801,7 @@ class Indicadores:
                 AND visao = 'Realizado'
                 AND EXTRACT(YEAR FROM data) = :year
                 AND EXTRACT(MONTH FROM data) = :month
-                AND nivel_1 = '3. Receitas'
+                AND LOWER(TRIM(nivel_1)) = LOWER('3. Receitas')
             ),
             prev_resultado AS (
               SELECT 
@@ -808,7 +812,10 @@ class Indicadores:
                 AND visao = 'Realizado'
                 AND EXTRACT(YEAR FROM data) = :prev_year
                 AND EXTRACT(MONTH FROM data) = :prev_month
-                AND nivel_1 IN ('7.1 Entradas Não Operacionais', '7.2 Saídas Não Operacionais')
+                AND LOWER(TRIM(nivel_1)) IN (
+                  LOWER('7.1 Entradas Não Operacionais'),
+                  LOWER('7.2 Saídas Não Operacionais')
+                )
               GROUP BY nivel_1
             ),
             current_resultado AS (
@@ -820,7 +827,10 @@ class Indicadores:
                 AND visao = 'Realizado'
                 AND EXTRACT(YEAR FROM data) = :year
                 AND EXTRACT(MONTH FROM data) = :month
-                AND nivel_1 IN ('7.1 Entradas Não Operacionais', '7.2 Saídas Não Operacionais')
+                AND LOWER(TRIM(nivel_1)) IN (
+                  LOWER('7.1 Entradas Não Operacionais'),
+                  LOWER('7.2 Saídas Não Operacionais')
+                )
               GROUP BY nivel_1
             )
           SELECT

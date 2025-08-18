@@ -17,6 +17,7 @@ from src.core.relatorios.relatorio_4 import Relatorio4
 from src.core.relatorios.relatorio_5 import Relatorio5
 from src.core.relatorios.relatorio_6 import Relatorio6
 from src.core.relatorios.relatorio_7 import Relatorio7
+from src.core.relatorios.relatorio_8 import Relatorio8
 from src.database.db_utils import DatabaseConnection, buscar_clientes, obter_meses
 from src.rendering.engine import RenderingEngine
 
