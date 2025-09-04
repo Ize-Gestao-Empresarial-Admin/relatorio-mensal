@@ -11,15 +11,15 @@
             margin: 0;
             padding: 0;
             font-family: 'Inter', sans-serif;
-            position: relative;
-            min-height: 100%; /* Garante que o body ocupe a página inteira */
+            height: auto !important;   /* em vez de min-height:100% */
+            position: static;  
         }
 
         /* Contêiner principal para o conteúdo */
         .main-content {
-            padding: 20px 20px 140px 20px; /* Uniforme */
+            padding: 20px;             /* padding uniforme */
+            padding-bottom: 0;         /* nada de 80px aqui */
             box-sizing: border-box;
-            position: relative;
         }
 
         .section-title {
@@ -162,12 +162,11 @@
         }
 
         .box-frame {
-            page-break-inside: avoid;
+            page-break-inside: auto;   /* ← permitir quebrar */
             border: 1px solid #D9D9D9;
             border-radius: 16px;
             padding: 32px;
-            margin-bottom: 18px;
-            margin-top: 30px;
+            margin: 30px 0 18px;
         }
 
         .box-frame.blank {
@@ -184,20 +183,9 @@
             line-height: 1.7;
         }
         
-        .fixed-footer-bg {
-            position: fixed;           /* sai do fluxo normal */
-            bottom: 10px;                 /* gruda na base da página */
-            left: 50%;                 /* centraliza horizontalmente */
-            transform: translateX(-50%);
-            z-index: -1;               /* garante que fique atrás de tudo */
-            width: 80px;              /* ajuste à largura que desejar */
-            height: auto;
-            /* opacity: 1;           — opcional, se quiser "esmaecer" um pouco */
-        }
     </style>
 </head>
 <body>
-    <img src="data:image/png;base64,{{ icon_rodape }}" class="fixed-footer-bg" alt=""/>        <!-- barra laranja acima da linha -->
     <div class="main-content">
         <div class="header-accent"></div>
         <div class="report-header"></div>

@@ -227,16 +227,6 @@
             color: #495057;
         }
         
-        .fixed-footer-bg {
-            position: fixed;
-            bottom: 10px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: -1;
-            width: 80px;
-            height: auto;
-        }
-        
         /* Estilos específicos para impressão/PDF */
         @media print {
             .page {
@@ -279,9 +269,7 @@
         
     </style>
 </head>
-<body>
-    <img src="data:image/png;base64,{{ icon_rodape }}" class="fixed-footer-bg" alt=""/>
-    
+<body>   
     <!-- Loop para cada página de indicadores -->
     {% for pagina in data.paginas %}
     <div class="page">

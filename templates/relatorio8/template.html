@@ -82,20 +82,6 @@
             margin: 0 0 24px 0;
         }
 
-        /* Rodapé - estilo melhorado */
-        .fixed-footer-bg {
-            position: fixed !important; /* Garante que fique fixo, sobrescrevendo qualquer outro posicionamento */
-            bottom: -50px !important;    /* Distância do fundo */
-            left: 50% !important;       /* Centraliza horizontalmente */
-            transform: translateX(-50%) !important; /* Centraliza adequadamente */
-            z-index: 999 !important;    /* Garante exibição sobre outros elementos */
-            width: 80px !important;     /* Largura fixa */
-            height: auto !important;    /* Altura proporcional */
-            margin: 0 !important;       /* Remove margens que possam interferir */
-            padding: 0 !important;      /* Remove padding que possa interferir */
-            box-sizing: content-box !important; /* Garante que a largura não seja alterada */
-        }
-
         /* Título da seção */
         .section-title {
             font-size: 25px;
@@ -136,7 +122,5 @@
         </div>
     </div>
     
-    <!-- Colocando a imagem do rodapé FORA de qualquer contêiner para evitar influências -->
-    <img src="data:image/png;base64,{{ icon_rodape }}" class="fixed-footer-bg" alt=""/>
 </body>
 </html>
