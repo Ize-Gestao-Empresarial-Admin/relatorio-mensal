@@ -99,36 +99,73 @@ class RenderingEngine:
         self.temp_files.clear()
 
     def _render_html_to_pdf(self, html: str, rel_name: str) -> str:
-        """Converte HTML para PDF e retorna o caminho do PDF temporário."""
-        # Gerar identificador único para evitar conflitos
+        """Converte HTML para PDF (usando footer nativo do wkhtmltopdf) e retorna o caminho do PDF temporário."""
+        # Gerar identificadores e arquivos temporários
         unique_id = str(uuid.uuid4())
         html_path = tempfile.NamedTemporaryFile(delete=False, suffix=f'_{rel_name}_{unique_id}.html', mode='w', encoding='utf-8').name
         pdf_path = tempfile.NamedTemporaryFile(delete=False, suffix=f'_{rel_name}_{unique_id}.pdf').name
-        
-        self.temp_files.extend([html_path, pdf_path])
-        
-        # Salvar HTML
+        footer_path = tempfile.NamedTemporaryFile(delete=False, suffix=f'_{rel_name}_{unique_id}_footer.html', mode='w', encoding='utf-8').name
+
+        self.temp_files.extend([html_path, pdf_path, footer_path])
+
+        # Salvar HTML do relatório
         with open(html_path, 'w', encoding='utf-8') as f:
             f.write(html)
-        
-        # Converter para PDF
+
+        # Caminho do executável wkhtmltopdf (permite sobrepor via .env)
+        wkhtmltopdf_cmd = os.getenv("WKHTMLTOPDF_CMD", "wkhtmltopdf")
+
+        # Caminho do PNG do rodapé (permite sobrepor via .env, senão usa assets/icons/rodape.png)
+        rodape_img = os.getenv("RODAPE_IMG_PATH", os.path.abspath("assets/icons/rodape.png"))
+        rodape_url = "file:///" + rodape_img.replace("\\", "/")
+
+        # HTML simples do footer (centrado, altura controlada em mm)
+        footer_html = f"""<!doctype html>
+        <html><head><meta charset="utf-8">
+        <style>
+        html,body{{margin:0;padding:0}}
+        .wrap{{width:100%;text-align:center}}
+        img{{height:12mm;width:auto}}
+        </style></head>
+        <body>
+        <div class="wrap"><img src="{rodape_url}" alt="rodapé"/></div>
+        </body></html>"""
+
+        with open(footer_path, 'w', encoding='utf-8') as f:
+            f.write(footer_html)
+
+        # Comando wkhtmltopdf com footer HTML e margem inferior maior
         cmd = [
-            'wkhtmltopdf', '--enable-local-file-access', '--page-size', 'A4',
-            '--margin-top', '5mm', '--margin-bottom', '5mm',
-            '--margin-left', '10mm', '--margin-right', '10mm',
-            '--no-footer-line', html_path, pdf_path
+            wkhtmltopdf_cmd,
+            '--enable-local-file-access',
+            '--page-size', 'A4',
+            '--margin-top', '10mm',
+            '--margin-bottom', '18mm',  # dá espaço pro footer
+            '--margin-left', '6mm',
+            '--margin-right', '6mm',
+            '--no-footer-line',         # sem linha acima do footer
+            '--footer-html', footer_path,
+            '--footer-spacing', '0',    # folga entre conteúdo e footer
+            html_path, pdf_path
         ]
-        
+
+        keep = os.getenv("KEEP_WKHTML_HTML") == "1"
         try:
             subprocess.run(cmd, check=True)
             logger.info(f"PDF gerado para {rel_name}: {pdf_path}")
             return pdf_path
         except subprocess.CalledProcessError as e:
             logger.error(f"Erro ao converter HTML para PDF ({rel_name}): {e}")
-            return None # type: ignore
+            return None
         finally:
-            os.unlink(html_path)
-            self.temp_files.remove(html_path)
+            if not keep:
+                try: os.unlink(html_path)
+                except: pass
+                try: os.unlink(footer_path)
+                except: pass
+                for p in [html_path, footer_path]:
+                    if p in self.temp_files:
+                        self.temp_files.remove(p)
 
     def _process_single_report(self, rel_nome: str, dados: Any, cliente_nome: str, mes_nome: str, ano: int) -> tuple:
         """Processa um único relatório sequencialmente."""

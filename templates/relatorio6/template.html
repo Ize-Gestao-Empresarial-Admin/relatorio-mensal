@@ -7,18 +7,18 @@
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
         body { 
-            font-family: 'Inter', sans-serif; 
-            margin: 0; 
+            margin: 0;
             padding: 0;
-            position: relative;
-            min-height: 100%; /* Garante que o body ocupe a página inteira */
+            font-family: 'Inter', sans-serif;
+            height: auto !important;   /* em vez de min-height:100% */
+            position: static;          /* não precisa ser relative */
         }
         
         /* Contêiner principal para o conteúdo - Igual ao do relatório 4 */
         .main-content {
-            padding: 20px 20px 140px 20px; /* Uniforme */
+            padding: 20px;             /* padding uniforme */
+            padding-bottom: 0;         /* nada de 80px aqui */
             box-sizing: border-box;
-            position: relative;
         }
         
         .section-title { font-size:25px; font-weight:bold; margin-top:1px; margin-bottom:40px; text-align: center; }
@@ -59,13 +59,11 @@
         }
         /* contêiner com borda cinza arredondada */
         .box-frame {
-            page-break-inside: avoid;
+            page-break-inside: auto;   /* ← permitir quebrar */
             border: 1px solid #D9D9D9;
             border-radius: 16px;
             padding: 32px;
-            margin-bottom: 18px;
-            margin-top: 30px;  /* Ajustado para corresponder ao R4 */
-            position: relative;
+            margin: 30px 0 18px;
         }
         /* quadrado em branco (vazio) */
         .box-frame.blank {
@@ -123,10 +121,10 @@
         .metric-icon {
             position: absolute;
             top: -27px;
-            left: 50%;
+            left: 37%;
             transform: translateX(-50%);
             background-color: #FFFFFF;
-            border-radius: 50%;
+            border-radius: 40%;
             width: 45px;          /* um pouco maior que o ícone */
             height: 45px;
             display: flex;
@@ -180,16 +178,6 @@
             padding: 0;              /* zera qual6quer padding interno se houver */
             font-size: 17px;
             line-height: 1.7;
-        }
-
-        .fixed-footer-bg {
-            position: fixed !important;           /* saia do fluxo normal */
-            bottom: -90px !important;              /* gruda na base da página */
-            left: 50% !important;                 /* centraliza horizontalmente */
-            transform: translateX(-50%) !important;
-            z-index: 999 !important;               /* garante que fique atrás de tudo */
-            width: 80px !important;              /* ajuste à largura que desejar */
-            height: auto !important;
         }
         </style>
 </head>
@@ -290,7 +278,5 @@
         </div>
     </div>
     
-    <!-- Colocando a imagem do rodapé FORA de qualquer contêiner para evitar influências -->
-    <img src="data:image/png;base64,{{ icon_rodape }}" class="fixed-footer-bg" alt=""/>
 </body>
 </html>
