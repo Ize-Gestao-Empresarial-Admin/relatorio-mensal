@@ -39,8 +39,9 @@ class PdfUtils:
 
     @staticmethod
     def combine_pdfs(pdf_paths: List[str], output_path: str, capa_path: str = None, marketing_paths: List[str] = None) -> None: # type: ignore
-        """Combina múltiplos PDFs em um único arquivo."""
+        """Combina múltiplos PDFs em um único arquivo, detectando e removendo páginas vazias."""
         writer = PdfWriter()
+        total_pages_added = 0
 
         # Adicionar capa, se existir
         if capa_path and os.path.exists(capa_path):
@@ -48,15 +49,50 @@ class PdfUtils:
             if capa_reader:
                 for page in capa_reader.pages:
                     writer.add_page(page)
-                logger.info(f"Capa adicionada: {capa_path}")
+                    total_pages_added += 1
+                logger.info(f"Capa adicionada: {capa_path} ({len(capa_reader.pages)} páginas)")
 
-        # Adicionar relatórios
+        # Adicionar relatórios com detecção de páginas vazias
         for pdf_path in pdf_paths:
+            if not os.path.exists(pdf_path):
+                logger.warning(f"Arquivo PDF não encontrado: {pdf_path}")
+                continue
+                
+            # Verificar se o arquivo não está vazio
+            if os.path.getsize(pdf_path) == 0:
+                logger.warning(f"Arquivo PDF vazio ignorado: {pdf_path}")
+                continue
+                
             reader = PdfUtils.read_pdf(pdf_path)
             if reader:
-                for page in reader.pages:
-                    writer.add_page(page)
-                logger.info(f"Relatório adicionado: {pdf_path}")
+                pages_added = 0
+                for page_num, page in enumerate(reader.pages, 1):
+                    # Verificação básica se a página tem conteúdo
+                    try:
+                        text = page.extract_text().strip()
+                        if text:  # Se tem texto extraível
+                            writer.add_page(page)
+                            pages_added += 1
+                            total_pages_added += 1
+                        else:
+                            # Verificar se tem imagens/gráficos mesmo sem texto
+                            if '/XObject' in page.get('/Resources', {}):
+                                writer.add_page(page)
+                                pages_added += 1
+                                total_pages_added += 1
+                                logger.info(f"Página {page_num} adicionada (sem texto, mas com imagens): {pdf_path}")
+                            else:
+                                logger.warning(f"❌ Página {page_num} VAZIA ignorada em: {pdf_path}")
+                    except Exception as e:
+                        # Se houver erro na extração, adicionar a página mesmo assim
+                        logger.warning(f"Erro ao verificar conteúdo da página {page_num}, adicionando: {e}")
+                        writer.add_page(page)
+                        pages_added += 1
+                        total_pages_added += 1
+                        
+                logger.info(f"Relatório adicionado: {pdf_path} ({pages_added} páginas válidas)")
+            else:
+                logger.error(f"Falha ao ler PDF: {pdf_path}")
 
         # Adicionar páginas de marketing
         if marketing_paths:
@@ -66,15 +102,20 @@ class PdfUtils:
                     if reader:
                         for page in reader.pages:
                             writer.add_page(page)
-                        logger.info(f"Marketing adicionado: {marketing_path}")
+                            total_pages_added += 1
+                        logger.info(f"Marketing adicionado: {marketing_path} ({len(reader.pages)} páginas)")
                 else:
                     logger.warning(f"Arquivo de marketing não encontrado: {marketing_path}")
+
+        # Verificar se temos páginas para salvar
+        if total_pages_added == 0:
+            raise ValueError("Nenhuma página válida foi encontrada para combinar no PDF")
 
         # Salvar PDF combinado
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
         with open(output_path, 'wb') as f:
             writer.write(f)
-        logger.info(f"PDF combinado salvo em: {output_path}")
+        logger.info(f"PDF combinado salvo em: {output_path} (total: {total_pages_added} páginas válidas)")
 
 class RenderingEngine:
     """Motor central de renderização que coordena a geração de relatórios em PDF."""
@@ -291,6 +332,20 @@ class RenderingEngine:
             PdfUtils.combine_pdfs(pdf_paths, output_path, capa_path, marketing_paths)
             logger.info(f"✓ PDF final gerado: {output_path}")
             logger.info(f"Relatórios processados na ordem correta: {', '.join(processed_reports)}")
+            
+            # Aplicar pós-processamento para remover páginas vazias
+            try:
+                from src.core.pdf_finalizer import PDFinalizer
+                finalizer = PDFinalizer()
+                
+                success, final_path, removed_pages = finalizer.finalize_pdf(output_path)
+                if success and removed_pages:
+                    logger.info(f"🧹 Pós-processamento: {len(removed_pages)} páginas vazias removidas")
+                    logger.info(f"📋 Páginas removidas: {removed_pages}")
+                else:
+                    logger.info("✅ PDF já otimizado, nenhuma página removida")
+            except Exception as e:
+                logger.warning(f"⚠️  Falha no pós-processamento (PDF mantido): {e}")
             
             processing_time = time.time() - start_time
             logger.info(f"✓ Processamento concluído em {processing_time:.2f}s")

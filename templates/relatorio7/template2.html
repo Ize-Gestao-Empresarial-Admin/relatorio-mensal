@@ -15,11 +15,10 @@
             min-height: 100%;
         }
         
-        /* Classe para páginas individuais - IDÊNTICO AO TEMPLATE1 */
+        /* Classe para páginas individuais - SEM quebra forçada */
         .page {
-            min-height: 100vh;
             position: relative;
-            page-break-after: always;
+            /* REMOVIDO: min-height e page-break-after para evitar páginas vazias */
         }
         
         /* Remove quebra de página da última página - IDÊNTICO AO TEMPLATE1 */
@@ -175,8 +174,7 @@
         /* Estilos específicos para impressão/PDF */
         @media print {
             .page {
-                page-break-after: always;
-                min-height: 100vh;
+                /* REMOVIDO: page-break-after e min-height para evitar páginas vazias */
             }
             
             .page:last-child {

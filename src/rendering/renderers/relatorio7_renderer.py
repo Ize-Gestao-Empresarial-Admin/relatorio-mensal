@@ -15,8 +15,8 @@ class Relatorio7Renderer(BaseRenderer):
         super().__init__()
         # Carregar o template principal do relatório 7
         self.template = self.env.get_template("relatorio7/template.html")
-        # Carregar o template para páginas adicionais
-        self.template2 = self.env.get_template("relatorio7/template2.html")
+        # Carregar o fragmento para páginas adicionais
+        self.page_fragment = self.env.get_template("relatorio7/page_fragment.html")
 
     def _determine_performance(self, indicador_info):
         """Determina a performance do indicador baseado nos cenários bom/ruim"""
@@ -359,13 +359,13 @@ class Relatorio7Renderer(BaseRenderer):
             logger.info(f"Primeira página: {len(primeira_pagina_indicadores)} indicadores")
             logger.info(f"Páginas restantes: {len(indicadores_restantes)} indicadores em {total_paginas - 1} páginas")
             
-            # TEMPLATE 1: Primeira página (independente)
+            # RENDERIZAR apenas a primeira página com o template principal
             paginas_primeira = [{
                 'indicadores': primeira_pagina_indicadores,
                 'numero_pagina': 1,
                 'total_paginas': total_paginas,
                 'eh_primeira_pagina': True,
-                'eh_ultima_pagina': total_paginas == 1
+                'eh_ultima_pagina': False
             }]
             
             template_data_primeira = {
@@ -376,7 +376,8 @@ class Relatorio7Renderer(BaseRenderer):
                 "total_indicadores": len(primeira_pagina_indicadores)
             }
             
-            html_primeira_pagina = self.template.render(
+            # Renderizar template principal (com HTML, HEAD, CSS)
+            html_completo = self.template.render(
                 data=template_data_primeira,
                 icon_rodape=icon_rodape,
                 cliente_nome=cliente_nome,
@@ -384,25 +385,27 @@ class Relatorio7Renderer(BaseRenderer):
                 ano=ano
             )
             
-            # TEMPLATE 2: Páginas subsequentes (independentes)
-            html_completo = html_primeira_pagina
-            
+            # ADICIONAR fragmentos de páginas adicionais (apenas conteúdo)
             for pagina_num in range(2, total_paginas + 1):
                 inicio_idx = (pagina_num - 2) * indicadores_por_pagina
                 fim_idx = inicio_idx + indicadores_por_pagina
                 indicadores_pagina = indicadores_restantes[inicio_idx:fim_idx]
                 
-                logger.info(f"Renderizando página {pagina_num} com {len(indicadores_pagina)} indicadores (template2)")
+                if not indicadores_pagina:
+                    continue
                 
-                # Cada página do template2 é independente
-                html_pagina = self.template2.render(
+                logger.info(f"Renderizando página {pagina_num} com {len(indicadores_pagina)} indicadores (fragmento)")
+                
+                # Renderizar apenas o fragmento da página (sem html/head/body)
+                fragmento_html = self.page_fragment.render(
                     indicadores=indicadores_pagina,
                     nome_relatorio=cliente_nome,
                     periodo=f"{mes_nome}/{ano}",
-                    icon_rodape=icon_rodape  # Rodapé em todas as páginas
+                    eh_primeira_pagina=False
                 )
                 
-                html_completo += html_pagina
+                # Inserir o fragmento antes do fechamento do </body>
+                html_completo = html_completo.replace('</body>', fragmento_html + '\n</body>')
             
-            logger.info(f"HTML completo gerado: {total_paginas} páginas")
+            logger.info(f"HTML completo gerado: {total_paginas} páginas em um único documento limpo")
             return html_completo

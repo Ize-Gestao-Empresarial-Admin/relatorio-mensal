@@ -1,0 +1,58 @@
+<!-- Template para páginas adicionais do Relatório 7 (apenas conteúdo, sem html/head/body) -->
+<div class="page">
+    <div class="main-content">
+        <!-- Cabeçalho -->
+        <div class="header-accent"></div>
+        <div class="report-header"></div>
+        <table style="width:100%; border-collapse:collapse; margin:4px 0 16px;">
+            <tr>
+                <td class="report-name" style="padding:0; text-align:left; font-size:14px;">
+                    {{ nome_relatorio }}
+                    {% if not eh_primeira_pagina %}
+                    <span style="font-weight: 400; color: #666;"> (continuação)</span>
+                    {% endif %}
+                </td>
+                <td class="report-period" style="padding:0; text-align:right; font-size:14px;">
+                    {{ periodo }}
+                </td>
+            </tr>
+        </table>
+        
+        <!-- Cards dos indicadores desta página -->
+        <div class="cards-container">
+            {% for ind in indicadores %}
+            <div class="indicator-card">
+                <!-- Header com cor dinâmica baseada na performance -->
+                <div class="card-header" style="background-color: {{ ind.header_color }};"></div>
+                
+                <!-- Ícone fixo -->
+                <div class="icon-circle">
+                    <img src="data:image/png;base64,{{ ind.icon_base64 }}" width="48" alt="ícone">
+                </div>
+                
+                <!-- Texto (nome + valor) sempre posicionado a partir do mesmo top -->
+                <div class="text-block" style="top: {{ ind.text_top }};">
+                    <div class="indicator-name" style="font-size: {{ ind.nome_font_size }};">
+                        {{ ind.nome }}
+                    </div>
+                    
+                    <div class="indicator-value" style="font-size: {{ ind.valor_font_size }};">
+                        {% if ind.unidade == '%' %}
+                            {% set valor_para_formatar = ind.valor * 100 %}
+                            {{ "{:,.2f}%".format(valor_para_formatar).replace(',', 'X').replace('.', ',').replace('X', '.') }}
+                        {% elif ind.unidade == 'R$' %}
+                            R$ {{ "{:,.2f}".format(ind.valor).replace(',', 'X').replace('.', ',').replace('X', '.') }}
+                        {% else %}
+                            {{ "{:,.2f}".format(ind.valor).replace(',', 'X').replace('.', ',').replace('X', '.') }}
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="scenario-text" style="font-size: {{ ind.cenario_font_size }};">
+                    {{ ind.cenario_texto }}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>

@@ -15,16 +15,10 @@
             min-height: 100%;
         }
         
-        /* NOVO: Classe para páginas individuais */
+        /* Classe para páginas individuais - SEM quebra forçada */
         .page {
-            min-height: 100vh;
             position: relative;
-            page-break-after: always; /* Força quebra de página após cada seção */
-        }
-        
-        /* NOVO: Remove quebra de página da última página */
-        .page:last-child {
-            page-break-after: avoid;
+            /* REMOVIDO: page-break-after - deixar wkhtmltopdf decidir naturalmente */
         }
         
         /* Contêiner principal para o conteúdo */
@@ -227,17 +221,8 @@
             color: #495057;
         }
         
-        /* Estilos específicos para impressão/PDF */
+        /* Estilos básicos para impressão/PDF - SEM quebras forçadas */
         @media print {
-            .page {
-                page-break-after: always;
-                min-height: 100vh;
-            }
-            
-            .page:last-child {
-                page-break-after: avoid;
-            }
-            
             .cards-container {
                 page-break-inside: avoid;
                 orphans: 2;
@@ -251,14 +236,6 @@
             
             .no-indicators-container {
                 page-break-inside: avoid;
-            }
-            
-            body {
-                page-break-after: avoid;
-            }
-            
-            .main-content {
-                page-break-after: avoid;
             }
             
             .page-indicator {
