@@ -334,18 +334,24 @@ class RenderingEngine:
             logger.info(f"Relatórios processados na ordem correta: {', '.join(processed_reports)}")
             
             # Aplicar pós-processamento para remover páginas vazias
-            try:
-                from src.core.pdf_finalizer import PDFinalizer
-                finalizer = PDFinalizer()
-                
-                success, final_path, removed_pages = finalizer.finalize_pdf(output_path)
-                if success and removed_pages:
-                    logger.info(f"🧹 Pós-processamento: {len(removed_pages)} páginas vazias removidas")
-                    logger.info(f"📋 Páginas removidas: {removed_pages}")
-                else:
-                    logger.info("✅ PDF já otimizado, nenhuma página removida")
-            except Exception as e:
-                logger.warning(f"⚠️  Falha no pós-processamento (PDF mantido): {e}")
+            # TEMPORARIAMENTE DESABILITADO - critério muito restritivo removendo páginas com gráficos
+            enable_postprocessing = False  # Mudar para True quando critério estiver correto
+            
+            if enable_postprocessing:
+                try:
+                    from src.core.pdf_finalizer import PDFinalizer
+                    finalizer = PDFinalizer()
+                    
+                    success, final_path, removed_pages = finalizer.finalize_pdf(output_path)
+                    if success and removed_pages:
+                        logger.info(f"🧹 Pós-processamento: {len(removed_pages)} páginas vazias removidas")
+                        logger.info(f"📋 Páginas removidas: {removed_pages}")
+                    else:
+                        logger.info("✅ PDF já otimizado, nenhuma página removida")
+                except Exception as e:
+                    logger.warning(f"⚠️  Falha no pós-processamento (PDF mantido): {e}")
+            else:
+                logger.info("📄 Pós-processamento desabilitado - PDF mantido sem alterações")
             
             processing_time = time.time() - start_time
             logger.info(f"✓ Processamento concluído em {processing_time:.2f}s")

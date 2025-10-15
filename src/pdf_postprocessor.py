@@ -45,28 +45,36 @@ class PDFPostProcessor:
                         text = page.extract_text().strip()
                         text_length = len(text)
                         
-                        # Verificar se tem conteúdo significativo
-                        if text_length > 10:  # Threshold mínimo de caracteres
-                            writer.add_page(page)
-                            logger.debug(f"✅ Página {page_num}: OK ({text_length} chars)")
-                        else:
-                            # Verificar se tem imagens/objetos mesmo sem texto
+                        # Verificar se tem imagens/objetos
+                        has_images = False
+                        has_resources = False
+                        try:
+                            resources = page.get('/Resources', {})
+                            if isinstance(resources, dict):
+                                has_images = '/XObject' in resources
+                                has_resources = any(key in resources for key in ['/XObject', '/Font', '/ColorSpace', '/ExtGState'])
+                        except:
                             has_images = False
-                            try:
-                                resources = page.get('/Resources', {})
-                                if isinstance(resources, dict):
-                                    has_images = '/XObject' in resources
-                            except:
-                                has_images = False
-                            
-                            if has_images and text_length > 0:
-                                # Tem imagens e pelo menos algum texto
-                                writer.add_page(page)
-                                logger.info(f"✅ Página {page_num}: OK (com imagens, {text_length} chars)")
+                            has_resources = False
+                        
+                        # CRITÉRIO MAIS PERMISSIVO: Só remove se REALMENTE vazio
+                        # - Sem texto E sem imagens E sem recursos visuais
+                        should_keep = (
+                            text_length > 0 or  # Tem algum texto
+                            has_images or       # Tem imagens/gráficos
+                            has_resources       # Tem recursos visuais (fontes, etc)
+                        )
+                        
+                        if should_keep:
+                            writer.add_page(page)
+                            if text_length > 50:
+                                logger.debug(f"✅ Página {page_num}: OK ({text_length} chars)")
                             else:
-                                # Página realmente vazia
-                                blank_pages.append(page_num)
-                                logger.warning(f"❌ Página {page_num}: REMOVIDA ({text_length} chars, imagens: {has_images})")
+                                logger.debug(f"✅ Página {page_num}: OK ({text_length} chars, recursos: {has_resources}, imagens: {has_images})")
+                        else:
+                            # Página realmente vazia - SEM texto, SEM imagens, SEM recursos
+                            blank_pages.append(page_num)
+                            logger.warning(f"❌ Página {page_num}: REMOVIDA (completamente vazia - {text_length} chars, imagens: {has_images}, recursos: {has_resources})")
                                 
                     except Exception as e:
                         # Em caso de erro, manter a página por segurança
@@ -124,9 +132,18 @@ class PDFPostProcessor:
                         text = page.extract_text().strip()
                         text_length = len(text)
                         
-                        if text_length == 0:
+                        # Verificar recursos visuais também
+                        has_resources = False
+                        try:
+                            resources = page.get('/Resources', {})
+                            if isinstance(resources, dict):
+                                has_resources = any(key in resources for key in ['/XObject', '/Font', '/ColorSpace', '/ExtGState'])
+                        except:
+                            has_resources = False
+                            
+                        if text_length == 0 and not has_resources:
                             stats['empty_pages'].append(page_num)
-                        elif text_length < 50:
+                        elif text_length < 20 and not has_resources:
                             stats['suspicious_pages'].append(page_num)
                         else:
                             stats['good_pages'].append(page_num)
