@@ -333,9 +333,9 @@ class RenderingEngine:
             logger.info(f"✓ PDF final gerado: {output_path}")
             logger.info(f"Relatórios processados na ordem correta: {', '.join(processed_reports)}")
             
-            # Aplicar pós-processamento para remover páginas vazias
-            # TEMPORARIAMENTE DESABILITADO - critério muito restritivo removendo páginas com gráficos
-            enable_postprocessing = False  # Mudar para True quando critério estiver correto
+            # Aplicar pós-processamento inteligente para remover páginas vazias
+            # ALGORITMO MELHORADO: Ignora rodapés e detecta páginas realmente vazias
+            enable_postprocessing = True  # Reabilitado com lógica inteligente
             
             if enable_postprocessing:
                 try:
