@@ -18,8 +18,11 @@ class PDFPostProcessor:
     # Caminho para o template de página de erro
     ERROR_PAGE_TEMPLATE = "src/example_error_page.pdf"
     
-    @staticmethod
-    def _load_error_page_template() -> dict:
+    def __init__(self):
+        """Inicializa o post-processor e carrega o template."""
+        self.error_page_template = self._load_error_page_template()
+    
+    def _load_error_page_template(self) -> dict:
         """
         Carrega o template de página de erro e extrai suas características.
         
@@ -79,8 +82,7 @@ class PDFPostProcessor:
             logger.error(f"❌ Erro ao carregar template: {e}")
             return None
     
-    @staticmethod
-    def _is_page_identical_to_template(page, template_data: dict) -> bool:
+    def _is_page_identical_to_template(self, page, template_data: dict = None) -> bool:
         """
         Verifica se uma página é idêntica ao template de erro.
         
@@ -91,6 +93,14 @@ class PDFPostProcessor:
         Returns:
             True se a página é idêntica ao template
         """
+        # Usar template da instância se não fornecido
+        if template_data is None:
+            template_data = self.error_page_template
+            
+        if template_data is None:
+            logger.warning("⚠️ Template não disponível para comparação")
+            return False
+            
         try:
             # 1. Comparar texto extraído
             page_text = page.extract_text().strip()
@@ -100,7 +110,12 @@ class PDFPostProcessor:
                 logger.info("🎯 Página idêntica detectada por hash de texto")
                 return True
             
-            # 2. Comparar conteúdo visual se disponível
+            # 2. NOVA LÓGICA: Detectar páginas completamente vazias
+            if len(page_text) == 0:
+                logger.info("🗑️ Página completamente vazia detectada (0 caracteres)")
+                return True
+            
+            # 3. Comparar conteúdo visual se disponível
             if 'content_hash' in template_data:
                 try:
                     if '/Contents' in page:
@@ -115,15 +130,15 @@ class PDFPostProcessor:
                 except:
                     pass
             
-            # 3. Comparação texto exato como fallback
+            # 4. Comparação texto exato como fallback
             template_text = template_data.get('text', '')
             if page_text == template_text and len(page_text) > 0:
                 logger.info("🎯 Página idêntica detectada por texto exato")
                 return True
             
-            # 4. Verificar se é página completamente vazia (caso especial)
+            # 5. Verificar se é página completamente vazia (caso especial - redundante, mas mantido para compatibilidade)
             if len(page_text) == 0 and len(template_text) == 0:
-                logger.info("🎯 Página vazia detectada")
+                logger.info("🎯 Página vazia detectada (fallback)")
                 return True
                 
             return False
@@ -132,8 +147,42 @@ class PDFPostProcessor:
             logger.warning(f"⚠️ Erro ao comparar página: {e}")
             return False
     
-    @staticmethod
-    def remove_blank_pages(pdf_path: str, output_path: str = None) -> Tuple[bool, str, List[int]]:
+    def _is_page_empty_advanced(self, page_text: str) -> bool:
+        """
+        Verifica se uma página está vazia usando lógica avançada.
+        
+        Args:
+            page_text: Texto extraído da página
+            
+        Returns:
+            True se a página deve ser considerada vazia
+        """
+        # 1. Página completamente vazia
+        if len(page_text) == 0:
+            logger.info("🗑️ Página completamente vazia detectada (0 caracteres)")
+            return True
+        
+        # 2. Apenas espaços em branco
+        if len(page_text.strip()) == 0:
+            logger.info("🗑️ Página com apenas espaços detectada")
+            return True
+        
+        # 3. Comparar com template se disponível
+        if self.error_page_template:
+            page_text_hash = hashlib.md5(page_text.encode()).hexdigest()
+            if page_text_hash == self.error_page_template['text_hash']:
+                logger.info("🎯 Página idêntica ao template detectada")
+                return True
+            
+            # 4. Comparação de texto exato
+            template_text = self.error_page_template['text']
+            if page_text == template_text and len(page_text) > 0:
+                logger.info("🎯 Página idêntica detectada por texto exato")
+                return True
+        
+        return False
+    
+    def remove_blank_pages(self, pdf_path: str, output_path: str = None) -> Tuple[bool, str, List[int]]:
         """
         Remove páginas idênticas ao template de erro de um PDF.
         NOVA ABORDAGEM: Comparação exata com template example_error_page.pdf
@@ -149,7 +198,7 @@ class PDFPostProcessor:
             output_path = pdf_path
             
         # Carregar template de página de erro
-        template_data = PDFPostProcessor._load_error_page_template()
+        template_data = self.error_page_template
         if template_data is None:
             logger.warning("⚠️ Template não carregado - mantendo todas as páginas")
             return True, pdf_path, []
@@ -169,7 +218,7 @@ class PDFPostProcessor:
                 for page_num, page in enumerate(reader.pages, 1):
                     try:
                         # Verificar se página é idêntica ao template
-                        is_error_page = PDFPostProcessor._is_page_identical_to_template(page, template_data)
+                        is_error_page = self._is_page_identical_to_template(page, template_data)
                         
                         if not is_error_page:
                             # Página diferente do template - manter
@@ -207,8 +256,7 @@ class PDFPostProcessor:
             logger.error(f"❌ Erro ao processar PDF {pdf_path}: {e}")
             return False, pdf_path, []
     
-    @staticmethod
-    def analyze_pdf_content(pdf_path: str) -> dict:
+    def analyze_pdf_content(self, pdf_path: str) -> dict:
         """
         Analisa o conteúdo de um PDF usando comparação com template.
         
@@ -226,7 +274,7 @@ class PDFPostProcessor:
         }
         
         # Carregar template
-        template_data = PDFPostProcessor._load_error_page_template()
+        template_data = self.error_page_template
         if template_data is None:
             logger.warning("⚠️ Análise sem template - todas as páginas consideradas válidas")
             
@@ -237,7 +285,7 @@ class PDFPostProcessor:
                 
                 for page_num, page in enumerate(reader.pages, 1):
                     try:
-                        if template_data and PDFPostProcessor._is_page_identical_to_template(page, template_data):
+                        if template_data and self._is_page_identical_to_template(page, template_data):
                             stats['error_pages'].append(page_num)
                         else:
                             stats['good_pages'].append(page_num)
@@ -278,8 +326,11 @@ def test_pdf_postprocessor():
     pdf_path = max(pdf_files, key=os.path.getctime)
     print(f"📁 Testando com: {os.path.basename(pdf_path)}")
     
+    # Criar instância do post-processor
+    postprocessor = PDFPostProcessor()
+    
     # Analisar antes
-    stats_before = PDFPostProcessor.analyze_pdf_content(pdf_path)
+    stats_before = postprocessor.analyze_pdf_content(pdf_path)
     print(f"\n📊 ANÁLISE INICIAL:")
     print(f"  Total: {stats_before['total_pages']} páginas")
     print(f"  ❌ Páginas de erro: {stats_before['error_pages']}")
@@ -291,14 +342,14 @@ def test_pdf_postprocessor():
         
         # Fazer cópia para teste
         output_path = pdf_path.replace('.pdf', '_PROCESSADO.pdf')
-        success, final_path, removed_pages = PDFPostProcessor.remove_blank_pages(pdf_path, output_path)
+        success, final_path, removed_pages = postprocessor.remove_blank_pages(pdf_path, output_path)
         
         if success:
             print(f"✅ PDF processado: {os.path.basename(final_path)}")
             print(f"📋 Páginas removidas: {removed_pages}")
             
             # Analisar depois
-            stats_after = PDFPostProcessor.analyze_pdf_content(final_path)
+            stats_after = postprocessor.analyze_pdf_content(final_path)
             print(f"\n📊 ANÁLISE FINAL:")
             print(f"  Total: {stats_after['total_pages']} páginas")
             print(f"  Redução: {stats_before['total_pages'] - stats_after['total_pages']} páginas")
