@@ -335,7 +335,8 @@ class RenderingEngine:
             
             # Aplicar pós-processamento com comparação de template
             # NOVO ALGORITMO v3.0: Remove apenas páginas idênticas ao template de erro
-            enable_postprocessing = True  # Reabilitado com nova lógica de template
+            # Adicionado controle por variável de ambiente para produção
+            enable_postprocessing = os.getenv('DISABLE_PDF_POSTPROCESSING', 'false').lower() != 'true'
             
             if enable_postprocessing:
                 try:
@@ -351,7 +352,7 @@ class RenderingEngine:
                 except Exception as e:
                     logger.warning(f"⚠️  Falha no pós-processamento (PDF mantido): {e}")
             else:
-                logger.info("📄 Pós-processamento desabilitado - PDF mantido sem alterações")
+                logger.info("📄 Pós-processamento desabilitado via variável de ambiente")
             
             processing_time = time.time() - start_time
             logger.info(f"✓ Processamento concluído em {processing_time:.2f}s")

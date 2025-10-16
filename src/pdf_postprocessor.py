@@ -39,12 +39,22 @@ class PDFPostProcessor:
             os.path.join(os.path.dirname(__file__), "example_error_page.pdf")
         ]
         
+        # DEBUG: Log detalhado para produção
+        logger.info(f"🔍 DEBUG: Procurando template em {len(possible_paths)} localizações:")
+        for i, path in enumerate(possible_paths):
+            exists = os.path.exists(path)
+            abs_path = os.path.abspath(path) if exists else "N/A"
+            logger.info(f"  {i+1}. {path} -> EXISTS: {exists} -> ABS: {abs_path}")
+        
         for path in possible_paths:
             if os.path.exists(path):
                 template_path = path
+                logger.info(f"✅ Template encontrado: {template_path}")
                 break
         else:
             logger.error(f"❌ Template de página de erro não encontrado em: {possible_paths}")
+            logger.error(f"📁 Diretório atual: {os.getcwd()}")
+            logger.error(f"📁 __file__ dir: {os.path.dirname(__file__)}")
             return None
         
         try:
@@ -106,13 +116,26 @@ class PDFPostProcessor:
             page_text = page.extract_text().strip()
             page_text_hash = hashlib.md5(page_text.encode()).hexdigest()
             
+            # DEBUG: Log detalhado da comparação
+            template_hash = template_data['text_hash']
+            template_text = template_data.get('text', '')
+            
+            logger.debug(f"🔍 COMPARAÇÃO DEBUG:")
+            logger.debug(f"  Página texto (len={len(page_text)}): {repr(page_text[:100])}...")
+            logger.debug(f"  Página hash: {page_text_hash}")
+            logger.debug(f"  Template texto (len={len(template_text)}): {repr(template_text[:100])}...")
+            logger.debug(f"  Template hash: {template_hash}")
+            logger.debug(f"  Hash match: {page_text_hash == template_hash}")
+            
             if page_text_hash == template_data['text_hash']:
                 logger.info("🎯 Página idêntica detectada por hash de texto")
+                logger.warning(f"⚠️ PRODUÇÃO DEBUG: Página removida - texto='{page_text[:50]}' hash={page_text_hash}")
                 return True
             
             # 2. NOVA LÓGICA: Detectar páginas completamente vazias
             if len(page_text) == 0:
                 logger.info("🗑️ Página completamente vazia detectada (0 caracteres)")
+                logger.warning(f"⚠️ PRODUÇÃO DEBUG: Página vazia removida")
                 return True
             
             # 3. Comparar conteúdo visual se disponível
@@ -126,6 +149,7 @@ class PDFPostProcessor:
                             
                             if page_content_hash == template_data['content_hash']:
                                 logger.info("🎯 Página idêntica detectada por hash de conteúdo")
+                                logger.warning(f"⚠️ PRODUÇÃO DEBUG: Página removida por conteúdo - hash={page_content_hash}")
                                 return True
                 except:
                     pass
@@ -134,11 +158,13 @@ class PDFPostProcessor:
             template_text = template_data.get('text', '')
             if page_text == template_text and len(page_text) > 0:
                 logger.info("🎯 Página idêntica detectada por texto exato")
+                logger.warning(f"⚠️ PRODUÇÃO DEBUG: Página removida por texto exato - '{page_text[:50]}'")
                 return True
             
             # 5. Verificar se é página completamente vazia (caso especial - redundante, mas mantido para compatibilidade)
             if len(page_text) == 0 and len(template_text) == 0:
                 logger.info("🎯 Página vazia detectada (fallback)")
+                logger.warning(f"⚠️ PRODUÇÃO DEBUG: Página vazia removida (fallback)")
                 return True
                 
             return False
