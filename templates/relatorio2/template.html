@@ -212,16 +212,32 @@
                             <td>{{ cat.value|format_currency }}</td>
                             <td>{{ cat.representatividade|format_percentage }}</td>
                             <td>
-                                {% if cat.variacao >= 0 %}
-                                    <span class="var-up">
-                                        <img src="data:image/svg+xml;base64,{{ seta_b64 }}" alt="↑"/>
-                                        {{ cat.variacao|format_percentage }}
-                                    </span>
+                                {% if cat.name == 'Custos Variáveis' %}
+                                    {# Para Custos Variáveis, a lógica é invertida: aumento é ruim #}
+                                    {% if cat.variacao >= 0 %}
+                                        <span class="var-up">
+                                            <img src="data:image/svg+xml;base64,{{ seta_b64_3 }}" alt="↑"/>
+                                            {{ cat.variacao|format_percentage }}
+                                        </span>
+                                    {% else %}
+                                        <span class="var-down">
+                                            <img src="data:image/svg+xml;base64,{{ seta_b64_4 }}" alt="↓"/>
+                                            {{ cat.variacao|format_percentage }}
+                                        </span>
+                                    {% endif %}
                                 {% else %}
-                                    <span class="var-down">
-                                        <img src="data:image/svg+xml;base64,{{ seta_b64_2 }}" alt="↓"/>
-                                        {{ cat.variacao|format_percentage }}
-                                    </span>
+                                    {# Para Receita, aumento é bom #}
+                                    {% if cat.variacao >= 0 %}
+                                        <span class="var-up">
+                                            <img src="data:image/svg+xml;base64,{{ seta_b64 }}" alt="↑"/>
+                                            {{ cat.variacao|format_percentage }}
+                                        </span>
+                                    {% else %}
+                                        <span class="var-down">
+                                            <img src="data:image/svg+xml;base64,{{ seta_b64_2 }}" alt="↓"/>
+                                            {{ cat.variacao|format_percentage }}
+                                        </span>
+                                    {% endif %}
                                 {% endif %}
                             </td>
                         </tr>
