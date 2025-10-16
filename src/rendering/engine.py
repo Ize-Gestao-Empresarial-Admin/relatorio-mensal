@@ -67,32 +67,55 @@ class PdfUtils:
             if reader:
                 pages_added = 0
                 for page_num, page in enumerate(reader.pages, 1):
-                    # Verificação básica se a página tem conteúdo
+                    # Verificação mais robusta do conteúdo da página
                     try:
                         text = page.extract_text().strip()
-                        if text:  # Se tem texto extraível
+                        has_text = len(text) > 0
+                        
+                        # Verificar se tem recursos visuais (imagens, gráficos, etc)
+                        has_resources = False
+                        try:
+                            resources = page.get('/Resources', {})
+                            has_resources = (
+                                '/XObject' in resources or 
+                                '/Font' in resources or 
+                                '/ExtGState' in resources or
+                                len(str(resources)) > 50  # Indicador de conteúdo significativo
+                            )
+                        except:
+                            pass
+                        
+                        # Heurística: se o PDF tem tamanho razoável, provavelmente tem conteúdo
+                        pdf_size = os.path.getsize(pdf_path)
+                        likely_has_content = pdf_size > 10000  # 10KB
+                        
+                        # Decidir se adicionar a página
+                        should_add = has_text or has_resources or likely_has_content
+                        
+                        if should_add:
                             writer.add_page(page)
                             pages_added += 1
                             total_pages_added += 1
-                        else:
-                            # Verificar se tem imagens/gráficos mesmo sem texto
-                            if '/XObject' in page.get('/Resources', {}):
-                                writer.add_page(page)
-                                pages_added += 1
-                                total_pages_added += 1
-                                logger.info(f"Página {page_num} adicionada (sem texto, mas com imagens): {pdf_path}")
+                            
+                            if has_text:
+                                logger.debug(f"✅ Página {page_num} adicionada (com texto): {pdf_path}")
+                            elif has_resources:
+                                logger.info(f"📄 Página {page_num} adicionada (sem texto, mas com recursos): {pdf_path}")
                             else:
-                                logger.warning(f"❌ Página {page_num} VAZIA ignorada em: {pdf_path}")
+                                logger.info(f"📄 Página {page_num} adicionada (heurística - PDF grande): {pdf_path}")
+                        else:
+                            logger.warning(f"❌ Página {page_num} VAZIA ignorada em: {pdf_path}")
+                            
                     except Exception as e:
-                        # Se houver erro na extração, adicionar a página mesmo assim
-                        logger.warning(f"Erro ao verificar conteúdo da página {page_num}, adicionando: {e}")
+                        # Se houver erro na verificação, adicionar a página por segurança
+                        logger.warning(f"⚠️ Erro ao verificar página {page_num}, adicionando por segurança: {e}")
                         writer.add_page(page)
                         pages_added += 1
                         total_pages_added += 1
                         
-                logger.info(f"Relatório adicionado: {pdf_path} ({pages_added} páginas válidas)")
+                logger.info(f"📑 Relatório adicionado: {os.path.basename(pdf_path)} ({pages_added} páginas válidas)")
             else:
-                logger.error(f"Falha ao ler PDF: {pdf_path}")
+                logger.error(f"❌ Falha ao ler PDF: {pdf_path}")
 
         # Adicionar páginas de marketing
         if marketing_paths:
@@ -175,20 +198,33 @@ class RenderingEngine:
         with open(footer_path, 'w', encoding='utf-8') as f:
             f.write(footer_html)
 
-        # Comando wkhtmltopdf com footer HTML e margem inferior maior
-        cmd = [
+        # Comando wkhtmltopdf com fallback para produção
+        # Em produção, o Qt pode não suportar alguns switches
+        base_cmd = [
             wkhtmltopdf_cmd,
             '--enable-local-file-access',
             '--page-size', 'A4',
             '--margin-top', '10mm',
-            '--margin-bottom', '18mm',  # dá espaço pro footer
+            '--margin-bottom', '18mm',
             '--margin-left', '6mm',
             '--margin-right', '6mm',
-            '--no-footer-line',         # sem linha acima do footer
-            '--footer-html', footer_path,
-            '--footer-spacing', '0',    # folga entre conteúdo e footer
-            html_path, pdf_path
         ]
+        
+        # Detectar se estamos em produção (Streamlit Cloud)
+        is_production = os.getenv('STREAMLIT_SHARING_MODE') or '/mount/src/' in os.getcwd()
+        
+        if is_production:
+            # Em produção, não usar switches de footer que podem não funcionar
+            logger.info("🌐 Modo produção detectado - usando configuração simplificada do wkhtmltopdf")
+            cmd = base_cmd + [html_path, pdf_path]
+        else:
+            # Localmente, usar configuração completa com footer
+            cmd = base_cmd + [
+                '--no-footer-line',
+                '--footer-html', footer_path,
+                '--footer-spacing', '0',
+                html_path, pdf_path
+            ]
 
         keep = os.getenv("KEEP_WKHTML_HTML") == "1"
         try:
@@ -372,9 +408,9 @@ class RenderingEngine:
             logger.info(f"Relatórios processados na ordem correta: {', '.join(processed_reports)}")
             
             # Aplicar pós-processamento com comparação de template
-            # NOVO ALGORITMO v3.0: Remove apenas páginas idênticas ao template de erro
-            # Adicionado controle por variável de ambiente para produção
-            enable_postprocessing = os.getenv('DISABLE_PDF_POSTPROCESSING', 'false').lower() != 'true'
+            # TEMPORARIAMENTE DESABILITADO para diagnóstico em produção
+            is_production = os.getenv('STREAMLIT_SHARING_MODE') or '/mount/src/' in os.getcwd()
+            enable_postprocessing = not is_production and os.getenv('DISABLE_PDF_POSTPROCESSING', 'false').lower() != 'true'
             
             if enable_postprocessing:
                 try:
@@ -390,12 +426,14 @@ class RenderingEngine:
                 except Exception as e:
                     logger.warning(f"⚠️  Falha no pós-processamento (PDF mantido): {e}")
             else:
-                logger.info("📄 Pós-processamento desabilitado via variável de ambiente")
+                if is_production:
+                    logger.info("🌐 Pós-processamento desabilitado em produção para diagnóstico")
+                else:
+                    logger.info("📄 Pós-processamento desabilitado via variável de ambiente")
             
             processing_time = time.time() - start_time
             logger.info(f"✓ Processamento concluído em {processing_time:.2f}s")
             logger.info(f"Performance: {len(processed_reports)/processing_time:.1f} relatórios/segundo")
-            logger.info('AAAAAAAAAAAAAAAAAAAAAAAAAAA')
             
             return output_path
             
