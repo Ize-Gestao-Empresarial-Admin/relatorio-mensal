@@ -13,7 +13,8 @@ from typing import Optional, Tuple
 # Adicionar o diretório raiz ao path para importações
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
-from src.pdf_postprocessor import PDFPostProcessor
+# MUDANÇA PARA CORRIGIR STREAMLIT CLOUD: importar do diretório principal
+from pdf_postprocessor import PDFPostProcessor
 
 logger = logging.getLogger(__name__)
 
