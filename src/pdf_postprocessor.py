@@ -127,19 +127,22 @@ class PDFPostProcessor:
             logger.debug(f"  Template hash: {template_hash}")
             logger.debug(f"  Hash match: {page_text_hash == template_hash}")
             
-            if page_text_hash == template_data['text_hash']:
+            # NOVA LÓGICA: Detectar apenas páginas completamente vazias (0 caracteres)
+            # NÃO remover páginas baseado no template em produção
+            if len(page_text) == 0:
+                logger.info("🗑️ Página completamente vazia detectada (0 caracteres)")
+                logger.warning(f"⚠️ PRODUÇÃO DEBUG: Página vazia removida - 0 caracteres")
+                return True
+            
+            # DESABILITADO TEMPORARIAMENTE: Comparação com template
+            # Esta lógica estava removendo páginas válidas em produção
+            if False and page_text_hash == template_data['text_hash']:
                 logger.info("🎯 Página idêntica detectada por hash de texto")
                 logger.warning(f"⚠️ PRODUÇÃO DEBUG: Página removida - texto='{page_text[:50]}' hash={page_text_hash}")
                 return True
             
-            # 2. NOVA LÓGICA: Detectar páginas completamente vazias
-            if len(page_text) == 0:
-                logger.info("🗑️ Página completamente vazia detectada (0 caracteres)")
-                logger.warning(f"⚠️ PRODUÇÃO DEBUG: Página vazia removida")
-                return True
-            
-            # 3. Comparar conteúdo visual se disponível
-            if 'content_hash' in template_data:
+            # DESABILITADO: Comparar conteúdo visual se disponível
+            if False and 'content_hash' in template_data:
                 try:
                     if '/Contents' in page:
                         contents = page['/Contents']
@@ -154,17 +157,10 @@ class PDFPostProcessor:
                 except:
                     pass
             
-            # 4. Comparação texto exato como fallback
-            template_text = template_data.get('text', '')
-            if page_text == template_text and len(page_text) > 0:
+            # DESABILITADO: Comparação texto exato como fallback
+            if False and page_text == template_text and len(page_text) > 0:
                 logger.info("🎯 Página idêntica detectada por texto exato")
                 logger.warning(f"⚠️ PRODUÇÃO DEBUG: Página removida por texto exato - '{page_text[:50]}'")
-                return True
-            
-            # 5. Verificar se é página completamente vazia (caso especial - redundante, mas mantido para compatibilidade)
-            if len(page_text) == 0 and len(template_text) == 0:
-                logger.info("🎯 Página vazia detectada (fallback)")
-                logger.warning(f"⚠️ PRODUÇÃO DEBUG: Página vazia removida (fallback)")
                 return True
                 
             return False

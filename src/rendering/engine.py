@@ -192,11 +192,32 @@ class RenderingEngine:
 
         keep = os.getenv("KEEP_WKHTML_HTML") == "1"
         try:
+            # DEBUG: Log detalhado do comando e conteúdo HTML
+            logger.info(f"🔧 Executando wkhtmltopdf para {rel_name}")
+            logger.debug(f"📄 HTML size: {len(html)} caracteres")
+            logger.debug(f"📄 HTML snippet: {html[:200]}...")
+            logger.debug(f"🖥️ Comando: {' '.join(cmd)}")
+            
             subprocess.run(cmd, check=True)
-            logger.info(f"PDF gerado para {rel_name}: {pdf_path}")
+            
+            # Verificar se o PDF foi criado corretamente
+            if os.path.exists(pdf_path):
+                file_size = os.path.getsize(pdf_path)
+                logger.info(f"✅ PDF gerado para {rel_name}: {pdf_path} ({file_size} bytes)")
+                
+                # Debug adicional: verificar se PDF não está vazio
+                if file_size < 1000:
+                    logger.warning(f"⚠️ PDF muito pequeno para {rel_name}: {file_size} bytes - possível problema")
+                    
+            else:
+                logger.error(f"❌ PDF não foi criado para {rel_name}")
+                return None
+                
             return pdf_path
         except subprocess.CalledProcessError as e:
-            logger.error(f"Erro ao converter HTML para PDF ({rel_name}): {e}")
+            logger.error(f"❌ Erro ao converter HTML para PDF ({rel_name}): {e}")
+            logger.error(f"🖥️ Comando que falhou: {' '.join(cmd)}")
+            logger.error(f"📄 HTML que causou erro (primeiros 500 chars): {html[:500]}...")
             return None
         finally:
             if not keep:
@@ -238,8 +259,25 @@ class RenderingEngine:
                 
                 html = renderer.render(dados, cliente_nome, mes_nome, ano)
             
-            if not isinstance(html, str) or not html.strip():
-                return None, rel_nome, "HTML inválido"
+            # DEBUG: Verificar conteúdo HTML gerado
+            if not isinstance(html, str):
+                logger.error(f"❌ {rel_nome}: HTML não é string, tipo: {type(html)}")
+                return None, rel_nome, "HTML inválido - tipo incorreto"
+                
+            html_clean = html.strip()
+            if not html_clean:
+                logger.error(f"❌ {rel_nome}: HTML está vazio")
+                return None, rel_nome, "HTML vazio"
+                
+            logger.info(f"✅ {rel_nome}: HTML gerado com {len(html_clean)} caracteres")
+            
+            # Verificar se HTML contém conteúdo mínimo esperado
+            if len(html_clean) < 100:
+                logger.warning(f"⚠️ {rel_nome}: HTML muito pequeno ({len(html_clean)} chars)")
+                logger.debug(f"📄 HTML: {html_clean}")
+            elif not any(tag in html_clean.lower() for tag in ['<body>', '<div>', '<table>', '<p>']):
+                logger.warning(f"⚠️ {rel_nome}: HTML não contém tags esperadas")
+                logger.debug(f"📄 HTML snippet: {html_clean[:200]}...")
             
             pdf_path = self._render_html_to_pdf(html, rel_nome)
             
