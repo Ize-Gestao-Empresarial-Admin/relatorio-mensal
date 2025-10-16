@@ -3,6 +3,14 @@ import pandas as pd
 from sqlalchemy import create_engine, text
 from typing import Optional, Union, Dict, List, Tuple
 from datetime import date
+import sys
+import os
+
+# Garantir que o diretório raiz está no Python path
+root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if root_dir not in sys.path:
+    sys.path.insert(0, root_dir)
+
 from config.settings import DB_CONFIG
 
 class DatabaseConnection:
