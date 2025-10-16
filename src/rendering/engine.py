@@ -333,9 +333,9 @@ class RenderingEngine:
             logger.info(f"✓ PDF final gerado: {output_path}")
             logger.info(f"Relatórios processados na ordem correta: {', '.join(processed_reports)}")
             
-            # Aplicar pós-processamento inteligente para remover páginas vazias
-            # ALGORITMO MELHORADO: Ignora rodapés e detecta páginas realmente vazias
-            enable_postprocessing = True  # Reabilitado com lógica inteligente
+            # Aplicar pós-processamento com comparação de template
+            # NOVO ALGORITMO v3.0: Remove apenas páginas idênticas ao template de erro
+            enable_postprocessing = True  # Reabilitado com nova lógica de template
             
             if enable_postprocessing:
                 try:
