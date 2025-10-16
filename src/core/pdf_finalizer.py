@@ -56,11 +56,13 @@ class PDFinalizer:
             stats_before = PDFPostProcessor.analyze_pdf_content(pdf_path)
             logger.info(f"📊 PDF original: {stats_before['total_pages']} páginas")
             
-            if stats_before['empty_pages']:
-                logger.warning(f"❌ Páginas vazias detectadas: {stats_before['empty_pages']}")
+            # O novo algoritmo usa 'error_pages' em vez de 'empty_pages'
+            pages_to_remove = stats_before.get('error_pages', [])
+            if pages_to_remove:
+                logger.warning(f"❌ Páginas de erro detectadas: {pages_to_remove}")
             
             # Aplicar pós-processamento se necessário
-            if remove_blank_pages and stats_before['empty_pages']:
+            if remove_blank_pages and pages_to_remove:
                 success, final_path, removed_pages = self.postprocessor.remove_blank_pages(pdf_path)
                 
                 if success:
