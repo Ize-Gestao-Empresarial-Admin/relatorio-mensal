@@ -362,6 +362,14 @@ class Relatorio5Renderer(BaseRenderer):
         seta_down_laranja_path = os.path.join(icons_dir, "SETA-DOWN-LARANJA.svg")
         with open(seta_down_laranja_path, "rb") as f:
             seta_down_laranja_b64 = base64.b64encode(f.read()).decode("utf-8")
+        
+        seta_up_laranja_path = os.path.join(icons_dir, "SETA-UP-LARANJA.svg")
+        with open(seta_up_laranja_path, "rb") as f:
+            seta_up_laranja_b64 = base64.b64encode(f.read()).decode("utf-8")
+        
+        seta_down_verde_path = os.path.join(icons_dir, "SETA-DOWN-VERDE.svg")
+        with open(seta_down_verde_path, "rb") as f:
+            seta_down_verde_b64 = base64.b64encode(f.read()).decode("utf-8")
             
         # Processar dados do relatório
         geracao_de_caixa_data = next((item for item in relatorio_data if item['categoria'] == 'Geração de Caixa'), {})
@@ -409,6 +417,8 @@ class Relatorio5Renderer(BaseRenderer):
             icon_rodape=icon_rodape,
             seta_b64=seta_up_verde_b64,
             seta_b64_2=seta_down_laranja_b64,
+            seta_b64_3=seta_up_laranja_b64,
+            seta_b64_4=seta_down_verde_b64,
             histogram_base64=histogram_base64,  # NOVO: Adicionar gráfico
             cliente_nome=cliente_nome,
             mes_nome=mes_nome,
