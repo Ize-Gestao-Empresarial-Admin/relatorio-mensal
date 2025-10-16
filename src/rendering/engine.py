@@ -356,6 +356,7 @@ class RenderingEngine:
             processing_time = time.time() - start_time
             logger.info(f"✓ Processamento concluído em {processing_time:.2f}s")
             logger.info(f"Performance: {len(processed_reports)/processing_time:.1f} relatórios/segundo")
+            logger.info('AAAAAAAAAAAAAAAAAAAAAAAAAAA')
             
             return output_path
             
