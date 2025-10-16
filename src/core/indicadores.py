@@ -2,8 +2,16 @@
 from datetime import date
 from typing import Union, List, Dict, Any, Optional
 from sqlalchemy import text
-from src.database.db_utils import DatabaseConnection
 import pandas as pd
+import sys
+import os
+
+# Garantir que o diretório raiz está no Python path
+root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if root_dir not in sys.path:
+    sys.path.insert(0, root_dir)
+
+from src.database.db_utils import DatabaseConnection
 
 class Indicadores:
     def __init__(self, id_cliente: Union[int, List[int]], db_connection: DatabaseConnection):

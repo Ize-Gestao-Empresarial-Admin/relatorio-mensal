@@ -1,14 +1,21 @@
 import streamlit as st
 from streamlit_quill import st_quill
 from datetime import date, timedelta
+import sys
+import os
+import re
+
+# Garantir que o diretório raiz está no Python path
+root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if root_dir not in sys.path:
+    sys.path.insert(0, root_dir)
+
 from src.database.db_utils import DatabaseConnection, buscar_clientes, obter_meses, obter_anos
 from src.core.indicadores import Indicadores
 from src.core.relatorios import (
     Relatorio1, Relatorio2, Relatorio3, Relatorio4, Relatorio5, Relatorio6, Relatorio7, Relatorio8
 )
 from src.rendering.engine import RenderingEngine
-import os
-import re
 
 def verificar_permissoes():
     """
