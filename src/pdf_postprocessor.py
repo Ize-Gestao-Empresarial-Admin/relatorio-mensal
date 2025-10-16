@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
 Utilitário para pós-processamento de PDFs - Remove páginas vazias automaticamente.
+VERSÃO: v2.1-intelligent-pdf-algorithm (Branch: main-v2)
 """
 
 import PyPDF2
@@ -12,7 +13,7 @@ from typing import List, Tuple
 logger = logging.getLogger(__name__)
 
 class PDFPostProcessor:
-    """Classe para pós-processamento de PDFs gerados."""
+    """Classe para pós-processamento de PDFs gerados com algoritmo inteligente."""
     
     @staticmethod
     def remove_blank_pages(pdf_path: str, output_path: str = None) -> Tuple[bool, str, List[int]]:
@@ -40,6 +41,7 @@ class PDFPostProcessor:
                 total_pages = len(reader.pages)
                 
                 logger.info(f"📄 Analisando PDF: {pdf_path} ({total_pages} páginas)")
+                logger.info("🧠 ALGORITMO INTELIGENTE ATIVO - v2.1-main-v2")
                 
                 for page_num, page in enumerate(reader.pages, 1):
                     try:
