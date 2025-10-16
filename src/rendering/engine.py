@@ -335,7 +335,7 @@ class RenderingEngine:
             
             # Aplicar pós-processamento inteligente para remover páginas vazias
             # ALGORITMO MELHORADO: Ignora rodapés e detecta páginas realmente vazias
-            enable_postprocessing = True  # Reabilitado com lógica inteligente
+            enable_postprocessing = False  # TEMPORARIAMENTE DESABILITADO para debug
             
             if enable_postprocessing:
                 try:
