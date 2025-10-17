@@ -242,6 +242,20 @@ def gerar_pdf(payload: RelatorioRequest):
     db = DatabaseConnection()
     indicadores = Indicadores(id_cliente, db)  # passa a lista (suporta consolidado)
 
+    # 4.1) Validar se o cliente possui dados válidos para o período
+    dados_validos, mensagem_erro = validar_dados_cliente(indicadores, mes_atual)
+    if not dados_validos:
+        raise HTTPException(
+            status_code=422, 
+            detail={
+                "error": "Dados insuficientes",
+                "message": mensagem_erro,
+                "cliente_id": id_cliente,
+                "periodo": f"{mes}/{ano}",
+                "code": "NO_DATA_AVAILABLE"
+            }
+        )
+
     # Índice (igual à UI)
     meses = obter_meses()
     nome_mes = next((nm for nm, n in meses if n == mes), str(mes))
@@ -291,6 +305,55 @@ def gerar_pdf(payload: RelatorioRequest):
         media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename=\"{filename}\"'}
     )
+
+# ---------------------------
+# Helpers de validação de dados
+# ---------------------------
+def validar_dados_cliente(indicadores: Indicadores, mes_atual: date) -> tuple[bool, str]:
+    """
+    Valida se o cliente possui dados válidos (não zerados/nulos) para o período especificado.
+    
+    Args:
+        indicadores: Instância de Indicadores do cliente
+        mes_atual: Data do mês para validação
+        
+    Returns:
+        Tupla (dados_validos: bool, mensagem_erro: str)
+    """
+    try:
+        # Verificar receitas
+        receitas = indicadores.calcular_receitas_fc(mes_atual, '3.%')
+        receita_total = sum(float(r.get('total_categoria', 0)) for r in receitas) if receitas else 0
+        
+        # Verificar custos variáveis
+        custos = indicadores.calcular_custos_variaveis_fc(mes_atual, '4.%')
+        custos_total = sum(abs(float(c.get('total_categoria', 0))) for c in custos) if custos else 0
+        
+        # Verificar despesas fixas
+        despesas = indicadores.calcular_despesas_fixas_fc(mes_atual)
+        despesas_total = sum(abs(float(d.get('total_categoria', 0))) for d in despesas) if despesas else 0
+        
+        # Validar se há pelo menos alguma movimentação financeira significativa
+        # Considera dados válidos se há receita OU movimentação de custos/despesas
+        has_receita = receita_total > 0
+        has_movimentacao = custos_total > 0 or despesas_total > 0
+        
+        if not has_receita and not has_movimentacao:
+            # Se não há nenhuma movimentação, verificar se há pelo menos registros na base
+            if not receitas and not custos and not despesas:
+                return False, "Não foram encontrados dados financeiros para este cliente no período especificado."
+            else:
+                return False, "Os dados financeiros do cliente estão zerados para o período especificado."
+        
+        # Se há receita mas não há custos/despesas, pode ser válido (empresa sem custos no período)
+        # Se há custos/despesas mas não receita, pode indicar problema nos dados
+        if has_receita or has_movimentacao:
+            return True, ""
+            
+        return False, "Dados financeiros inconsistentes encontrados para o período."
+        
+    except Exception as e:
+        return False, f"Erro ao validar dados do cliente: {str(e)}"
 
 # ---------------------------
 # Endpoint GET compatível com query params "estilo Streamlit"
