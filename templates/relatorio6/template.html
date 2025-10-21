@@ -10,123 +10,102 @@
             margin: 0;
             padding: 0;
             font-family: 'Inter', sans-serif;
-            height: auto !important;   /* em vez de min-height:100% */
-            position: static;          /* não precisa ser relative */
+            height: auto !important;
+            position: static;
         }
         
-        /* Contêiner principal para o conteúdo - Igual ao do relatório 4 */
         .main-content {
-            padding: 20px;             /* padding uniforme */
-            padding-bottom: 0;         /* nada de 80px aqui */
+            padding: 20px;
+            padding-bottom: 0;
             box-sizing: border-box;
         }
         
         .section-title { font-size:25px; font-weight:bold; margin-top:1px; margin-bottom:40px; text-align: center; }
-        /* cor do nome do relatório */
-        .report-name {
-            color: #A5A5A5; 
-        }
-        /* cor do período */
-        .report-period {
-            color: #A5A5A5; 
-        }
-        /* barra laranja acima do cabeçalho */
+
+        .report-name { color: #A5A5A5; }
+        .report-period { color: #A5A5A5; }
+
         .header-accent {
-            width: 100px;               /* ajuste a largura que quiser */
-            height: 6px;               /* ajuste a espessura */
-            background-color: #FF6900; /* laranja */
-            margin: 0 0 4px 652px;     /* Alinhado com relatório 4 */
-            border-radius: 3px 3px 0 0;        /* cantos levemente arredondados */
+            width: 100px;
+            height: 6px;
+            background-color: #FF6900;
+            margin: 0 0 4px 652px;
+            border-radius: 3px 3px 0 0;
         }
-        /* cabeçalho acima da primeira caixa */
+
         .report-header {
             border-top: 1px solid #D9D9D9;
             margin: 0 0 8px 0;
         }
-        /* container com nome e período */
+
         .report-header-info {
             display: flex;
-            justify-content: flex-start;   /* todos os itens começam à esquerda */
+            justify-content: flex-start;
             align-items: center;
             width: 100%;
             font-size: 14px;
             margin: 4px 0 16px;
             white-space: nowrap;
         }
-        /* empurra o segundo span para a margem direita */
-        .report-header-info .report-period {
-            margin-left: auto;
-        }
-        /* contêiner com borda cinza arredondada */
+
+        .report-header-info .report-period { margin-left: auto; }
+
         .box-frame {
-            page-break-inside: auto;   /* ← permitir quebrar */
+            page-break-inside: auto;
             border: 1px solid #D9D9D9;
             border-radius: 16px;
             padding: 32px;
             margin: 30px 0 18px;
         }
-        /* quadrado em branco (vazio) */
+
         .box-frame.blank {
-            height: 100px;       /* ajuste a altura conforme quiser */
-            margin: 0 0 24px 0;  /* distância abaixo do bloco */
+            height: 100px;
+            margin: 0 0 24px 0;
         }
 
         .metrics-row {
             display: flex;
-            justify-content: center;  /* Centralizar os cartões */
+            justify-content: center;
             margin-top: 60px;
-            text-align: center; /* Para centralização adequada */
+            text-align: center;
         }
 
-        /* sobrescreve SÓ para a primeira linha */
-        .metrics-row.no-wrap {
-            flex-wrap: nowrap;  /* força TODOS numa só linha, sem quebra */
-        }
+        .metrics-row.no-wrap { flex-wrap: nowrap; }
         
         .metric-card {
-            position: relative;    
+            position: relative;
             display: inline-block;
             border: 1.3px solid #CFCFCF;
             border-radius: 12px;
             padding: 16px 6px 12px;
-            width: 175px;  /* Aumentada para ficar mais retangular */
+            width: 175px;
             background: white;
             box-sizing: border-box;
             text-align: center;
             min-height: 100px;
             vertical-align: top;
-            margin-left: 10px; /* Espaçamento fixo entre os cards */
-            margin-right: 10px; /* Espaçamento fixo entre os cards */
+            margin-left: 10px;
+            margin-right: 10px;
         }
 
-        /* só o título do primeiro card */
-        .metrics-row .metric-card:first-child .metric-label {
-            margin-top: 13px;
-        }
+        .metrics-row .metric-card:first-child .metric-label { margin-top: 13px; }
+        .metrics-row .metric-card:last-child  .metric-label { margin-top: 13px; }
+        .metric-card--operacional .metric-label { margin-top: 13px; }
 
-        /* só o título do último card */
-        .metrics-row .metric-card:last-child .metric-label {
-            margin-top: 13px;
-        }
+        .metrics-row + .metrics-row { margin-top: 60px; }
 
-        /* Segunda linha (.metrics-row), segundo card (Lucro Operacional) */
-        .metric-card--operacional .metric-label {
-            margin-top: 13px;
-        }
-
-        .metrics-row + .metrics-row {
-            margin-top: 60px;
-        }
-
+        /* ==== CORREÇÃO DE CENTRALIZAÇÃO DOS ÍCONES ==== */
         .metric-icon {
             position: absolute;
             top: -27px;
-            left: 37%;
-            transform: translateX(-50%);
-            background-color: #FFFFFF;
-            border-radius: 40%;
-            width: 45px;          /* um pouco maior que o ícone */
+            /* Centralização robusta para renderizadores de PDF */
+            left: 0;
+            right: 0;
+            margin: 0 auto;          /* centra horizontalmente */
+            width: 45px;
             height: 45px;
+            background-color: #FFFFFF;
+            border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -136,6 +115,7 @@
         .metric-icon img {
             width: 45px;
             height: 45px;
+            display: block;
         }
 
         .metric-label {
@@ -166,20 +146,22 @@
             text-align: left;
             page-break-before: avoid;
         }
+
         .notes-title + .box-frame {
-            margin-top: 12px;      /* antes era 45px na .box-frame geral */
+            margin-top: 12px;
             margin-bottom: 8px;
             padding: 30px;
         }
+
         .notes-content {
-            white-space: pre-wrap;   /* preserva quebras de linha */
-            text-align: left;        /* garante que todo o texto fique alinhado à esquerda */
-            margin: 0;               /* zera qualquer margem interna */
-            padding: 0;              /* zera qual6quer padding interno se houver */
+            white-space: pre-wrap;
+            text-align: left;
+            margin: 0;
+            padding: 0;
             font-size: 17px;
             line-height: 1.7;
         }
-        </style>
+    </style>
 </head>
 <body>
     <div class="main-content">
@@ -191,6 +173,7 @@
                 <td class="report-period" style="padding:0; text-align:right; font-size:14px;">{{ data.Periodo }}</td>
             </tr>
         </table>
+
         <div class="box-frame">
             <div class="section-title">DRE - Análise por Competência</div>
             <img src="data:image/png;base64,{{ chart_base64 }}" style="width:100%; height:auto; margin-top:1rem;" alt="Waterfall DRE"/>
