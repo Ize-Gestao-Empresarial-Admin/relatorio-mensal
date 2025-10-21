@@ -1,30 +1,14 @@
-# Configuração padronizada do Streamlit para ambiente local e produção
-# Versão 2.0 - Configuração estável para geração de PDFs consistente
-
-[global]
-developmentMode = false
+# Configuração compatível com Streamlit Cloud
+# Versão 2.1 - Configuração minimalista e estável
 
 [theme]
 base = "light"
-primaryColor = "#FF6900"  # More saturated orange
+primaryColor = "#FF6900"
 
 [server]
 enableCORS = false
 enableXsrfProtection = false
 maxUploadSize = 200
-maxMessageSize = 200
-runOnSave = false
-allowRunOnSave = false
 
 [browser]
 gatherUsageStats = false
-
-[logger]
-level = "info"
-
-[client]
-showErrorDetails = false
-
-# Configurações específicas para produção
-[runner]
-magicEnabled = true
