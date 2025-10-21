@@ -1,26 +1,50 @@
-streamlit>=1.50.0
-streamlit-quill
-pandas
-plotly
-psycopg2-binary
-SQLAlchemy
-reportlab
-pillow
-fastapi
-uvicorn[standard]
-pytest
-pytest-cov
-python-dotenv
-pdfkit
-matplotlib
-pypdf
-PyPDF2
-scipy
-numpy
-jinja2
-python-dateutil
-pydantic>=2
-python-multipart
-python-jose
+# Dependências principais com versões fixadas para garantir consistência
+# entre ambiente local e produção
+
+# Framework principal
+streamlit==1.41.0
+streamlit-quill==0.7.0
+
+# Manipulação de dados
+pandas==2.2.3
+numpy==2.2.3
+scipy==1.14.1
+
+# Visualização
+plotly==6.0.0
+matplotlib==3.10.1
+
+# Banco de dados
+psycopg2-binary==2.9.10
+SQLAlchemy==2.0.36
+
+# PDF processing
+reportlab==4.2.5
+pypdf==5.1.0
+PyPDF2==3.0.1
+pdfkit==1.0.0
+
+# Utilitários
+pillow==11.1.0
+python-dotenv==1.0.1
+jinja2==3.1.5
+python-dateutil==2.9.0.post0
+
+# API
+fastapi==0.115.12
+uvicorn[standard]==0.34.0
+pydantic==2.10.6
+python-multipart==0.0.20
+python-jose==3.3.0
+
+# Testing
+pytest==8.3.4
+pytest-cov==6.0.0
+
+# Dependências adicionais para estabilidade
+Jinja2==3.1.5
+MarkupSafe==3.0.2
+kaleido==0.2.1
+packaging==25.0
 
 
