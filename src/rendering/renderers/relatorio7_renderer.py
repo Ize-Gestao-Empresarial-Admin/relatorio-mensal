@@ -8,6 +8,7 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
+
 class Relatorio7Renderer(BaseRenderer):
     """Renderizador específico para o Relatório 7 - Indicadores."""
     
@@ -135,59 +136,70 @@ class Relatorio7Renderer(BaseRenderer):
         else:  # SU
             return f"{valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
     
-    def _calculate_dynamic_sizes(self, nome, valor, bom=None):
-        """Calcula tamanhos dinâmicos para nome e valor baseado no tamanho do conteúdo"""
+    # ======== NOVA LÓGICA DE TAMANHOS DINÂMICOS ========
+    def _calculate_dynamic_sizes(self, nome, valor, bom=None, unidade: str = 'SU'):
+        """
+        Calcula tamanhos dinâmicos priorizando legibilidade:
+        - O NOME encolhe quando for longo (estimando nº de linhas).
+        - O VALOR sempre fica MAIOR que o nome (garantia com margem).
+        - O VALOR também ajusta conforme o comprimento do texto formatado.
+        """
+        # --- Heurística de linhas do nome ---
+        nome = (nome or '').strip()
         nome_length = len(nome)
-        
-        # Estimar se o nome vai quebrar em 3 linhas (aproximadamente 18 caracteres por linha)
-        caracteres_por_linha = 18
-        linhas_estimadas = math.ceil(nome_length / caracteres_por_linha)
-        
-        # Tamanho da fonte e posição do texto baseado no comprimento do nome
-        if linhas_estimadas >= 3 or nome_length > 54:  # 3 linhas * 18 chars = 54
-            nome_font_size = "11px"  # Reduzir fonte se for quebrar em 3 linhas
-            text_top = "15px"
-        elif nome_length > 40:
-            nome_font_size = "13px" 
-            text_top = "20px"
-        elif nome_length > 30:
-            nome_font_size = "14px"
-            text_top = "22px"
-        else:
-            nome_font_size = "16px"
-            text_top = "27px"
-        
-        # Tamanho da fonte do valor baseado no tamanho do número
-        # Se passa de milhão (1.000.000) e tem casas decimais significativas
-        if abs(valor) >= 1000000:
-            # Verificar se tem casas decimais significativas (não são .00)
-            parte_decimal = valor - int(valor)
-            if abs(parte_decimal) > 0.01:  # Tem decimais significativos
-                valor_font_size = "14px"
-            else:
-                valor_font_size = "16px"
-        elif abs(valor) >= 999999999:
-            valor_font_size = "15px"
-        else:
-            valor_font_size = "18px"
-        
-        # Tamanho da fonte do cenário baseado no valor do "bom"
+        # limite conservador para caber bem em cards estreitos (≈16 chars por linha)
+        MAX_CHARS_POR_LINHA = 16
+        linhas_estimadas = max(1, min(3, math.ceil(nome_length / MAX_CHARS_POR_LINHA)))
+
+        # bases e limites
+        BASE_NOME = 16   # tamanho base do nome
+        MIN_NOME  = 11   # mínimo para não ficar ilegível
+
+        BASE_VALOR = 22  # tamanho base do valor (deve dominar visualmente)
+        MAX_VALOR  = 24
+        MIN_VALOR  = 14
+        MARGEM_VALOR_MAIOR = 2  # valor sempre pelo menos 2px maior que o nome
+
+        # Reduz o nome conforme as linhas (e um pouco pelo comprimento total)
+        reducao_por_linha = (linhas_estimadas - 1) * 2  # 2px por linha extra
+        reducao_por_comprimento = max(0, (nome_length - 32) // 10)  # cai 1px a cada +10 chars após 32
+        nome_font_px = max(MIN_NOME, BASE_NOME - reducao_por_linha - reducao_por_comprimento)
+
+        # --- Comprimento real do valor exibido (formatação) ---
+        valor_str = self._format_valor_display(valor, unidade)
+        val_len = len(valor_str)
+
+        # Reduz o valor conforme comprimento do texto (sem perder protagonismo)
+        # a cada +3 chars acima de 12, reduz 1px
+        reducao_valor = max(0, (val_len - 12) // 3)
+        valor_font_px = max(MIN_VALOR, min(MAX_VALOR, BASE_VALOR - reducao_valor))
+
+        # GARANTIA: valor sempre maior que o nome
+        if valor_font_px <= nome_font_px:
+            valor_font_px = min(MAX_VALOR, nome_font_px + MARGEM_VALOR_MAIOR)
+
+        # top do bloco de texto conforme nº de linhas do nome (para respirar no card)
+        text_top_map = {1: '26px', 2: '22px', 3: '18px'}
+        text_top = text_top_map.get(linhas_estimadas, '22px')
+
+        # cenário pequeno/estável
         if bom is not None and not (isinstance(bom, float) and math.isnan(bom)):
-            cenario_font_size = "7px" if bom >= 10000000 else "8px"
+            cenario_font_px = 8
         else:
-            cenario_font_size = "8px"
-        
-        # Log para debugging casos problemáticos
-        if linhas_estimadas >= 3 or abs(valor) >= 1000000:
-            logger.debug(f"Ajuste: '{nome[:30]}...' (len={nome_length}, ~{linhas_estimadas} linhas) = {valor:,.2f} | "
-                        f"Nome: {nome_font_size}, Valor: {valor_font_size}")
-        
+            cenario_font_px = 8
+
+        logger.debug(
+            f"[Tamanhos] '{nome[:28]}...' len={nome_length}, linhas≈{linhas_estimadas}, "
+            f"valor='{valor_str}'(len={val_len}) -> nome={nome_font_px}px, valor={valor_font_px}px"
+        )
+
         return {
-            'nome_font_size': nome_font_size,
+            'nome_font_size': f"{nome_font_px}px",
             'text_top': text_top,
-            'valor_font_size': valor_font_size,
-            'cenario_font_size': cenario_font_size
+            'valor_font_size': f"{valor_font_px}px",
+            'cenario_font_size': f"{cenario_font_px}px"
         }
+    # ======== FIM: NOVA LÓGICA ========
 
     def _dividir_indicadores_em_paginas(self, indicadores_processados, indicadores_por_pagina=24):
         """Divide os indicadores em grupos para páginas separadas"""
@@ -286,8 +298,8 @@ class Relatorio7Renderer(BaseRenderer):
             performance = self._determine_performance(indicador)
             header_color = self._get_header_color(performance)
             
-            # Calcular tamanhos dinâmicos
-            sizes = self._calculate_dynamic_sizes(nome, valor, cenario_bom)
+            # Calcular tamanhos dinâmicos (PASSA UNIDADE AQUI)
+            sizes = self._calculate_dynamic_sizes(nome, valor, cenario_bom, unidade)
             
             # Processar dados do indicador
             indicador_processado = {
