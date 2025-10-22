@@ -226,21 +226,30 @@ class Relatorio5Renderer(BaseRenderer):
                             linewidth=cfg['styling']['marker_edge_width'], 
                             zorder=5)
         
-        # Adicionar valores de acumulado - MODIFICADO: z-order alto para sobrepor qualquer elemento
+        # Adicionar valores de acumulado com destaque visual e posição horizontal ("deitado")
         if cfg['annotations']['show_acc_values']:
             for i, (valor_real, valor_abs) in enumerate(zip(acumulado, acumulado_absoluto)):
-                # ALTERADO: formatar o valor real (com sinal), mas posicionar no valor absoluto
+                # PULAR O PRIMEIRO MÊS → evita duplicar o valor acumulado inicial
+                if i == 0:
+                    continue
+
                 valor_formatado = f"R${valor_real:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-                
-                ax.annotate(valor_formatado, 
-                           (i, valor_abs),  # ALTERADO: posicionar no valor absoluto
-                           textcoords="offset points", 
-                           xytext=(0,15), 
-                           ha='center', 
-                           fontsize=cfg['annotations']['font_size_acc'],
-                           fontweight='bold',
-                           color='#4A4A4A',
-                           zorder=20)  # ALTERADO: z-order muito alto (20) para sobrepor tudo, sem bbox
+
+                # Nova posição: valor "deitado" à direita do ponto
+                ax.annotate(
+                    valor_formatado,
+                    (i, valor_abs),               # posição do ponto
+                    textcoords="offset points",
+                    xytext=(10, -5),              # desloca um pouco à direita e para baixo
+                    ha='left', va='center',       # alinhamento horizontal à esquerda
+                    fontsize=cfg['annotations']['font_size_acc'] + 1,  # ligeiramente maior
+                    fontweight='bold',            # negrito
+                    color='#1C1C1C',              # cor preta para destaque
+                    rotation=0,                   # horizontal ("deitado")
+                    zorder=20
+                )
+
+
         
         # Linha de média tracejada - MODIFICADO: sempre mostrar, usar valor absoluto para posicionamento
         if media != 0:  # ALTERADO: mostrar sempre que não for zero

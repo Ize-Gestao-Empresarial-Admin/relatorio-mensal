@@ -6,19 +6,17 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
 
-        /* Resetar margens e definir layout base */
         html, body {
             margin: 0;
             padding: 0;
             font-family: 'Inter', sans-serif;
-            height: auto !important;   /* em vez de min-height:100% */
-            position: static;  
+            height: auto !important;
+            position: static;
         }
 
-        /* Contêiner principal para o conteúdo */
         .main-content {
-            padding: 20px;             /* padding uniforme */
-            padding-bottom: 0;         /* nada de 80px aqui */
+            padding: 20px;
+            padding-bottom: 0;
             box-sizing: border-box;
         }
 
@@ -38,7 +36,7 @@
         }
 
         .notes-title + .box-frame {
-            margin-top: 12px;      /* antes era 45px na .box-frame geral */
+            margin-top: 12px;
             margin-bottom: 8px;
             padding: 30px;
         }
@@ -49,13 +47,10 @@
             border-radius: 8px;
             overflow: hidden;
             margin: 2px 0 0 0;
-            display: flex; /* garante que não deixe de renderizar se der 100.01 */
+            display: flex;
         }
 
-        .bar-segment {
-            float: left;
-            height: 100%;
-        }
+        .bar-segment { float: left; height: 100%; }
 
         .bar-total {
             font-size: 17px;
@@ -76,9 +71,7 @@
             margin: 20px 0;
         }
 
-        .report-name, .report-period {
-            color: #A5A5A5;
-        }
+        .report-name, .report-period { color: #A5A5A5; }
 
         table.cat-table {
             width: 100%;
@@ -97,21 +90,12 @@
             font-size: 17px;
         }
 
-        table.cat-table td:nth-child(3) {
-            font-weight: 700;
-        }
+        table.cat-table td:nth-child(3) { font-weight: 700; }
+        table.cat-table td:nth-child(4), table.cat-table td:nth-child(5) { font-size: 14px; }
 
-        table.cat-table td:nth-child(4), table.cat-table td:nth-child(5) {
-            font-size: 14px;
-        }
+        table.cat-table thead { display: table-header-group; }
 
-        table.cat-table thead {
-            display: table-header-group;
-        }
-
-        table.cat-table thead th {
-            visibility: hidden;
-        }
+        table.cat-table thead th { visibility: hidden; }
 
         table.cat-table thead th:nth-child(4),
         table.cat-table thead th:nth-child(5) {
@@ -157,32 +141,26 @@
             white-space: nowrap;
         }
 
-        .report-header-info .report-period {
-            margin-left: auto;
-        }
+        .report-header-info .report-period { margin-left: auto; }
 
         .box-frame {
-            page-break-inside: auto;   /* ← permitir quebrar */
+            page-break-inside: auto;
             border: 1px solid #D9D9D9;
             border-radius: 16px;
             padding: 32px;
             margin: 30px 0 18px;
         }
 
-        .box-frame.blank {
-            height: 100px;
-            margin: 0 0 24px 0;
-        }
+        .box-frame.blank { height: 100px; margin: 0 0 24px 0; }
 
         .notes-content {
-            white-space: pre-wrap;   /* preserva quebras de linha */
-            text-align: left;        /* garante que todo o texto fique alinhado à esquerda */
-            margin: 0;               /* zera qualquer margem interna */
-            padding: 0;              /* zera qualquer padding interno se houver */
+            white-space: pre-wrap;
+            text-align: left;
+            margin: 0;
+            padding: 0;
             font-size: 17px;
             line-height: 1.7;
         }
-        
     </style>
 </head>
 <body>
@@ -199,6 +177,7 @@
                 </td>
             </tr>
         </table>
+
         <div class="box-frame">
             <div class="section">
                 <div class="section-title">Lucro Líquido</div>
@@ -240,9 +219,8 @@
                                 <td>{{ cat.representatividade|format_percentage }}</td>
                                 <td>
                                     {% if cat.name == 'Custos Variáveis' or cat.name == 'Despesas Fixas' or cat.name == 'Investimentos' %}
-                                        {# Para Custos Variáveis, Despesas Fixas e Investimentos, a lógica é invertida #}
                                         {% if cat.variacao >= 0 %}
-                                            <span class="var-up"> 
+                                            <span class="var-up">
                                                 <img src="data:image/svg+xml;base64,{{ seta_b64_3 }}" alt="↑"/>
                                                 {{ cat.variacao|format_percentage }}
                                             </span>
@@ -253,9 +231,8 @@
                                             </span>
                                         {% endif %}
                                     {% else %}
-                                        {# Para Receita, aumento é bom #}
                                         {% if cat.variacao >= 0 %}
-                                            <span class="var-up"> 
+                                            <span class="var-up">
                                                 <img src="data:image/svg+xml;base64,{{ seta_b64 }}" alt="↑"/>
                                                 {{ cat.variacao|format_percentage }}
                                             </span>
@@ -272,26 +249,34 @@
                     </tbody>
                 </table>
             </div>
+
             <hr class="section-separator"/>
+
             <div class="section">
                 <div class="section-title">Resultados Não Operacionais</div>
-                <!-- Cores dinâmicas baseadas no valor total -->
+
                 {% if data.resultados_nao_operacionais >= 0 %}
-                    {% set resultados_colors = ['#007F4F', '#33B283', '#7FCEB1', '#ebebeb'] %}  <!-- Verde (positivo) -->
+                    {% set resultados_colors = ['#007F4F', '#33B283', '#7FCEB1', '#ebebeb'] %}
                 {% else %}
-                    {% set resultados_colors = ['#E75F00', '#FF8733', '#FFB37F', '#ebebeb'] %}  <!-- Laranja (negativo) -->
+                    {% set resultados_colors = ['#E75F00', '#FF8733', '#FFB37F', '#ebebeb'] %}
                 {% endif %}
+
+                {# ===== LISTA ORDENADA: garante 7.1 antes de 7.2 e mantém cores consistentes ===== #}
+                {% set rno_cats = data.resultados_nao_operacionais_categories | sort(attribute='name') %}
+
                 <div class="bar-container">
-                    {% for cat in data.resultados_nao_operacionais_categories %}
+                    {% for cat in rno_cats %}
                         <div class="bar-segment"
                              style="width: {{ cat.barra_rep }}%; background-color: {{ resultados_colors[loop.index0 % resultados_colors|length] }};">
                         </div>
                     {% endfor %}
                 </div>
+
                 <div class="bar-total">
                     {{ '%.0f'|format(data.represent_resultados_nao_operacionais) }}%
                 </div>
                 <div class="value">{{ data.resultados_nao_operacionais|format_currency }}</div>
+
                 <table class="cat-table">
                     <colgroup>
                         <col style="width:5%" />
@@ -310,60 +295,61 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% for cat in data.resultados_nao_operacionais_categories %}
-        <tr>
-            <td><div class="legend-box" style="background-color:{{ resultados_colors[loop.index0 % resultados_colors|length] }};"></div></td>
-            <td>{{ cat.name }}</td>
-            <td>{{ cat.value|format_currency }}</td>
-            <td>{{ cat.representatividade|format_percentage }}</td>
-            <td>
-                {% if "7.1" in cat.name %}
-                    {# 7.1 Entradas Não Operacionais: aumento é bom #}
-                    {% if cat.variacao >= 0 %}
-                        <span class="var-up"> 
-                            <img src="data:image/svg+xml;base64,{{ seta_b64 }}" alt="↑"/>
-                            {{ cat.variacao|format_percentage }}
-                        </span>
-                    {% else %}
-                        <span class="var-down">
-                            <img src="data:image/svg+xml;base64,{{ seta_b64_2 }}" alt="↓"/>
-                            {{ cat.variacao|format_percentage }}
-                        </span>
-                    {% endif %}
-                {% elif "7.2" in cat.name %}
-                    {# 7.2 Saídas Não Operacionais: aumento é ruim (lógica invertida) #}
-                    {% if cat.variacao >= 0 %}
-                        <span class="var-up"> 
-                            <img src="data:image/svg+xml;base64,{{ seta_b64_3 }}" alt="↑"/>
-                            {{ cat.variacao|format_percentage }}
-                        </span>
-                    {% else %}
-                        <span class="var-down">
-                            <img src="data:image/svg+xml;base64,{{ seta_b64 }}" alt="↓"/>
-                            {{ cat.variacao|format_percentage }}
-                        </span>
-                    {% endif %}
-                {% else %}
-                    {# Outras categorias: usar lógica padrão #}
-                    {% if cat.variacao >= 0 %}
-                        <span class="var-up"> 
-                            <img src="data:image/svg+xml;base64,{{ seta_b64_3 }}" alt="↑"/>
-                            {{ cat.variacao|format_percentage }}
-                        </span>
-                    {% else %}
-                        <span class="var-down">
-                            <img src="data:image/svg+xml;base64,{{ seta_b64_4 }}" alt="↓"/>
-                            {{ cat.variacao|format_percentage }}
-                        </span>
-                    {% endif %}
-                {% endif %}
-            </td>
-        </tr>
-    {% endfor %}
-</tbody>
+                        {% for cat in rno_cats %}
+                            <tr>
+                                <td><div class="legend-box" style="background-color:{{ resultados_colors[loop.index0 % resultados_colors|length] }};"></div></td>
+                                <td>{{ cat.name }}</td>
+                                <td>{{ cat.value|format_currency }}</td>
+                                <td>{{ cat.representatividade|format_percentage }}</td>
+                                <td>
+                                    {% if "7.1" in cat.name %}
+                                        {# 7.1 Entradas Não Operacionais: aumento é bom #}
+                                        {% if cat.variacao >= 0 %}
+                                            <span class="var-up">
+                                                <img src="data:image/svg+xml;base64,{{ seta_b64 }}" alt="↑"/>
+                                                {{ cat.variacao|format_percentage }}
+                                            </span>
+                                        {% else %}
+                                            <span class="var-down">
+                                                <img src="data:image/svg+xml;base64,{{ seta_b64_2 }}" alt="↓"/>
+                                                {{ cat.variacao|format_percentage }}
+                                            </span>
+                                        {% endif %}
+                                    {% elif "7.2" in cat.name %}
+                                        {# 7.2 Saídas Não Operacionais: aumento é ruim (lógica invertida) #}
+                                        {% if cat.variacao >= 0 %}
+                                            <span class="var-up">
+                                                <img src="data:image/svg+xml;base64,{{ seta_b64_3 }}" alt="↑"/>
+                                                {{ cat.variacao|format_percentage }}
+                                            </span>
+                                        {% else %}
+                                            <span class="var-down">
+                                                <img src="data:image/svg+xml;base64,{{ seta_b64 }}" alt="↓"/>
+                                                {{ cat.variacao|format_percentage }}
+                                            </span>
+                                        {% endif %}
+                                    {% else %}
+                                        {# Outras categorias: lógica padrão #}
+                                        {% if cat.variacao >= 0 %}
+                                            <span class="var-up">
+                                                <img src="data:image/svg+xml;base64,{{ seta_b64_3 }}" alt="↑"/>
+                                                {{ cat.variacao|format_percentage }}
+                                            </span>
+                                        {% else %}
+                                            <span class="var-down">
+                                                <img src="data:image/svg+xml;base64,{{ seta_b64_4 }}" alt="↓"/>
+                                                {{ cat.variacao|format_percentage }}
+                                            </span>
+                                        {% endif %}
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
                 </table>
             </div>
         </div>
+
         <div class="notes-title">Notas</div>
         <div class="box-frame">
             <div class="notes-content">{{ data.notas }}</div>
