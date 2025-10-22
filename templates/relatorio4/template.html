@@ -181,7 +181,11 @@
         <div class="box-frame">
             <div class="section">
                 <div class="section-title">Lucro Líquido</div>
-                {% set lucro_colors = ['#007F4F', '#33B283', '#7FCEB1', '#B8E6D3'] %}
+                {% if data.lucro_liquido >= 0 %}
+                    {% set lucro_colors = ['#007F4F', '#33B283', '#7FCEB1', '#B8E6D3'] %}
+                {% else %}
+                    {% set lucro_colors = ['#E75F00', '#FF8733', '#FFB37F', '#ebebeb'] %}
+                {% endif %}
                 <div class="bar-container">
                     {% for cat in data.lucro_liquido_categories %}
                         <div class="bar-segment"
