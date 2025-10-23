@@ -110,9 +110,6 @@ class Relatorio5Renderer(BaseRenderer):
         # Calcular valores acumulados na ordem cronológica
         acumulado = np.cumsum(geracao_caixa)
         
-        # NOVO: Criar valores absolutos para posicionamento da linha
-        acumulado_absoluto = np.abs(acumulado)
-        
         # Definir cores baseadas nos valores
         cores = [cfg['colors']['positive'] if valor >= 0 else cfg['colors']['negative'] 
                  for valor in geracao_caixa]
@@ -131,49 +128,65 @@ class Relatorio5Renderer(BaseRenderer):
             else:
                 return f"{value:.0f}"
         
-        # Criar barras (todas começam do 0)
+        # Criar barras (respeitando valores negativos)
         barras = []
         for i, (val, cor) in enumerate(zip(geracao_caixa, cores)):
-            altura_barra = abs(val)
-            
-            rect = Rectangle(
-                (i - cfg['bar_width']/2, 0), 
-                cfg['bar_width'], altura_barra,
-                facecolor=cor, 
-                edgecolor=cor,
-                linewidth=cfg['styling']['bar_edge_width'],
-                joinstyle='round',
-                zorder=3
-            )
+            if val >= 0:
+                # Barra positiva: vai de 0 até val
+                rect = Rectangle(
+                    (i - cfg['bar_width']/2, 0), 
+                    cfg['bar_width'], val,
+                    facecolor=cor, 
+                    edgecolor=cor,
+                    linewidth=cfg['styling']['bar_edge_width'],
+                    joinstyle='round',
+                    zorder=3
+                )
+            else:
+                # Barra negativa: vai de val até 0
+                rect = Rectangle(
+                    (i - cfg['bar_width']/2, val), 
+                    cfg['bar_width'], abs(val),
+                    facecolor=cor, 
+                    edgecolor=cor,
+                    linewidth=cfg['styling']['bar_edge_width'],
+                    joinstyle='round',
+                    zorder=3
+                )
             ax.add_patch(rect)
             barras.append(rect)
         
         # Adicionar valores nas barras
         if cfg['annotations']['show_bar_values']:
             for i, height in enumerate(geracao_caixa):
-                y_position = abs(height) * 0.05
+                if height >= 0:
+                    y_position = height + (abs(height) * 0.05)
+                    va = 'bottom'
+                else:
+                    y_position = height - (abs(height) * 0.05)
+                    va = 'top'
+                
                 valor_formatado = f"R${height:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
                 
                 ax.annotate(valor_formatado,
                             xy=(i, y_position),
-                            ha='center', va='bottom',
+                            ha='center', va=va,
                             fontsize=cfg['annotations']['font_size_bars'], 
                             fontweight='bold',
                             color='black',
                             rotation=90)
         
-        # Criar linha de acumulado suavizada - MODIFICADO: usar valores absolutos para posicionamento
+        # Criar linha de acumulado suavizada - usando valores reais
         x = np.array(range(len(meses)))
-        y = np.array(acumulado_absoluto)  # ALTERADO: usar valores absolutos
-        y_real = np.array(acumulado)      # NOVO: manter valores reais para os rótulos
+        y = np.array(acumulado)  # usar valores reais do acumulado
         
         if len(meses) > 2:
             x_smooth = np.linspace(x.min(), x.max(), 300)
             k = min(2, len(meses)-1)
-            spl = make_interp_spline(x, y, k=k)  # usar valores absolutos para a curva
+            spl = make_interp_spline(x, y, k=k)  # usar valores reais para a curva
             y_smooth = spl(x_smooth)
             
-            # Criar degradê linear
+            # Criar degradê linear ajustado para valores positivos e negativos
             from matplotlib.colors import to_rgb
             cor_cinza = to_rgb(cfg['colors']['gradient_start'])
             
@@ -184,20 +197,48 @@ class Relatorio5Renderer(BaseRenderer):
             
             cmap = LinearSegmentedColormap.from_list('gradient_cinza', colors, N=256)
             
-            y_min = 0
-            y_max = np.max(y_smooth)
+            # Ajustar limites para incluir valores negativos
+            y_min = min(0, np.min(y_smooth))
+            y_max = max(0, np.max(y_smooth))
             
-            X, Y = np.meshgrid(x_smooth, np.linspace(y_min, y_max, 256))
-            Z = np.zeros_like(Y)
-            for i, x_val in enumerate(x_smooth):
-                y_linha = y_smooth[i]
-                mask = Y[:, i] <= y_linha
-                Z[:, i] = Y[:, i] / y_max
-                Z[~mask, i] = np.nan
-            
-            ax.imshow(Z, extent=[x_smooth.min(), x_smooth.max(), y_min, y_max], 
-                      aspect='auto', origin='lower', cmap=cmap, 
-                      alpha=1.0, zorder=1, interpolation='bilinear')
+            # Criar preenchimento apenas para a área acima ou abaixo do eixo X
+            for i in range(len(x_smooth)-1):
+                y1, y2 = y_smooth[i], y_smooth[i+1]
+                x1, x2 = x_smooth[i], x_smooth[i+1]
+                
+                if y1 >= 0 and y2 >= 0:
+                    # Ambos positivos - preencher acima do eixo
+                    ax.fill_between([x1, x2], [0, 0], [y1, y2], 
+                                   color=cor_cinza,
+                                   alpha=cfg['styling']['gradient_alpha_start'],
+                                   zorder=1)
+                elif y1 <= 0 and y2 <= 0:
+                    # Ambos negativos - preencher abaixo do eixo
+                    ax.fill_between([x1, x2], [0, 0], [y1, y2], 
+                                   color=cor_cinza,
+                                   alpha=cfg['styling']['gradient_alpha_start'],
+                                   zorder=1)
+                else:
+                    # Cruzamento do eixo X - dividir o preenchimento
+                    x_cross = x1 + (x2 - x1) * (-y1) / (y2 - y1)
+                    if y1 > 0:
+                        ax.fill_between([x1, x_cross], [0, 0], [y1, 0], 
+                                       color=cor_cinza,
+                                       alpha=cfg['styling']['gradient_alpha_start'],
+                                       zorder=1)
+                        ax.fill_between([x_cross, x2], [0, 0], [0, y2], 
+                                       color=cor_cinza,
+                                       alpha=cfg['styling']['gradient_alpha_start'],
+                                       zorder=1)
+                    else:
+                        ax.fill_between([x1, x_cross], [0, 0], [y1, 0], 
+                                       color=cor_cinza,
+                                       alpha=cfg['styling']['gradient_alpha_start'],
+                                       zorder=1)
+                        ax.fill_between([x_cross, x2], [0, 0], [0, y2], 
+                                       color=cor_cinza,
+                                       alpha=cfg['styling']['gradient_alpha_start'],
+                                       zorder=1)
             
             line = ax.plot(x_smooth, y_smooth, 
                           color=cfg['colors']['accumulated'], 
@@ -218,7 +259,7 @@ class Relatorio5Renderer(BaseRenderer):
                           linewidth=cfg['line_width'], 
                           zorder=4)
         
-        # Adicionar pontos de acumulado - MODIFICADO: usar posições absolutas
+        # Adicionar pontos de acumulado - usando valores reais
         scatter = ax.scatter(x, y, 
                             s=cfg['marker_size'], 
                             color=cfg['colors']['accumulated_points'],
@@ -228,19 +269,25 @@ class Relatorio5Renderer(BaseRenderer):
         
         # Adicionar valores de acumulado com destaque visual e posição horizontal ("deitado")
         if cfg['annotations']['show_acc_values']:
-            for i, (valor_real, valor_abs) in enumerate(zip(acumulado, acumulado_absoluto)):
+            for i, valor_real in enumerate(acumulado):
                 # PULAR O PRIMEIRO MÊS → evita duplicar o valor acumulado inicial
                 if i == 0:
                     continue
 
                 valor_formatado = f"R${valor_real:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
+                # Posicionar o texto baseado no sinal do valor
+                if valor_real >= 0:
+                    xytext = (10, 5)  # à direita e ligeiramente acima
+                else:
+                    xytext = (10, -5) # à direita e ligeiramente abaixo
+
                 # Nova posição: valor "deitado" à direita do ponto
                 ax.annotate(
                     valor_formatado,
-                    (i, valor_abs),               # posição do ponto
+                    (i, valor_real),              # posição do ponto usando valor real
                     textcoords="offset points",
-                    xytext=(10, -5),              # desloca um pouco à direita e para baixo
+                    xytext=xytext,                # ajustado baseado no sinal
                     ha='left', va='center',       # alinhamento horizontal à esquerda
                     fontsize=cfg['annotations']['font_size_acc'] + 1,  # ligeiramente maior
                     fontweight='bold',            # negrito
@@ -251,11 +298,9 @@ class Relatorio5Renderer(BaseRenderer):
 
 
         
-        # Linha de média tracejada - MODIFICADO: sempre mostrar, usar valor absoluto para posicionamento
-        if media != 0:  # ALTERADO: mostrar sempre que não for zero
-            media_absoluta = abs(media)  # NOVO: usar valor absoluto para posicionamento
-            
-            mean_line = ax.axhline(media_absoluta,  # ALTERADO: posicionar no valor absoluto
+        # Linha de média tracejada - usando valor real
+        if media != 0:  # mostrar sempre que não for zero
+            mean_line = ax.axhline(media,  # usar valor real da média
                                   color=cfg['colors']['mean_line'],
                                   linestyle=cfg['styling']['mean_line_style'], 
                                   linewidth=cfg['styling']['mean_line_width'], 
@@ -263,16 +308,23 @@ class Relatorio5Renderer(BaseRenderer):
                                   label='Média dos últimos 3 meses')
             
             if cfg['annotations']['show_mean_label']:
-                # ALTERADO: formatar com valor real (com sinal), mas posicionar no absoluto
                 media_formatada = f"R${media:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
                 posicao_x_media = len(meses) - 1 + 0.35
                 
+                # Ajustar posição vertical do texto baseado no sinal da média
+                if media >= 0:
+                    xytext = (0, 2)
+                    va = 'bottom'
+                else:
+                    xytext = (0, -2)
+                    va = 'top'
+                
                 ax.annotate(media_formatada, 
-                            (posicao_x_media, media_absoluta),  # ALTERADO: posicionar no valor absoluto
+                            (posicao_x_media, media),  # posicionar no valor real
                             textcoords="offset points",
-                            xytext=(0, 2),
+                            xytext=xytext,
                             ha='left',
-                            va='bottom',
+                            va=va,
                             fontsize=cfg['annotations']['font_size_mean'],
                             fontweight='bold',
                             color=cfg['colors']['mean_line'])
@@ -289,15 +341,39 @@ class Relatorio5Renderer(BaseRenderer):
                 text.set_color('#2D2B3A')
                 text.set_fontweight('normal')
         
-        # Configurar eixos - MODIFICADO: considerar média absoluta no y_max
+        # Configurar eixos - permitir valores negativos
         ax.set_xlim(-0.5, len(meses) - 1 + 0.8)
         
-        y_max_barras = max([abs(val) for val in geracao_caixa]) if geracao_caixa else 0
-        y_max_acumulado = max(acumulado_absoluto) if len(acumulado_absoluto) > 0 else 0
-        y_max_media = abs(media) if media != 0 else 0  # NOVO: considerar média absoluta
-        y_max = max(y_max_barras, y_max_acumulado, y_max_media) * cfg['margins']['top']  # ALTERADO
+        # Calcular limites baseados nos valores reais (positivos e negativos)
+        valores_todos = []
+        if geracao_caixa:
+            valores_todos.extend(geracao_caixa)
+        if len(acumulado) > 0:
+            valores_todos.extend(acumulado)
+        if media != 0:
+            valores_todos.append(media)
         
-        ax.set_ylim(0, y_max)  # Sempre começar do 0
+        if valores_todos:
+            y_min = min(valores_todos)
+            y_max = max(valores_todos)
+            
+            # Adicionar margem
+            if y_min < 0:
+                y_min = y_min * cfg['margins']['top']
+            else:
+                y_min = y_min * cfg['margins']['bottom']
+                
+            y_max = y_max * cfg['margins']['top']
+            
+            # Garantir que o eixo X (zero) seja visível
+            if y_min > 0:
+                y_min = 0
+            if y_max < 0:
+                y_max = 0
+                
+            ax.set_ylim(y_min, y_max)
+        else:
+            ax.set_ylim(-1, 1)  # Valores padrão se não houver dados
         
         # Estilizar gráfico
         for spine in ("top", "right"):
