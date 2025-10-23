@@ -230,15 +230,15 @@
                             <td>{{ cat.representatividade|format_percentage }}</td>
                             <td>
                                 {% if cat.name == 'Custos Variáveis' or cat.name == 'Despesas Fixas' %}
-                                    {# Para Custos Variáveis e Despesas Fixas, a lógica é invertida #}
+                                    {# Para Custos Variáveis e Despesas Fixas, a lógica é invertida: aumento é ruim #}
                                     {% if cat.variacao >= 0 %}
-                                        <span class="var-down">
-                                            <img src="data:image/svg+xml;base64,{{ seta_b64_2 }}" alt="↑"/>
+                                        <span class="var-up">
+                                            <img src="data:image/svg+xml;base64,{{ seta_b64_3 }}" alt="↑"/>
                                             {{ cat.variacao|format_percentage }}
                                         </span>
                                     {% else %}
-                                        <span class="var-up">
-                                            <img src="data:image/svg+xml;base64,{{ seta_b64 }}" alt="↓"/>
+                                        <span class="var-down">
+                                            <img src="data:image/svg+xml;base64,{{ seta_b64_4 }}" alt="↓"/>
                                             {{ cat.variacao|format_percentage }}
                                         </span>
                                     {% endif %}
@@ -303,13 +303,13 @@
                             <td>{{ cat.representatividade|format_percentage }}</td>
                             <td>
                                 {% if cat.variacao >= 0 %}
-                                    <span class="var-down">
-                                        <img src="data:image/svg+xml;base64,{{ seta_b64_2 }}" alt="↑"/>
+                                    <span class="var-up">
+                                        <img src="data:image/svg+xml;base64,{{ seta_b64_3 }}" alt="↑"/>
                                         {{ cat.variacao|format_percentage }}
                                     </span>
                                 {% else %}
-                                    <span class="var-up">
-                                        <img src="data:image/svg+xml;base64,{{ seta_b64 }}" alt="↓"/>
+                                    <span class="var-down">
+                                        <img src="data:image/svg+xml;base64,{{ seta_b64_4 }}" alt="↓"/>
                                         {{ cat.variacao|format_percentage }}
                                     </span>
                                 {% endif %}
