@@ -1,8 +1,14 @@
-[theme]
+# Configuração compatível com Streamlit Cloud
+# Versão 2.1 - Configuração minimalista e estável
 
+[theme]
 base = "light"
-primaryColor = "#FF6900"  # More saturated orange
+primaryColor = "#FF6900"
 
 [server]
 enableCORS = false
 enableXsrfProtection = false
+maxUploadSize = 200
+
+[browser]
+gatherUsageStats = false

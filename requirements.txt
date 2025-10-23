@@ -1,29 +1,47 @@
-streamlit
-streamlit-quill
-pandas
-plotly
-psycopg2-binary
-SQLAlchemy
-reportlab
-pillow
-fastapi
-uvicorn
-pytest
-pytest-cov
-dotenv
-pdfkit
-matplotlib
-pypdf
-PyPDF2
-scipy
-numpy
-jinja2
-python-dateutil
-fastapi
-uvicorn[standard]
-pydantic>=2
-python-multipart
-python-jose
-python-dotenv
+# Dependências principais com versões compatíveis para Streamlit Cloud
+# Versão 2.1 - Corrigido para compatibilidade com Streamlit Cloud Python 3.9-3.11
+
+# Framework principal - versões compatíveis com Streamlit Cloud
+streamlit>=1.28.0
+streamlit-quill==0.0.3
+
+# Manipulação de dados
+pandas>=2.0.0
+numpy>=1.24.0
+scipy>=1.10.0
+
+# Visualização
+plotly>=5.15.0
+matplotlib>=3.7.0
+
+# Banco de dados
+psycopg2-binary>=2.9.5
+SQLAlchemy>=2.0.0
+
+# PDF processing - versões estáveis
+reportlab>=4.0.0
+pypdf>=4.0.0
+PyPDF2>=3.0.0
+pdfkit>=1.0.0
+
+# Utilitários
+pillow>=10.0.0
+python-dotenv>=1.0.0
+jinja2>=3.1.0
+python-dateutil>=2.8.0
+
+# API
+fastapi>=0.100.0
+uvicorn[standard]>=0.23.0
+pydantic>=2.0.0
+python-multipart>=0.0.6
+python-jose>=3.3.0
+
+# Testing
+pytest>=7.0.0
+pytest-cov>=4.0.0
+
+# Dependências core necessárias
+markupsafe>=2.1.0
 
 

@@ -11,8 +11,11 @@ import logging
 from typing import Optional, Tuple
 
 # Adicionar o diretório raiz ao path para importações
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+root_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+if root_dir not in sys.path:
+    sys.path.insert(0, root_dir)
 
+# Importar do arquivo principal de postprocessing
 from src.pdf_postprocessor import PDFPostProcessor
 
 logger = logging.getLogger(__name__)
@@ -50,14 +53,14 @@ class PDFinalizer:
         
         try:
             # Análise inicial
-            stats_before = PDFPostProcessor.analyze_pdf_content(pdf_path)
+            stats_before = self.postprocessor.analyze_pdf_content(pdf_path)
             logger.info(f"📊 PDF original: {stats_before['total_pages']} páginas")
             
-            if stats_before['empty_pages']:
-                logger.warning(f"❌ Páginas vazias detectadas: {stats_before['empty_pages']}")
+            if stats_before['error_pages']:
+                logger.warning(f"❌ Páginas vazias detectadas: {stats_before['error_pages']}")
             
             # Aplicar pós-processamento se necessário
-            if remove_blank_pages and stats_before['empty_pages']:
+            if remove_blank_pages and stats_before['error_pages']:
                 success, final_path, removed_pages = self.postprocessor.remove_blank_pages(pdf_path)
                 
                 if success:
@@ -94,7 +97,7 @@ class PDFinalizer:
             Dicionário com estatísticas ou None se erro
         """
         try:
-            return PDFPostProcessor.analyze_pdf_content(pdf_path)
+            return self.postprocessor.analyze_pdf_content(pdf_path)
         except Exception as e:
             logger.error(f"❌ Erro ao analisar PDF: {e}")
             return None
