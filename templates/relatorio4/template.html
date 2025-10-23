@@ -224,13 +224,13 @@
                                 <td>
                                     {% if cat.name == 'Custos Variáveis' or cat.name == 'Despesas Fixas' or cat.name == 'Investimentos' %}
                                         {% if cat.variacao >= 0 %}
-                                            <span class="var-up">
+                                            <span class="var-down">
                                                 <img src="data:image/svg+xml;base64,{{ seta_b64_3 }}" alt="↑"/>
                                                 {{ cat.variacao|format_percentage }}
                                             </span>
                                         {% else %}
-                                            <span class="var-down">
-                                                <img src="data:image/svg+xml;base64,{{ seta_b64_4 }}" alt="↓"/>
+                                            <span class="var-up">
+                                                <img src="data:image/svg+xml;base64,{{ seta_b64 }}" alt="↓"/>
                                                 {{ cat.variacao|format_percentage }}
                                             </span>
                                         {% endif %}
@@ -328,7 +328,7 @@
                                             </span>
                                         {% else %}
                                             <span class="var-down">
-                                                <img src="data:image/svg+xml;base64,{{ seta_b64 }}" alt="↓"/>
+                                                <img src="data:image/svg+xml;base64,{{ seta_b64_4 }}" alt="↓"/>
                                                 {{ cat.variacao|format_percentage }}
                                             </span>
                                         {% endif %}
