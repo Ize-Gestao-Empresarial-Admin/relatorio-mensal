@@ -53,6 +53,12 @@ def verify_api_key(x_api_key: Optional[str] = Security(api_key_header)):
     - 401 se a chave não vier ou for inválida
     - 500 se API_KEY não estiver configurada
     """
+    # Debug log
+    logging.info(f"API_KEY from env (first 10 chars): {API_KEY[:10] if API_KEY else 'None'}")
+    logging.info(f"Received x_api_key (first 10 chars): {x_api_key[:10] if x_api_key else 'None'}")
+    logging.info(f"API_KEY length: {len(API_KEY) if API_KEY else 0}")
+    logging.info(f"x_api_key length: {len(x_api_key) if x_api_key else 0}")
+    
     if not API_KEY:
         raise HTTPException(status_code=500, detail="Configuração inválida: defina API_KEY no ambiente (.env).")
     if not x_api_key or x_api_key != API_KEY:

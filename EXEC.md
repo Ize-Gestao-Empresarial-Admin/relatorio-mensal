@@ -9,3 +9,8 @@ Acessar <http://localhost:8501/embed=true?is_admin=true> para visualizar o 'fron
 ## Para rodar a API (Swagger)
 
 `.venv\Scripts\python.exe app.py`
+
+
+## Para atualizar a API após mudanças (Google Cloud)
+
+`gcloud run deploy ize-relatorios-api --source . --region southamerica-east1`
