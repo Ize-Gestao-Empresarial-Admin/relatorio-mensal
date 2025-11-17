@@ -4,6 +4,7 @@ from datetime import date, timedelta
 import sys
 import os
 import re
+import requests
 
 # Garantir que o diretório raiz está no Python path
 root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -11,11 +12,10 @@ if root_dir not in sys.path:
     sys.path.insert(0, root_dir)
 
 from src.database.db_utils import DatabaseConnection, buscar_clientes, obter_meses, obter_anos
-from src.core.indicadores import Indicadores
-from src.core.relatorios import (
-    Relatorio1, Relatorio2, Relatorio3, Relatorio4, Relatorio5, Relatorio6, Relatorio7, Relatorio8
-)
-from src.rendering.engine import RenderingEngine
+
+# Configuração da API
+API_URL = "https://ize-relatorios-api-1052359947797.southamerica-east1.run.app/v1/relatorios/pdf"
+API_KEY = os.getenv("API_KEY", "tj8DbJ0bDYDwqLKhF4rEDKaoOW6KxIC6ofeDtc44aA_0XlOEZcu49zAQKYylodOZ")
 
 def verificar_permissoes():
     """
@@ -328,88 +328,104 @@ def main():
         # NOVO: Aviso informativo sobre o tempo de processamento
         with st.spinner("Gerando relatório, por favor aguarde..."):
             # Adicionar informação sobre tempo estimado
-            st.info(" **Processando relatório...** O tempo estimado é de aproximadamente 30 segundos.")
+            num_relatorios = len(relatorios_selecionados)
+            tempo_estimado = "30 segundos a 2 minutos" if num_relatorios <= 4 else "2 a 5 minutos"
+            st.info(f"⏱️ **Gerando relatório via API em nuvem...** Tempo estimado: {tempo_estimado}")
             
             try:
-                # Cria uma instância de indicadores com os ids de clientes escolhidos
-                indicadores = Indicadores(cliente_ids, db)  # Passar cliente_ids diretamente
-                
-                relatorios_classes = {
-                    "Relatório 1": Relatorio1,
-                    "Relatório 2": Relatorio2,
-                    "Relatório 3": Relatorio3,
-                    "Relatório 4": Relatorio4,
-                    "Relatório 5": Relatorio5,
-                    "Relatório 6": Relatorio6,
-                    "Relatório 7": Relatorio7,
-                    "Relatório 8": Relatorio8
+                # Mapear nomes dos relatórios para IDs
+                relatorio_map = {
+                    "Relatório 1": 1,
+                    "Relatório 2": 2,
+                    "Relatório 3": 3,
+                    "Relatório 4": 4,
+                    "Relatório 5": 5,
+                    "Relatório 6": 6,
+                    "Relatório 7": 7,
+                    "Relatório 8": 8
                 }
                 
-                relatorios_dados = []
-                mes_atual = date(ano, mes, 1)
-                mes_anterior = (mes_atual - timedelta(days=1)).replace(day=1)
+                relatorios_ids = [relatorio_map[r] for r in relatorios_selecionados]
                 
-                marca = "Sim"
-                
-                # Mapear agrupamentos para o índice
-                indice_data = {
-                    "fluxo_caixa": "Sim" if any(r in relatorios_selecionados for r in ["Relatório 1", "Relatório 2", "Relatório 3", "Relatório 4", "Relatório 5"]) else "Não",
-                    "dre_gerencial": "Sim" if "Relatório 6" in relatorios_selecionados else "Não",
-                    "indicador": "Sim" if "Relatório 7" in relatorios_selecionados else "Não",
-                    "nota_consultor": "Sim" if "Relatório 8" in relatorios_selecionados else "Não",
-                    "cliente_nome": display_cliente_nome,
-                    "mes": mes_nome,
+                # Preparar payload para a API
+                payload = {
+                    "id_cliente": cliente_ids,
+                    "mes": mes,
                     "ano": ano,
-                    "nome": display_cliente_nome,  # Nome para o template
-                    "Periodo": f"{mes_nome} {ano}",  # Período para o template
-                    "marca": marca
+                    "relatorios": relatorios_ids,
+                    "analise_text": analise_text if analise_text else ""
                 }
-                relatorios_dados.append(("Índice", indice_data))
                 
-                for rel_nome in relatorios_selecionados:
-                    rel_class = relatorios_classes[rel_nome]
-                    relatorio = rel_class(indicadores, display_cliente_nome)
+                # Headers com autenticação
+                headers = {
+                    "X-API-Key": API_KEY,
+                    "Content-Type": "application/json"
+                }
+                
+                # Fazer requisição para a API
+                with st.spinner("🔄 Conectando com a API e gerando PDF..."):
+                    response = requests.post(
+                        API_URL,
+                        json=payload,
+                        headers=headers,
+                        timeout=600  # 10 minutos de timeout
+                    )
+                
+                # Verificar resposta
+                if response.status_code == 200:
+                    st.success("✅ Relatório gerado com sucesso!")
                     
-                    if rel_nome in ["Relatório 1", "Relatório 2", "Relatório 3", "Relatório 4"]:
-                        dados = relatorio.gerar_relatorio(mes_atual, mes_anterior)
-                    elif rel_nome == "Relatório 8":
-                        if analise_text:
-                            relatorio.salvar_analise(mes_atual, analise_text)
-                        dados = relatorio.gerar_relatorio(mes_atual)
+                    # Extrair nome do arquivo do header Content-Disposition
+                    content_disposition = response.headers.get('Content-Disposition', '')
+                    if 'filename=' in content_disposition:
+                        filename = content_disposition.split('filename=')[1].strip('"')
                     else:
-                        dados = relatorio.gerar_relatorio(mes_atual)
+                        filename = f"Relatorio_{display_cliente_nome.replace(' ', '_')}_{mes_nome}_{ano}.pdf"
                     
-                    relatorios_dados.append((rel_nome, dados))
-                
-                rendering_engine = RenderingEngine()
-                output_filename = f"Relatorio_{display_cliente_nome.replace(' ', '_')}_{mes_nome}_{ano}.pdf"
-                output_path = os.path.join("outputs", output_filename)
-                
-                os.makedirs("outputs", exist_ok=True)  # Criar diretório se não existir
-                
-                pdf_path = rendering_engine.render_to_pdf(
-                    relatorios_dados, 
-                    display_cliente_nome, 
-                    mes_nome, 
-                    ano, 
-                    output_path
-                )
-                
-                st.success("Relatório gerado com sucesso!")
-                
-                with open(pdf_path, "rb") as f:
+                    # Botão de download
                     st.download_button(
                         label="📥 Baixar Relatório PDF",
-                        data=f,
-                        file_name=output_filename,
+                        data=response.content,
+                        file_name=filename,
                         mime="application/pdf",
                         use_container_width=True
                     )
                     
+                elif response.status_code == 401:
+                    st.error("🔒 Erro de autenticação: API Key inválida.")
+                    st.warning("Entre em contato com o administrador do sistema.")
+                    
+                elif response.status_code == 422:
+                    st.error("❌ Dados inválidos enviados para a API.")
+                    try:
+                        error_detail = response.json()
+                        st.json(error_detail)
+                    except:
+                        st.text(response.text)
+                        
+                elif response.status_code == 503:
+                    st.error("⚠️ Serviço temporariamente indisponível.")
+                    st.warning("A API está sobrecarregada. Tente novamente em alguns instantes ou gere menos relatórios por vez.")
+                    
+                else:
+                    st.error(f"❌ Erro ao gerar relatório: Status {response.status_code}")
+                    try:
+                        error_detail = response.json()
+                        st.json(error_detail)
+                    except:
+                        st.text(response.text)
+                    
+            except requests.exceptions.Timeout:
+                st.error("⏱️ Tempo limite excedido!")
+                st.warning("A geração do relatório demorou muito. Tente com menos relatórios ou aguarde alguns minutos e tente novamente.")
+                
+            except requests.exceptions.ConnectionError:
+                st.error("🌐 Erro de conexão com a API!")
+                st.warning("Verifique sua conexão com a internet ou tente novamente mais tarde.")
+                
             except Exception as e:
-                st.error(f"Erro ao gerar relatório: {str(e)}")
+                st.error(f"❌ Erro inesperado: {str(e)}")
                 st.exception(e)
-                st.warning("Certifique-se de que o wkhtmltopdf está instalado e no PATH do sistema.")
 
 if __name__ == "__main__":
     main()
