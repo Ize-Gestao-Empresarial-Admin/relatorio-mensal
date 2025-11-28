@@ -19,7 +19,7 @@ class Indicadores:
         self.db = db_connection
 
 # Relatório 1 (no relatorio esta inverso, receitas primeiro depois custos variaveis)
-    def calcular_custos_variaveis_fc(self, mes: date, categoria_nivel_3: str) -> List[Dict[str, Any]]:
+    def calcular_custos_variaveis_fc(self, mes: date, categoria_nivel_3: str, centro_custo: Optional[str] = None) -> List[Dict[str, Any]]:
         """Calcula os 5 maiores totais de custos variáveis por nivel_2 em um mês.
 
         Args:
@@ -49,6 +49,7 @@ class Indicadores:
                       AND EXTRACT(YEAR FROM data) = :year
                       AND EXTRACT(MONTH FROM data) = :month
                       AND nivel_1 = '3. Receitas'
+                      AND (COALESCE(:centro_custo, '') = '' OR centro_custo = :centro_custo)  -- NOVO FILTRO
                 ),
                 prev_custos AS (
                     SELECT 
@@ -63,6 +64,7 @@ class Indicadores:
                       AND f.nivel_1 = '4. Custos Variáveis'
                       AND f.data < DATE_TRUNC('month', MAKE_DATE(:year, :month, 1))
                       AND f.data >= DATE_TRUNC('month', MAKE_DATE(:year, :month, 1) - INTERVAL '1 month')
+                      AND (COALESCE(:centro_custo, '') = '' OR f.centro_custo = :centro_custo)
                     GROUP BY p.nivel_2
                 )
             SELECT 
@@ -88,6 +90,7 @@ class Indicadores:
                 AND f.nivel_1 = '4. Custos Variáveis'
                 AND EXTRACT(YEAR FROM f.data) = :year
                 AND EXTRACT(MONTH FROM f.data) = :month
+                AND (COALESCE(:centro_custo, '') = '' OR f.centro_custo = :centro_custo)
             GROUP BY p.nivel_2, r.total_receita, prev.prev_valor
             ORDER BY total_categoria ASC;
             
@@ -98,7 +101,8 @@ class Indicadores:
             "year": mes.year,
             "month": mes.month,
             "prev_year": mes.year if mes.month > 1 else mes.year - 1,
-            "prev_month": mes.month - 1 if mes.month > 1 else 12
+            "prev_month": mes.month - 1 if mes.month > 1 else 12,
+            "centro_custo": centro_custo if centro_custo else ""
         }
 
         try:
@@ -115,7 +119,7 @@ class Indicadores:
         except Exception as e:
             raise RuntimeError(f"Erro ao calcular custos variáveis: {str(e)}")
 
-    def calcular_receitas_fc(self, mes: date, categoria_nivel_3: str) -> List[Dict[str, Any]]:
+    def calcular_receitas_fc(self, mes: date, categoria_nivel_3: str, centro_custo: Optional[str] = None) -> List[Dict[str, Any]]:
         """Calcula os 5 maiores totais de receitas por categoria_nivel_3 em um mês.
 
         Args:
@@ -145,6 +149,7 @@ class Indicadores:
                   AND EXTRACT(YEAR FROM data) = :year
                   AND EXTRACT(MONTH FROM data) = :month
                   AND nivel_1 = '3. Receitas'
+                  AND (COALESCE(:centro_custo, '') = '' OR centro_custo = :centro_custo)
               ),
               receita_anterior AS (
                 SELECT 
@@ -156,6 +161,7 @@ class Indicadores:
                   AND EXTRACT(YEAR FROM data) = :prev_year
                   AND EXTRACT(MONTH FROM data) = :prev_month
                   AND nivel_1 = '3. Receitas'
+                  AND (COALESCE(:centro_custo, '') = '' OR centro_custo = :centro_custo)
                 GROUP BY categoria_nivel_3
               )
             SELECT
@@ -178,6 +184,7 @@ class Indicadores:
               AND EXTRACT(YEAR FROM f.data) = :year
               AND EXTRACT(MONTH FROM f.data) = :month
               AND f.nivel_1 = '3. Receitas'
+              AND (COALESCE(:centro_custo, '') = '' OR f.centro_custo = :centro_custo)
             GROUP BY f.categoria_nivel_3, ra.total, rp.total_prev
             ORDER BY total_categoria DESC;
         """)
@@ -187,7 +194,8 @@ class Indicadores:
             "year": mes.year,
             "month": mes.month,
             "prev_year": mes.year if mes.month > 1 else mes.year - 1,
-            "prev_month": mes.month - 1 if mes.month > 1 else 12
+            "prev_month": mes.month - 1 if mes.month > 1 else 12,
+            "centro_custo": centro_custo if centro_custo else ""
         }
 
         try:
@@ -205,11 +213,12 @@ class Indicadores:
             raise RuntimeError(f"Erro ao calcular receitas: {str(e)}")
             
 # Relatorio 2
-    def calcular_lucro_bruto_fc(self, mes: date) -> List[Dict[str, Any]]:
+    def calcular_lucro_bruto_fc(self, mes: date, centro_custo: Optional[str] = None) -> List[Dict[str, Any]]:
         """Calcula as categorias de Lucro Bruto (Receitas e Custos Variáveis) do fluxo de caixa (fc) com AV e AH.
 
         Args:
             mes: Data do mês a ser calculado.
+            centro_custo: Filtro opcional por centro de custo.
 
         Returns:
             Lista de dicionários com 'categoria', 'valor', 'av' (análise vertical), e 'ah' (análise horizontal).
@@ -224,6 +233,7 @@ class Indicadores:
                   AND EXTRACT(YEAR FROM data) = :year
                   AND EXTRACT(MONTH FROM data) = :month
                   AND nivel_1 = '3. Receitas'
+                  AND (COALESCE(:centro_custo, '') = '' OR centro_custo = :centro_custo)
                 UNION ALL
                 SELECT 'Custos Variáveis', SUM(valor) * -1
                 FROM fc
@@ -232,6 +242,7 @@ class Indicadores:
                   AND EXTRACT(YEAR FROM data) = :year
                   AND EXTRACT(MONTH FROM data) = :month
                   AND nivel_1 = '4. Custos Variáveis'
+                  AND (COALESCE(:centro_custo, '') = '' OR centro_custo = :centro_custo)
               ),
               totais_anterior AS (
                 SELECT 'Receita' AS categoria, SUM(valor) AS prev_valor
@@ -241,6 +252,7 @@ class Indicadores:
                   AND EXTRACT(YEAR FROM data) = :prev_year
                   AND EXTRACT(MONTH FROM data) = :prev_month
                   AND nivel_1 = '3. Receitas'
+                  AND (COALESCE(:centro_custo, '') = '' OR centro_custo = :centro_custo)
                 UNION ALL
                 SELECT 'Custos Variáveis', SUM(valor) * -1
                 FROM fc
@@ -249,6 +261,7 @@ class Indicadores:
                   AND EXTRACT(YEAR FROM data) = :prev_year
                   AND EXTRACT(MONTH FROM data) = :prev_month
                   AND nivel_1 = '4. Custos Variáveis'
+                  AND (COALESCE(:centro_custo, '') = '' OR centro_custo = :centro_custo)
               ),
               receita_total AS (
                 SELECT valor AS total
@@ -281,7 +294,8 @@ class Indicadores:
             "year": mes.year,
             "month": mes.month,
             "prev_year": mes.year if mes.month > 1 else mes.year - 1,
-            "prev_month": mes.month - 1 if mes.month > 1 else 12
+            "prev_month": mes.month - 1 if mes.month > 1 else 12,
+            "centro_custo": centro_custo if centro_custo else ""
         }
         try:
             result = self.db.execute_query(query, params)
@@ -297,11 +311,12 @@ class Indicadores:
         except Exception as e:
             raise RuntimeError(f"Erro ao calcular lucro bruto: {str(e)}")
 
-    def calcular_despesas_fixas_fc(self, mes: date) -> List[Dict[str, Any]]:
+    def calcular_despesas_fixas_fc(self, mes: date, centro_custo: Optional[str] = None) -> List[Dict[str, Any]]:
         """Calcula as despesas fixas do fluxo de caixa (fc) por categoria nivel_2 com AV e AH.
 
         Args:
             mes: Data do mês a ser calculado.
+            centro_custo: Filtro opcional por centro de custo.
 
         Returns:
             Lista de dicionários com 'categoria', 'valor', 'av' (análise vertical), e 'ah' (análise horizontal).
@@ -316,6 +331,7 @@ class Indicadores:
                   AND EXTRACT(YEAR FROM data) = :year
                   AND EXTRACT(MONTH FROM data) = :month
                   AND nivel_1 = '3. Receitas'
+                  AND (COALESCE(:centro_custo, '') = '' OR centro_custo = :centro_custo)
               ),
               prev_despesas AS (
                 SELECT 
@@ -330,6 +346,7 @@ class Indicadores:
                   AND f.nivel_1 = '5. Despesas Fixas'
                   AND EXTRACT(YEAR FROM f.data) = :prev_year
                   AND EXTRACT(MONTH FROM f.data) = :prev_month
+                  AND (COALESCE(:centro_custo, '') = '' OR f.centro_custo = :centro_custo)
                 GROUP BY p.nivel_2
               )
             SELECT 
@@ -355,6 +372,7 @@ class Indicadores:
               AND f.nivel_1 = '5. Despesas Fixas'
               AND EXTRACT(YEAR FROM f.data) = :year
               AND EXTRACT(MONTH FROM f.data) = :month
+              AND (COALESCE(:centro_custo, '') = '' OR f.centro_custo = :centro_custo)
             GROUP BY p.nivel_2, r.total_receita, prev.prev_valor
             ORDER BY total_valor ASC;
         """)
@@ -363,7 +381,8 @@ class Indicadores:
             "year": mes.year,
             "month": mes.month,
             "prev_year": mes.year if mes.month > 1 else mes.year - 1,
-            "prev_month": mes.month - 1 if mes.month > 1 else 12
+            "prev_month": mes.month - 1 if mes.month > 1 else 12,
+            "centro_custo": centro_custo if centro_custo else ""
         }
         try:
             result = self.db.execute_query(query, params)
@@ -380,8 +399,14 @@ class Indicadores:
             raise RuntimeError(f"Erro ao calcular despesas fixas: {str(e)}")
         
 #Relatorio 3
-    def calcular_lucro_operacional_fc(self, mes_atual: date, mes_anterior: Optional[date] = None) -> List[Dict[str, Any]]:
-        """Calcula Receita, Custos Variáveis, Despesas Fixas, AV e AH para o Lucro Operacional."""
+    def calcular_lucro_operacional_fc(self, mes_atual: date, mes_anterior: Optional[date] = None, centro_custo: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Calcula Receita, Custos Variáveis, Despesas Fixas, AV e AH para o Lucro Operacional.
+        
+        Args:
+            mes_atual: Data do mês atual.
+            mes_anterior: Data do mês anterior (opcional).
+            centro_custo: Filtro opcional por centro de custo.
+        """
         query = text("""
             WITH
               totais_atual AS (
@@ -392,6 +417,7 @@ class Indicadores:
                   AND EXTRACT(YEAR FROM data) = :ano_atual
                   AND EXTRACT(MONTH FROM data) = :mes_atual
                   AND nivel_1 = '3. Receitas'
+                  AND (COALESCE(:centro_custo, '') = '' OR centro_custo = :centro_custo)
                 UNION ALL
                 SELECT 'Custos Variáveis', SUM(valor) * -1
                 FROM fc
@@ -400,6 +426,7 @@ class Indicadores:
                   AND EXTRACT(YEAR FROM data) = :ano_atual
                   AND EXTRACT(MONTH FROM data) = :mes_atual
                   AND nivel_1 = '4. Custos Variáveis'
+                  AND (COALESCE(:centro_custo, '') = '' OR centro_custo = :centro_custo)
                 UNION ALL
                 SELECT 'Despesas Fixas', SUM(valor) * -1
                 FROM fc
@@ -408,6 +435,7 @@ class Indicadores:
                   AND EXTRACT(YEAR FROM data) = :ano_atual
                   AND EXTRACT(MONTH FROM data) = :mes_atual
                   AND nivel_1 = '5. Despesas Fixas'
+                  AND (COALESCE(:centro_custo, '') = '' OR centro_custo = :centro_custo)
               ),
               totais_anterior AS (
                 SELECT 'Receita' AS categoria, SUM(valor) AS prev_valor
@@ -417,6 +445,7 @@ class Indicadores:
                   AND EXTRACT(YEAR FROM data) = :ano_anterior
                   AND EXTRACT(MONTH FROM data) = :mes_anterior
                   AND nivel_1 = '3. Receitas'
+                  AND (COALESCE(:centro_custo, '') = '' OR centro_custo = :centro_custo)
                 UNION ALL
                 SELECT 'Custos Variáveis', SUM(valor) * -1
                 FROM fc
@@ -425,6 +454,7 @@ class Indicadores:
                   AND EXTRACT(YEAR FROM data) = :ano_anterior
                   AND EXTRACT(MONTH FROM data) = :mes_anterior
                   AND nivel_1 = '4. Custos Variáveis'
+                  AND (COALESCE(:centro_custo, '') = '' OR centro_custo = :centro_custo)
                 UNION ALL
                 SELECT 'Despesas Fixas', SUM(valor) * -1
                 FROM fc
@@ -433,6 +463,7 @@ class Indicadores:
                   AND EXTRACT(YEAR FROM data) = :ano_anterior
                   AND EXTRACT(MONTH FROM data) = :mes_anterior
                   AND nivel_1 = '5. Despesas Fixas'
+                  AND (COALESCE(:centro_custo, '') = '' OR centro_custo = :centro_custo)
               ),
               receita_total AS (
                 SELECT valor AS total
@@ -466,13 +497,20 @@ class Indicadores:
             "ano_atual": mes_atual.year,
             "mes_atual": mes_atual.month,
             "ano_anterior": mes_anterior.year if mes_anterior else mes_atual.year,
-            "mes_anterior": mes_anterior.month if mes_anterior else mes_atual.month
+            "mes_anterior": mes_anterior.month if mes_anterior else mes_atual.month,
+            "centro_custo": centro_custo if centro_custo else ""
         }
         result = self.db.execute_query(query, params)
         return result.to_dict('records') # type: ignore
 
-    def calcular_investimentos_fc(self, mes_atual: date, mes_anterior: Optional[date] = None) -> List[Dict[str, Any]]:
-          """Calcula categorias de Investimentos (nivel_2 6.1, 6.2, 6.3), com AV e AH."""
+    def calcular_investimentos_fc(self, mes_atual: date, mes_anterior: Optional[date] = None, centro_custo: Optional[str] = None) -> List[Dict[str, Any]]:
+          """Calcula categorias de Investimentos (nivel_2 6.1, 6.2, 6.3), com AV e AH.
+          
+          Args:
+              mes_atual: Data do mês atual.
+              mes_anterior: Data do mês anterior (opcional).
+              centro_custo: Filtro opcional por centro de custo.
+          """
           query = text("""
               WITH 
                 receita AS (
@@ -483,6 +521,7 @@ class Indicadores:
                     AND EXTRACT(YEAR FROM data) = :ano_atual
                     AND EXTRACT(MONTH FROM data) = :mes_atual
                     AND nivel_1 = '3. Receitas'
+                    AND (COALESCE(:centro_custo, '') = '' OR centro_custo = :centro_custo)
                 ),
                 prev_custos AS (
                   SELECT 
@@ -499,6 +538,7 @@ class Indicadores:
                     AND EXTRACT(MONTH FROM f.data) = :mes_anterior
                     AND p.nivel_2 LIKE 
                       '6.%'
+                    AND (COALESCE(:centro_custo, '') = '' OR f.centro_custo = :centro_custo)
                   GROUP BY p.nivel_2
                 )
               SELECT 
@@ -524,7 +564,8 @@ class Indicadores:
                 AND f.nivel_1 = '6. Investimentos'
                 AND EXTRACT(YEAR FROM f.data) = :ano_atual
                 AND EXTRACT(MONTH FROM f.data) = :mes_atual
-                AND p.nivel_2 LIKE '6.%' 
+                AND p.nivel_2 LIKE '6.%'
+                AND (COALESCE(:centro_custo, '') = '' OR f.centro_custo = :centro_custo)
               GROUP BY p.nivel_2, r.total_receita, prev.prev_valor
               ORDER BY valor DESC;
           """)
@@ -533,17 +574,19 @@ class Indicadores:
               "ano_atual": mes_atual.year,
               "mes_atual": mes_atual.month,
               "ano_anterior": mes_anterior.year if mes_anterior else mes_atual.year,
-              "mes_anterior": mes_anterior.month if mes_anterior else mes_atual.month
+              "mes_anterior": mes_anterior.month if mes_anterior else mes_atual.month,
+              "centro_custo": centro_custo if centro_custo else ""
           }
           result = self.db.execute_query(query, params)
           return result.to_dict('records') # type: ignore
         
   # Relatorio 4      
-    def calcular_lucro_liquido_fc(self, mes: date) -> List[Dict[str, Any]]:
+    def calcular_lucro_liquido_fc(self, mes: date, centro_custo: Optional[str] = None) -> List[Dict[str, Any]]:
       """Calcula as categorias que compõem o Lucro Líquido (Receita, Custos Variáveis, Despesas Fixas, Investimentos) do fluxo de caixa (fc).
 
       Args:
           mes: Data do mês a ser calculado.
+          centro_custo: Filtro opcional por centro de custo.
 
       Returns:
           Lista de dicionários com 'categoria', 'valor', 'av' (análise vertical), e 'ah' (análise horizontal).
@@ -558,6 +601,7 @@ class Indicadores:
                 AND EXTRACT(YEAR FROM data) = :year
                 AND EXTRACT(MONTH FROM data) = :month
                 AND nivel_1 = '3. Receitas'
+                AND (COALESCE(:centro_custo, '') = '' OR centro_custo = :centro_custo)
               UNION ALL
               SELECT 'Custos Variáveis', SUM(valor) * -1
               FROM fc
@@ -566,6 +610,7 @@ class Indicadores:
                 AND EXTRACT(YEAR FROM data) = :year
                 AND EXTRACT(MONTH FROM data) = :month
                 AND nivel_1 = '4. Custos Variáveis'
+                AND (COALESCE(:centro_custo, '') = '' OR centro_custo = :centro_custo)
               UNION ALL
               SELECT 'Despesas Fixas', SUM(valor) * -1
               FROM fc
@@ -574,6 +619,7 @@ class Indicadores:
                 AND EXTRACT(YEAR FROM data) = :year
                 AND EXTRACT(MONTH FROM data) = :month
                 AND nivel_1 = '5. Despesas Fixas'
+                AND (COALESCE(:centro_custo, '') = '' OR centro_custo = :centro_custo)
               UNION ALL
               SELECT 'Investimentos', SUM(valor) * -1
               FROM fc
@@ -582,6 +628,7 @@ class Indicadores:
                 AND EXTRACT(YEAR FROM data) = :year
                 AND EXTRACT(MONTH FROM data) = :month
                 AND nivel_1 = '6. Investimentos'
+                AND (COALESCE(:centro_custo, '') = '' OR centro_custo = :centro_custo)
             ),
             totais_anterior AS (
               SELECT 'Receita' AS categoria, SUM(valor) AS prev_valor
@@ -591,6 +638,7 @@ class Indicadores:
                 AND EXTRACT(YEAR FROM data) = :prev_year
                 AND EXTRACT(MONTH FROM data) = :prev_month
                 AND nivel_1 = '3. Receitas'
+                AND (COALESCE(:centro_custo, '') = '' OR centro_custo = :centro_custo)
               UNION ALL
               SELECT 'Custos Variáveis', SUM(valor) * -1
               FROM fc
@@ -599,6 +647,7 @@ class Indicadores:
                 AND EXTRACT(YEAR FROM data) = :prev_year
                 AND EXTRACT(MONTH FROM data) = :prev_month
                 AND nivel_1 = '4. Custos Variáveis'
+                AND (COALESCE(:centro_custo, '') = '' OR centro_custo = :centro_custo)
               UNION ALL
               SELECT 'Despesas Fixas', SUM(valor) * -1
               FROM fc
@@ -607,6 +656,7 @@ class Indicadores:
                 AND EXTRACT(YEAR FROM data) = :prev_year
                 AND EXTRACT(MONTH FROM data) = :prev_month
                 AND nivel_1 = '5. Despesas Fixas'
+                AND (COALESCE(:centro_custo, '') = '' OR centro_custo = :centro_custo)
               UNION ALL
               SELECT 'Investimentos', SUM(valor) * -1
               FROM fc
@@ -615,6 +665,7 @@ class Indicadores:
                 AND EXTRACT(YEAR FROM data) = :prev_year
                 AND EXTRACT(MONTH FROM data) = :prev_month
                 AND nivel_1 = '6. Investimentos'
+                AND (COALESCE(:centro_custo, '') = '' OR centro_custo = :centro_custo)
             ),
             receita_total AS (
               SELECT valor AS total
@@ -649,7 +700,8 @@ class Indicadores:
           "year": mes.year,
           "month": mes.month,
           "prev_year": mes.year if mes.month > 1 else mes.year - 1,
-          "prev_month": mes.month - 1 if mes.month > 1 else 12
+          "prev_month": mes.month - 1 if mes.month > 1 else 12,
+          "centro_custo": centro_custo if centro_custo else ""
       }
       try:
           result = self.db.execute_query(query, params)
@@ -665,11 +717,12 @@ class Indicadores:
       except Exception as e:
           raise RuntimeError(f"Erro ao calcular lucro líquido: {str(e)}")
 
-    def calcular_entradas_nao_operacionais_fc(self, mes: date) -> List[Dict[str, Any]]:
+    def calcular_entradas_nao_operacionais_fc(self, mes: date, centro_custo: Optional[str] = None) -> List[Dict[str, Any]]:
         """Calcula as Entradas Não Operacionais do fluxo de caixa (fc) por categoria_nivel_3 com AV e AH.
 
         Args:
             mes: Data do mês a ser calculado.
+            centro_custo: Filtro opcional por centro de custo.
 
         Returns:
             Lista de dicionários com 'categoria_nivel_3', 'total_valor', 'av', e 'ah'.
@@ -685,6 +738,7 @@ class Indicadores:
                   AND EXTRACT(YEAR FROM data) = :year
                   AND EXTRACT(MONTH FROM data) = :month
                   AND LOWER(TRIM(nivel_1)) = LOWER('3. Receitas')
+                  AND (COALESCE(:centro_custo, '') = '' OR centro_custo = :centro_custo)
               ),
               prev_entradas AS (
                 SELECT 
@@ -698,6 +752,7 @@ class Indicadores:
                   AND LOWER(TRIM(nivel_1)) IN (
                     LOWER('7.1 Entradas Não Operacionais')
                   )
+                  AND (COALESCE(:centro_custo, '') = '' OR centro_custo = :centro_custo)
                 GROUP BY LOWER(TRIM(categoria_nivel_3))
               ),
               current_entradas AS (
@@ -712,6 +767,7 @@ class Indicadores:
                   AND LOWER(TRIM(nivel_1)) IN (
                     LOWER('7.1 Entradas Não Operacionais')
                   )
+                  AND (COALESCE(:centro_custo, '') = '' OR centro_custo = :centro_custo)
                 GROUP BY LOWER(TRIM(categoria_nivel_3))
               )
             SELECT
@@ -736,7 +792,8 @@ class Indicadores:
             "year": mes.year,
             "month": mes.month,
             "prev_year": mes.year if mes.month > 1 else mes.year - 1,
-            "prev_month": mes.month - 1 if mes.month > 1 else 12
+            "prev_month": mes.month - 1 if mes.month > 1 else 12,
+            "centro_custo": centro_custo if centro_custo else ""
         }
         try:
             result = self.db.execute_query(query, params)
@@ -753,11 +810,12 @@ class Indicadores:
             raise RuntimeError(f"Erro ao calcular entradas não operacionais: {str(e)}")
           
 # Relatorio 5
-    def calcular_saidas_nao_operacionais_fc(self, mes: date) -> List[Dict[str, Any]]:
+    def calcular_saidas_nao_operacionais_fc(self, mes: date, centro_custo: Optional[str] = None) -> List[Dict[str, Any]]:
         """Calcula o total de Saídas Não Operacionais do fluxo de caixa (fc).
 
         Args:
             mes: Data do mês a ser calculado.
+            centro_custo: Filtro opcional por centro de custo.
 
         Returns:
             Lista com um dicionário contendo 'categoria' e 'valor'.
@@ -771,12 +829,14 @@ class Indicadores:
               AND visao = 'Realizado'
               AND EXTRACT(YEAR FROM data) = :year
               AND EXTRACT(MONTH FROM data) = :month
-              AND LOWER(TRIM(nivel_1)) = LOWER('7.2 Saídas Não Operacionais');
+              AND LOWER(TRIM(nivel_1)) = LOWER('7.2 Saídas Não Operacionais')
+              AND (COALESCE(:centro_custo, '') = '' OR centro_custo = :centro_custo);
         """)
         params = {
             "id_cliente": self.id_cliente,
             "year": mes.year,
-            "month": mes.month
+            "month": mes.month,
+            "centro_custo": centro_custo if centro_custo else ""
         }
         try:
             result = self.db.execute_query(query, params)
@@ -790,11 +850,12 @@ class Indicadores:
         except Exception as e:
             raise RuntimeError(f"Erro ao calcular saídas não operacionais: {str(e)}")
           
-    def calcular_resultados_nao_operacionais_fc(self, mes: date) -> List[Dict[str, Any]]:
+    def calcular_resultados_nao_operacionais_fc(self, mes: date, centro_custo: Optional[str] = None) -> List[Dict[str, Any]]:
       """Calcula o Resultado Não Operacional (Entradas - Saídas) do fluxo de caixa por nivel_1 com AV e AH.
 
       Args:
           mes: Data do mês a ser calculado.
+          centro_custo: Filtro opcional por centro de custo.
 
       Returns:
           Lista de dicionários com 'nivel_1', 'total_valor', 'av' e 'ah'.
@@ -810,6 +871,7 @@ class Indicadores:
                 AND EXTRACT(YEAR FROM data) = :year
                 AND EXTRACT(MONTH FROM data) = :month
                 AND LOWER(TRIM(nivel_1)) = LOWER('3. Receitas')
+                AND (COALESCE(:centro_custo, '') = '' OR centro_custo = :centro_custo)
             ),
             prev_resultado AS (
               SELECT 
@@ -824,6 +886,7 @@ class Indicadores:
                   LOWER('7.1 Entradas Não Operacionais'),
                   LOWER('7.2 Saídas Não Operacionais')
                 )
+                AND (COALESCE(:centro_custo, '') = '' OR centro_custo = :centro_custo)
               GROUP BY nivel_1
             ),
             current_resultado AS (
@@ -839,6 +902,7 @@ class Indicadores:
                   LOWER('7.1 Entradas Não Operacionais'),
                   LOWER('7.2 Saídas Não Operacionais')
                 )
+                AND (COALESCE(:centro_custo, '') = '' OR centro_custo = :centro_custo)
               GROUP BY nivel_1
             )
           SELECT
@@ -863,7 +927,8 @@ class Indicadores:
           "year": mes.year,
           "month": mes.month,
           "prev_year": mes.year if mes.month > 1 else mes.year - 1,
-          "prev_month": mes.month - 1 if mes.month > 1 else 12
+          "prev_month": mes.month - 1 if mes.month > 1 else 12,
+          "centro_custo": centro_custo if centro_custo else ""
       }
       try:
           result = self.db.execute_query(query, params)
@@ -880,11 +945,12 @@ class Indicadores:
           raise RuntimeError(f"Erro ao calcular resultado não operacional: {str(e)}")
 
 
-    def calcular_geracao_de_caixa_fc(self, mes: date) -> List[Dict[str, Any]]:
+    def calcular_geracao_de_caixa_fc(self, mes: date, centro_custo: Optional[str] = None) -> List[Dict[str, Any]]:
         """Calcula as categorias que compõem a Geração de Caixa do fluxo de caixa (fc).
 
         Args:
             mes: Data do mês a ser calculado.
+            centro_custo: Filtro opcional por centro de custo.
 
         Returns:
             Lista de dicionários com 'categoria', 'valor', 'av' (análise vertical), e 'ah' (análise horizontal).
@@ -899,6 +965,7 @@ class Indicadores:
                   AND EXTRACT(YEAR FROM data) = :year
                   AND EXTRACT(MONTH FROM data) = :month
                   AND nivel_1 = '3. Receitas'
+                  AND (COALESCE(:centro_custo, '') = '' OR centro_custo = :centro_custo)
                 UNION ALL
                 SELECT 'Custos Variáveis', SUM(valor) * -1
                 FROM fc
@@ -907,6 +974,7 @@ class Indicadores:
                   AND EXTRACT(YEAR FROM data) = :year
                   AND EXTRACT(MONTH FROM data) = :month
                   AND nivel_1 = '4. Custos Variáveis'
+                  AND (COALESCE(:centro_custo, '') = '' OR centro_custo = :centro_custo)
                 UNION ALL
                 SELECT 'Despesas Fixas', SUM(valor) * -1
                 FROM fc
@@ -915,6 +983,7 @@ class Indicadores:
                   AND EXTRACT(YEAR FROM data) = :year
                   AND EXTRACT(MONTH FROM data) = :month
                   AND nivel_1 = '5. Despesas Fixas'
+                  AND (COALESCE(:centro_custo, '') = '' OR centro_custo = :centro_custo)
                 UNION ALL
                 SELECT 'Investimentos', SUM(valor) * -1
                 FROM fc
@@ -923,6 +992,7 @@ class Indicadores:
                   AND EXTRACT(YEAR FROM data) = :year
                   AND EXTRACT(MONTH FROM data) = :month
                   AND nivel_1 = '6. Investimentos'
+                  AND (COALESCE(:centro_custo, '') = '' OR centro_custo = :centro_custo)
                 UNION ALL
                 SELECT 'Entradas Não Operacionais', SUM(valor)
                 FROM fc
@@ -931,6 +1001,7 @@ class Indicadores:
                   AND EXTRACT(YEAR FROM data) = :year
                   AND EXTRACT(MONTH FROM data) = :month
                   AND nivel_1 = '7.1 Entradas Não Operacionais'
+                  AND (COALESCE(:centro_custo, '') = '' OR centro_custo = :centro_custo)
                 UNION ALL
                 SELECT 'Saídas Não Operacionais', SUM(valor) * -1
                 FROM fc
@@ -939,6 +1010,7 @@ class Indicadores:
                   AND EXTRACT(YEAR FROM data) = :year
                   AND EXTRACT(MONTH FROM data) = :month
                   AND nivel_1 = '7.2 Saídas Não Operacionais'
+                  AND (COALESCE(:centro_custo, '') = '' OR centro_custo = :centro_custo)
               ),
               totais_anterior AS (
                 SELECT 'Receita' AS categoria, SUM(valor) AS prev_valor
@@ -948,6 +1020,7 @@ class Indicadores:
                   AND EXTRACT(YEAR FROM data) = :prev_year
                   AND EXTRACT(MONTH FROM data) = :prev_month
                   AND nivel_1 = '3. Receitas'
+                  AND (COALESCE(:centro_custo, '') = '' OR centro_custo = :centro_custo)
                 UNION ALL
                 SELECT 'Custos Variáveis', SUM(valor) * -1
                 FROM fc
@@ -956,6 +1029,7 @@ class Indicadores:
                   AND EXTRACT(YEAR FROM data) = :prev_year
                   AND EXTRACT(MONTH FROM data) = :prev_month
                   AND nivel_1 = '4. Custos Variáveis'
+                  AND (COALESCE(:centro_custo, '') = '' OR centro_custo = :centro_custo)
                 UNION ALL
                 SELECT 'Despesas Fixas', SUM(valor) * -1
                 FROM fc
@@ -964,6 +1038,7 @@ class Indicadores:
                   AND EXTRACT(YEAR FROM data) = :prev_year
                   AND EXTRACT(MONTH FROM data) = :prev_month
                   AND nivel_1 = '5. Despesas Fixas'
+                  AND (COALESCE(:centro_custo, '') = '' OR centro_custo = :centro_custo)
                 UNION ALL
                 SELECT 'Investimentos', SUM(valor) * -1
                 FROM fc
@@ -972,6 +1047,7 @@ class Indicadores:
                   AND EXTRACT(YEAR FROM data) = :prev_year
                   AND EXTRACT(MONTH FROM data) = :prev_month
                   AND nivel_1 = '6. Investimentos'
+                  AND (COALESCE(:centro_custo, '') = '' OR centro_custo = :centro_custo)
                 UNION ALL
                 SELECT 'Entradas Não Operacionais', SUM(valor)
                 FROM fc
@@ -980,6 +1056,7 @@ class Indicadores:
                   AND EXTRACT(YEAR FROM data) = :prev_year
                   AND EXTRACT(MONTH FROM data) = :prev_month
                   AND nivel_1 = '7.1 Entradas Não Operacionais'
+                  AND (COALESCE(:centro_custo, '') = '' OR centro_custo = :centro_custo)
                 UNION ALL
                 SELECT 'Saídas Não Operacionais', SUM(valor) * -1
                 FROM fc
@@ -988,6 +1065,7 @@ class Indicadores:
                   AND EXTRACT(YEAR FROM data) = :prev_year
                   AND EXTRACT(MONTH FROM data) = :prev_month
                   AND nivel_1 = '7.2 Saídas Não Operacionais'
+                  AND (COALESCE(:centro_custo, '') = '' OR centro_custo = :centro_custo)
               ),
               receita_total AS (
                 SELECT valor AS total
@@ -1071,7 +1149,8 @@ class Indicadores:
             "year": mes.year,
             "month": mes.month,
             "prev_year": mes.year if mes.month > 1 else mes.year - 1,
-            "prev_month": mes.month - 1 if mes.month > 1 else 12
+            "prev_month": mes.month - 1 if mes.month > 1 else 12,
+            "centro_custo": centro_custo if centro_custo else ""
         }
         try:
             result = self.db.execute_query(query, params)
@@ -1087,11 +1166,12 @@ class Indicadores:
         except Exception as e:
             raise RuntimeError(f"Erro ao calcular geração de caixa: {str(e)}")
 
-    def calcular_geracao_de_caixa_temporal_fc(self, mes_atual: date) -> List[Dict[str, Any]]:
+    def calcular_geracao_de_caixa_temporal_fc(self, mes_atual: date, centro_custo: Optional[str] = None) -> List[Dict[str, Any]]:
         """Calcula a Geração de Caixa dos últimos 3 meses e a análise horizontal (ah) em relação ao mês anterior.
 
         Args:
             mes_atual: Data do mês atual a ser considerado (o intervalo será mes_atual e os 2 meses anteriores).
+            centro_custo: Filtro opcional por centro de custo.
 
         Returns:
             Lista de dicionários com 'mes', 'valor' (Geração de Caixa), e 'ah' (análise horizontal).
@@ -1107,7 +1187,7 @@ class Indicadores:
         resultados_por_mes = []
         for i, mes in enumerate(meses):
             # Calcular a Geração de Caixa do mês atual
-            geracao_de_caixa = self.calcular_geracao_de_caixa_fc(mes)
+            geracao_de_caixa = self.calcular_geracao_de_caixa_fc(mes, centro_custo)
             
             # CORREÇÃO: Usar safe_float para lidar com valores NaN que estavam quebrando o cálculo
             from src.core.utils import safe_float
@@ -1120,7 +1200,7 @@ class Indicadores:
             # Calcular o valor do mês anterior para o ah
             mes_anterior = date(mes.year if mes.month > 1 else mes.year - 1,
                              mes.month - 1 if mes.month > 1 else 12, 1)
-            geracao_de_caixa_anterior = self.calcular_geracao_de_caixa_fc(mes_anterior)
+            geracao_de_caixa_anterior = self.calcular_geracao_de_caixa_fc(mes_anterior, centro_custo)
             
             # CORREÇÃO: Também usar safe_float aqui
             total_anterior = sum(
@@ -1148,11 +1228,12 @@ class Indicadores:
 
 #relatorio 6
 
-    def calcular_indicadores_dre(self, mes: date) -> List[Dict[str, Any]]:
+    def calcular_indicadores_dre(self, mes: date, empresa: Optional[str] = None) -> List[Dict[str, Any]]:
             """Calcula os indicadores financeiros do DRE para um mês específico.
 
             Args:
                 mes: Data do mês a ser calculado.
+                empresa: Filtro opcional por empresa.
 
             Returns:
                 Lista de dicionários com os indicadores, valores e análise vertical (av_dre).
@@ -1166,12 +1247,14 @@ class Indicadores:
                 AND visao = 'Competência'
                 AND EXTRACT(YEAR FROM data) = :year
                 AND EXTRACT(MONTH FROM data) = :month
+                AND (COALESCE(:empresa, '') = '' OR empresa = :empresa)
               group by categoria;
             """)
             params = {
                 "id_cliente": self.id_cliente,
                 "year": mes.year,
-                "month": mes.month
+                "month": mes.month,
+                "empresa": empresa if empresa else ""
             }
             try:
                 result = self.db.execute_query(query, params)
