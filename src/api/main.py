@@ -8,6 +8,7 @@ from datetime import date, timedelta
 import os
 import io
 import re
+import zipfile
 from dotenv import load_dotenv
 
 load_dotenv()  # Carrega as variáveis do arquivo .env
@@ -134,6 +135,9 @@ class RelatorioRequest(BaseModel):
     # Relatórios e opções: exige IDs 1..8 (pode entrar como string 'Relatório 7' que normalizamos)
     relatorios: List[int] = Field(..., min_length=1, description="IDs dos relatórios (1 a 8)")
     analise_text: Optional[str] = None
+    
+    # NOVO: Filtro por centro de custo/empresa
+    centro_custo: bool = Field(default=False, description="Se True, gera um relatório por centro de custo/empresa")
 
     @field_validator("relatorios", mode="before")
     @classmethod
@@ -220,6 +224,197 @@ def meta():
     return {"meses": meses, "relatorios": relatorios}
 
 # ---------------------------
+# Funções auxiliares de geração de relatórios
+# ---------------------------
+def gerar_relatorio_unico(
+    db: DatabaseConnection,
+    id_cliente: List[int],
+    display_nome: str,
+    mes_atual: date,
+    mes_anterior: date,
+    relatorios_ids: List[int],
+    analise_text: str,
+    centro_custo: Optional[str],
+    empresa: Optional[str],
+    ano: int,
+    mes: int
+) -> StreamingResponse:
+    """Gera um único relatório PDF (com ou sem filtro de centro de custo/empresa)."""
+    
+    # Criar instância de Indicadores
+    indicadores = Indicadores(id_cliente, db)
+    
+    # Validação de dados
+    dados_validos, mensagem_erro = validar_dados_cliente(indicadores, mes_atual)
+    if not dados_validos:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "error": "Dados insuficientes",
+                "message": mensagem_erro,
+                "cliente_id": id_cliente,
+                "periodo": f"{mes}/{ano}",
+                "code": "NO_DATA_AVAILABLE"
+            }
+        )
+    
+    # Índice
+    meses = obter_meses()
+    nome_mes = next((nm for nm, n in meses if n == mes), str(mes))
+    ids_escolhidos = set(relatorios_ids)
+    indice_data = {
+        "fluxo_caixa": "Sim" if ids_escolhidos & {1, 2, 3, 4, 5} else "Não",
+        "dre_gerencial": "Sim" if 6 in ids_escolhidos else "Não",
+        "indicador": "Sim" if 7 in ids_escolhidos else "Não",
+        "nota_consultor": "Sim" if 8 in ids_escolhidos else "Não",
+        "cliente_nome": display_nome,
+        "mes": nome_mes,
+        "ano": ano,
+        "nome": display_nome,
+        "Periodo": f"{nome_mes} {ano}",
+        "marca": MARCA_PADRAO,
+    }
+    
+    relatorios_dados = [("Índice", indice_data)]
+    
+    # Gerar relatórios
+    for rel_id in relatorios_ids:
+        rel_label = RELATORIO_LABELS[rel_id]
+        rel_class = RELATORIO_CLASSES[rel_id]
+        relatorio = rel_class(indicadores, display_nome)
+        
+        # Passar filtros para os métodos das classes de relatório
+        if rel_id in {1, 2, 3, 4, 5}:  # Relatórios de FC (aceita centro_custo)
+            dados = relatorio.gerar_relatorio(mes_atual, mes_anterior, centro_custo)
+        elif rel_id == 6:  # Relatório DRE (aceita empresa)
+            dados = relatorio.gerar_relatorio(mes_atual, empresa)
+        elif rel_id == 7:  # Relatório de indicadores (sem filtro)
+            dados = relatorio.gerar_relatorio(mes_atual)
+        elif rel_id == 8:  # Notas do consultor (sem filtro)
+            if analise_text:
+                relatorio.salvar_analise(mes_atual, analise_text)
+            dados = relatorio.gerar_relatorio(mes_atual)
+        
+        relatorios_dados.append((rel_label, dados))
+    
+    # Renderizar PDF
+    engine = RenderingEngine()
+    os.makedirs("outputs", exist_ok=True)
+    
+    # Nome do arquivo
+    nome_mes_slug = slugify_filename(nome_mes)
+    filename_parts = [f"Relatorio_{slugify_filename(display_nome)}", f"{nome_mes_slug}_{ano}"]
+    
+    if centro_custo:
+        filename_parts.append(f"CC_{slugify_filename(centro_custo)}")
+    elif empresa:
+        filename_parts.append(f"EMP_{slugify_filename(empresa)}")
+        
+    filename = "_".join(filename_parts) + ".pdf"
+    output_path = os.path.join("outputs", filename)
+    pdf_path = engine.render_to_pdf(relatorios_dados, display_nome, nome_mes, ano, output_path)
+    
+    # Retornar arquivo
+    pdf_bytes = open(pdf_path, "rb").read()
+    return StreamingResponse(
+        io.BytesIO(pdf_bytes),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename=\"{filename}\"'}
+    )
+
+
+def gerar_multiplos_pdfs(
+    db: DatabaseConnection,
+    id_cliente: List[int],
+    display_nome: str,
+    mes_atual: date,
+    mes_anterior: date,
+    relatorios_ids: List[int],
+    analise_text: str,
+    centros_custo: List[str],
+    ano: int,
+    mes: int
+) -> StreamingResponse:
+    """Gera múltiplos PDFs (um por centro de custo/empresa) e retorna como ZIP."""
+    
+    meses = obter_meses()
+    nome_mes = next((nm for nm, n in meses if n == mes), str(mes))
+    nome_mes_slug = slugify_filename(nome_mes)
+    
+    # Criar arquivo ZIP em memória
+    zip_buffer = io.BytesIO()
+    
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+        for centro in centros_custo:
+            # Criar instância de Indicadores para este centro de custo
+            indicadores = Indicadores(id_cliente, db)
+            
+            # Índice
+            ids_escolhidos = set(relatorios_ids)
+            indice_data = {
+                "fluxo_caixa": "Sim" if ids_escolhidos & {1, 2, 3, 4, 5} else "Não",
+                "dre_gerencial": "Sim" if 6 in ids_escolhidos else "Não",
+                "indicador": "Sim" if 7 in ids_escolhidos else "Não",
+                "nota_consultor": "Sim" if 8 in ids_escolhidos else "Não",
+                "cliente_nome": f"{display_nome} - {centro}",
+                "mes": nome_mes,
+                "ano": ano,
+                "nome": f"{display_nome} - {centro}",
+                "Periodo": f"{nome_mes} {ano}",
+                "marca": MARCA_PADRAO,
+            }
+            
+            relatorios_dados = [("Índice", indice_data)]
+            
+            # Gerar relatórios para este centro
+            for rel_id in relatorios_ids:
+                rel_label = RELATORIO_LABELS[rel_id]
+                rel_class = RELATORIO_CLASSES[rel_id]
+                relatorio = rel_class(indicadores, f"{display_nome} - {centro}")
+                
+                # Passar centro_custo/empresa para os métodos das classes de relatório
+                if rel_id in {1, 2, 3, 4, 5}:  # Relatórios de FC (aceita centro_custo)
+                    dados = relatorio.gerar_relatorio(mes_atual, mes_anterior, centro)
+                elif rel_id == 6:  # Relatório DRE (aceita empresa)
+                    dados = relatorio.gerar_relatorio(mes_atual, centro)
+                elif rel_id == 7:  # Relatório de indicadores (sem filtro)
+                    dados = relatorio.gerar_relatorio(mes_atual)
+                elif rel_id == 8:  # Notas do consultor (sem filtro)
+                    if analise_text:
+                        relatorio.salvar_analise(mes_atual, analise_text)
+                    dados = relatorio.gerar_relatorio(mes_atual)
+                
+                relatorios_dados.append((rel_label, dados))
+            
+            # Nome do arquivo individual
+            filename = f"Relatorio_{slugify_filename(display_nome)}_{nome_mes_slug}_{ano}_CC_{slugify_filename(centro)}.pdf"
+            output_path = os.path.join("outputs", filename)
+            
+            # Renderizar PDF
+            engine = RenderingEngine()
+            pdf_path = engine.render_to_pdf(relatorios_dados, f"{display_nome} - {centro}", nome_mes, ano, output_path)
+            
+            # Adicionar PDF ao ZIP
+            with open(pdf_path, 'rb') as pdf_file:
+                zip_file.writestr(filename, pdf_file.read())
+            
+            # Limpar arquivo temporário
+            try:
+                os.remove(pdf_path)
+            except:
+                pass
+    
+    # Retornar ZIP
+    zip_buffer.seek(0)
+    zip_filename = f"Relatorios_{slugify_filename(display_nome)}_{nome_mes_slug}_{ano}_CentrosCusto.zip"
+    
+    return StreamingResponse(
+        zip_buffer,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename=\"{zip_filename}\"'}
+    )
+
+# ---------------------------
 # Endpoint principal: gera PDF (POST recomendado)
 # ---------------------------
 @app.post("/v1/relatorios/pdf", dependencies=[Depends(verify_api_key)])
@@ -244,11 +439,36 @@ def gerar_pdf(payload: RelatorioRequest):
     # 3) Análise do consultor (se houver)
     analise_text = processar_html_parecer(payload.analise_text or "")
 
-    # 4) Preparar geração (mesma lógica da UI)
+    # 4) Preparar geração
     db = DatabaseConnection()
-    indicadores = Indicadores(id_cliente, db)  # passa a lista (suporta consolidado)
+    
+    # 4.1) NOVO: Verificar se deve filtrar por centro de custo
+    if payload.centro_custo:
+        # Buscar centros de custo disponíveis
+        centros_custo = buscar_centros_custo_disponiveis(db, id_cliente, ano, mes)
+        
+        if not centros_custo:
+            raise HTTPException(
+                status_code=404, 
+                detail={
+                    "error": "Nenhum centro de custo encontrado",
+                    "message": "Não foram encontrados centros de custo ou empresas com dados para o período especificado.",
+                    "cliente_id": id_cliente,
+                    "periodo": f"{mes}/{ano}",
+                    "code": "NO_COST_CENTER_FOUND"
+                }
+            )
+        
+        # Gerar múltiplos PDFs (um por centro de custo)
+        return gerar_multiplos_pdfs(
+            db, id_cliente, display_nome, mes_atual, mes_anterior,
+            payload.relatorios, analise_text, centros_custo, ano, mes
+        )
+    
+    # 4.2) Geração padrão (sem filtro, todos os centros somados)
+    indicadores = Indicadores(id_cliente, db)
 
-    # 4.1) Validar se o cliente possui dados válidos para o período
+    # Validar se o cliente possui dados válidos para o período
     dados_validos, mensagem_erro = validar_dados_cliente(indicadores, mes_atual)
     if not dados_validos:
         raise HTTPException(
@@ -262,59 +482,77 @@ def gerar_pdf(payload: RelatorioRequest):
             }
         )
 
-    # Índice (igual à UI)
-    meses = obter_meses()
-    nome_mes = next((nm for nm, n in meses if n == mes), str(mes))
-    ids_escolhidos = set(payload.relatorios)
-    indice_data = {
-        "fluxo_caixa": "Sim" if ids_escolhidos & {1, 2, 3, 4, 5} else "Não",
-        "dre_gerencial": "Sim" if 6 in ids_escolhidos else "Não",
-        "indicador": "Sim" if 7 in ids_escolhidos else "Não",
-        "nota_consultor": "Sim" if 8 in ids_escolhidos else "Não",
-        "cliente_nome": display_nome,
-        "mes": nome_mes,
-        "ano": ano,
-        "nome": display_nome,
-        "Periodo": f"{nome_mes} {ano}",
-        "marca": MARCA_PADRAO,
-    }
-
-    relatorios_dados = [("Índice", indice_data)]
-
-    for rel_id in payload.relatorios:
-        rel_label = RELATORIO_LABELS[rel_id]
-        rel_class = RELATORIO_CLASSES[rel_id]
-        relatorio = rel_class(indicadores, display_nome)
-
-        if rel_id in {1, 2, 3, 4}:
-            dados = relatorio.gerar_relatorio(mes_atual, mes_anterior)
-        elif rel_id == 8:
-            if analise_text:
-                relatorio.salvar_analise(mes_atual, analise_text)
-            dados = relatorio.gerar_relatorio(mes_atual)
-        else:
-            dados = relatorio.gerar_relatorio(mes_atual)
-
-        relatorios_dados.append((rel_label, dados))
-
-    # 5) Renderizar PDF (mesmo engine)
-    engine = RenderingEngine()
-    os.makedirs("outputs", exist_ok=True)
-    filename = f"Relatorio_{slugify_filename(display_nome)}_{slugify_filename(nome_mes)}_{ano}.pdf"
-    output_path = os.path.join("outputs", filename)
-    pdf_path = engine.render_to_pdf(relatorios_dados, display_nome, nome_mes, ano, output_path)
-
-    # 6) Responder como arquivo
-    pdf_bytes = open(pdf_path, "rb").read()
-    return StreamingResponse(
-        io.BytesIO(pdf_bytes),
-        media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename=\"{filename}\"'}
+    # Gerar relatório único
+    return gerar_relatorio_unico(
+        db, id_cliente, display_nome, mes_atual, mes_anterior,
+        payload.relatorios, analise_text, None, None, ano, mes
     )
 
 # ---------------------------
 # Helpers de validação de dados
 # ---------------------------
+def buscar_centros_custo_disponiveis(db: DatabaseConnection, id_cliente: List[int], ano: int, mes: int) -> List[str]:
+    """
+    Retorna lista de centros de custo/empresas com dados no período.
+    Busca na tabela FC (coluna centro_custo) e DRE (coluna empresa).
+    
+    Args:
+        db: Conexão com banco de dados
+        id_cliente: Lista de IDs de clientes
+        ano: Ano do período
+        mes: Mês do período
+        
+    Returns:
+        Lista de strings com os centros de custo/empresas disponíveis
+    """
+    from sqlalchemy import text
+    
+    # Buscar centros de custo da tabela FC
+    query_fc = text("""
+        SELECT DISTINCT centro_custo
+        FROM fc 
+        WHERE id_cliente = ANY (:id_cliente)
+          AND EXTRACT(YEAR FROM data) = :year
+          AND EXTRACT(MONTH FROM data) = :month
+          AND centro_custo IS NOT NULL
+          AND TRIM(centro_custo) != ''
+        ORDER BY centro_custo;
+    """)
+    
+    # Buscar empresas da tabela DRE
+    query_dre = text("""
+        SELECT DISTINCT empresa
+        FROM dre 
+        WHERE id_cliente = ANY (:id_cliente)
+          AND EXTRACT(YEAR FROM data) = :year
+          AND EXTRACT(MONTH FROM data) = :month
+          AND empresa IS NOT NULL
+          AND TRIM(empresa) != ''
+        ORDER BY empresa;
+    """)
+    
+    params = {
+        "id_cliente": id_cliente,
+        "year": ano,
+        "month": mes
+    }
+    
+    try:
+        result_fc = db.execute_query(query_fc, params)
+        result_dre = db.execute_query(query_dre, params)
+        
+        centros_fc = [row["centro_custo"] for _, row in result_fc.iterrows()] if not result_fc.empty else []
+        empresas_dre = [row["empresa"] for _, row in result_dre.iterrows()] if not result_dre.empty else []
+        
+        # Unir as duas listas e remover duplicatas mantendo a ordem
+        todos = centros_fc + [e for e in empresas_dre if e not in centros_fc]
+        
+        return todos if todos else []
+        
+    except Exception as e:
+        logging.error(f"Erro ao buscar centros de custo: {str(e)}")
+        return []
+
 def validar_dados_cliente(indicadores: Indicadores, mes_atual: date) -> tuple[bool, str]:
     """
     Valida se o cliente possui dados válidos (não zerados/nulos) para o período especificado.
