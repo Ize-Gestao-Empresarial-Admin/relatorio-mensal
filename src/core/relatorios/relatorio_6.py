@@ -15,11 +15,12 @@ class Relatorio6:
         self.indicadores = indicadores
         self.nome_cliente = nome_cliente
 
-    def gerar_relatorio(self, mes: date) -> tuple[List[Dict[str, Any]], Dict[str, str]]:
+    def gerar_relatorio(self, mes: date, empresa: str = None) -> tuple[List[Dict[str, Any]], Dict[str, str]]:
         """Gera o relatório financeiro 6 - Indicadores DRE.
 
         Args:
             mes: Data do mês a ser calculado.
+            empresa: Optional filter by empresa.
 
         Returns:
             Tupla contendo a lista de dicionários com indicadores e um dicionário com notas automatizadas.
@@ -29,7 +30,7 @@ class Relatorio6:
         """
         try:
             # Obter os indicadores calculados
-            indicadores_resultado = self.indicadores.calcular_indicadores_dre(mes)
+            indicadores_resultado = self.indicadores.calcular_indicadores_dre(mes, empresa)
 
             # Mapear indicadores esperados para as notas
             indicadores_esperados = [

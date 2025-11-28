@@ -21,12 +21,13 @@ class Relatorio1:
         except (TypeError, ValueError):
             return default
 
-    def gerar_relatorio(self, mes_atual: date, mes_anterior: Optional[date] = None) -> List[Dict[str, Any]]:
+    def gerar_relatorio(self, mes_atual: date, mes_anterior: Optional[date] = None, centro_custo: Optional[str] = None) -> List[Dict[str, Any]]:
         """Generates Report 1 with revenues, variable costs, and their representativeness.
 
         Args:
             mes_atual: Current month date for calculations.
             mes_anterior: Previous month date for horizontal analysis (optional).
+            centro_custo: Optional filter by cost center.
 
         Returns:
             Tuple with a list of dictionaries (categories and subcategories) and a notes dictionary.
@@ -35,10 +36,10 @@ class Relatorio1:
         if mes_anterior is None:
             mes_anterior = mes_atual - relativedelta(months=1)
         
-        receitas = self.indicadores.calcular_receitas_fc(mes_atual, '3.%')
-        custos = self.indicadores.calcular_custos_variaveis_fc(mes_atual, '4.%')
-        receitas_mes_anterior = self.indicadores.calcular_receitas_fc(mes_anterior, '3.%')
-        custos_mes_anterior = self.indicadores.calcular_custos_variaveis_fc(mes_anterior, '4.%')
+        receitas = self.indicadores.calcular_receitas_fc(mes_atual, '3.%', centro_custo)
+        custos = self.indicadores.calcular_custos_variaveis_fc(mes_atual, '4.%', centro_custo)
+        receitas_mes_anterior = self.indicadores.calcular_receitas_fc(mes_anterior, '3.%', centro_custo)
+        custos_mes_anterior = self.indicadores.calcular_custos_variaveis_fc(mes_anterior, '4.%', centro_custo)
 
         # Calculate totals
         receita_total = sum(self.safe_float(r.get('total_categoria', 0)) for r in receitas) if receitas else 0

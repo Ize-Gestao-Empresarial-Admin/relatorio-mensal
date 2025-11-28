@@ -10,12 +10,13 @@ class Relatorio2:
         self.indicadores = indicadores
         self.nome_cliente = nome_cliente
 
-    def gerar_relatorio(self, mes_atual: date, mes_anterior: Optional[date] = None) -> List[Dict[str, Any]]:
+    def gerar_relatorio(self, mes_atual: date, mes_anterior: Optional[date] = None, centro_custo: Optional[str] = None) -> List[Dict[str, Any]]:
         """Gera o relatório 2 com lucro bruto, despesas fixas e suas representatividades.
 
         Args:
             mes_atual: Data do mês atual para o cálculo.
             mes_anterior: Data do mês anterior para análise horizontal (opcional).
+            centro_custo: Optional filter by cost center.
 
         Returns:
             Lista de dicionários contendo categorias e subcategorias, junto com notas.
@@ -25,10 +26,10 @@ class Relatorio2:
             mes_anterior = mes_atual - relativedelta(months=1)
         
         # Obtém dados do período atual
-        lucro_bruto = self.indicadores.calcular_lucro_bruto_fc(mes_atual)
-        despesas_fixas = self.indicadores.calcular_despesas_fixas_fc(mes_atual)
-        lucro_bruto_anterior = self.indicadores.calcular_lucro_bruto_fc(mes_anterior)
-        despesas_fixas_anterior = self.indicadores.calcular_despesas_fixas_fc(mes_anterior)
+        lucro_bruto = self.indicadores.calcular_lucro_bruto_fc(mes_atual, centro_custo)
+        despesas_fixas = self.indicadores.calcular_despesas_fixas_fc(mes_atual, centro_custo)
+        lucro_bruto_anterior = self.indicadores.calcular_lucro_bruto_fc(mes_anterior, centro_custo)
+        despesas_fixas_anterior = self.indicadores.calcular_despesas_fixas_fc(mes_anterior, centro_custo)
 
         # Calcula receita total e totais das categorias
         receita_total = next((r['valor'] for r in lucro_bruto if r['categoria'] == 'Receita'), 0)

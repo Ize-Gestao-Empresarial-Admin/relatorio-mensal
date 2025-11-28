@@ -10,12 +10,13 @@ class Relatorio5:
         self.indicadores = indicadores
         self.nome_cliente = nome_cliente
 
-    def gerar_relatorio(self, mes_atual: date, mes_anterior: Optional[date] = None) -> List[Dict[str, Any]]:
+    def gerar_relatorio(self, mes_atual: date, mes_anterior: Optional[date] = None, centro_custo: Optional[str] = None) -> List[Dict[str, Any]]:
         """Gera o relatório financeiro 5 - Fechamento de Fluxo de Caixa.
 
         Args:
             mes_atual: Data do mês a ser calculado.
             mes_anterior: Data do mês anterior (não usado diretamente, incluído para consistência).
+            centro_custo: Optional filter by cost center.
 
         Returns:
             Lista de dicionários com categorias, valores, subcategorias e análise temporal.
@@ -26,23 +27,23 @@ class Relatorio5:
 
         # Parte 1: Cálculo das categorias principais (Saídas Não Operacionais e Geração de Caixa)
         try:
-            saidas_nao_operacionais_resultado = self.indicadores.calcular_saidas_nao_operacionais_fc(mes_atual)
+            saidas_nao_operacionais_resultado = self.indicadores.calcular_saidas_nao_operacionais_fc(mes_atual, centro_custo)
         except Exception:
             saidas_nao_operacionais_resultado = []
             
         try:
-            geracao_de_caixa_resultado = self.indicadores.calcular_geracao_de_caixa_fc(mes_atual)
+            geracao_de_caixa_resultado = self.indicadores.calcular_geracao_de_caixa_fc(mes_atual, centro_custo)
         except Exception:
             geracao_de_caixa_resultado = []
         
         # Dados do mês anterior para comparação
         try:
-            saidas_nao_operacionais_anterior = self.indicadores.calcular_saidas_nao_operacionais_fc(mes_anterior)
+            saidas_nao_operacionais_anterior = self.indicadores.calcular_saidas_nao_operacionais_fc(mes_anterior, centro_custo)
         except Exception:
             saidas_nao_operacionais_anterior = []
             
         try:
-            geracao_de_caixa_anterior = self.indicadores.calcular_geracao_de_caixa_fc(mes_anterior)
+            geracao_de_caixa_anterior = self.indicadores.calcular_geracao_de_caixa_fc(mes_anterior, centro_custo)
         except Exception:
             geracao_de_caixa_anterior = []
 
@@ -80,12 +81,12 @@ class Relatorio5:
         receita_total = 0
         try:
             # Primeiro tentar buscar diretamente da função de receitas
-            receitas_fc = self.indicadores.calcular_receitas_fc(mes_atual, "3.%")
+            receitas_fc = self.indicadores.calcular_receitas_fc(mes_atual, "3.%", centro_custo)
             receita_total = sum(safe_float(r.get("total_categoria", 0)) for r in receitas_fc)
         except:
             # Se falhar, tentar buscar do lucro líquido
             try:
-                lucro_liquido_resultado = self.indicadores.calcular_lucro_liquido_fc(mes_atual)
+                lucro_liquido_resultado = self.indicadores.calcular_lucro_liquido_fc(mes_atual, centro_custo)
                 for r in lucro_liquido_resultado:
                     if r.get("categoria") == "Receita":
                         receita_total = safe_float(r.get("valor", 0))
@@ -122,7 +123,7 @@ class Relatorio5:
 
         # Parte 2: Análise Temporal da Geração de Caixa (3 meses) - MELHORADO: usar safe_float
         try:
-            analise_temporal_resultado = self.indicadores.calcular_geracao_de_caixa_temporal_fc(mes_atual)
+            analise_temporal_resultado = self.indicadores.calcular_geracao_de_caixa_temporal_fc(mes_atual, centro_custo)
         except Exception:
             analise_temporal_resultado = []
 
