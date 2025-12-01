@@ -9,6 +9,7 @@ import os
 import io
 import re
 import zipfile
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dotenv import load_dotenv
 
 load_dotenv()  # Carrega as variáveis do arquivo .env
@@ -341,72 +342,104 @@ def gerar_multiplos_pdfs(
     nome_mes = next((nm for nm, n in meses if n == mes), str(mes))
     nome_mes_slug = slugify_filename(nome_mes)
     
-    # Criar arquivo ZIP em memória
+    def gerar_pdf_para_centro(centro: str) -> tuple[str, bytes]:
+        """
+        Função auxiliar para gerar PDF de um centro de custo específico.
+        Retorna tupla (filename, pdf_bytes) para ser adicionada ao ZIP.
+        """
+        # Criar instância de Indicadores para este centro de custo
+        indicadores = Indicadores(id_cliente, db)
+        
+        # Índice
+        ids_escolhidos = set(relatorios_ids)
+        indice_data = {
+            "fluxo_caixa": "Sim" if ids_escolhidos & {1, 2, 3, 4, 5} else "Não",
+            "dre_gerencial": "Sim" if 6 in ids_escolhidos else "Não",
+            "indicador": "Sim" if 7 in ids_escolhidos else "Não",
+            "nota_consultor": "Sim" if 8 in ids_escolhidos else "Não",
+            "cliente_nome": f"{display_nome} - {centro}",
+            "mes": nome_mes,
+            "ano": ano,
+            "nome": f"{display_nome} - {centro}",
+            "Periodo": f"{nome_mes} {ano}",
+            "marca": MARCA_PADRAO,
+        }
+        
+        relatorios_dados = [("Índice", indice_data)]
+        
+        # Gerar relatórios para este centro
+        for rel_id in relatorios_ids:
+            rel_label = RELATORIO_LABELS[rel_id]
+            rel_class = RELATORIO_CLASSES[rel_id]
+            relatorio = rel_class(indicadores, f"{display_nome} - {centro}")
+            
+            # Passar centro_custo/empresa para os métodos das classes de relatório
+            if rel_id in {1, 2, 3, 4, 5}:  # Relatórios de FC (aceita centro_custo)
+                dados = relatorio.gerar_relatorio(mes_atual, mes_anterior, centro)
+            elif rel_id == 6:  # Relatório DRE (aceita empresa)
+                dados = relatorio.gerar_relatorio(mes_atual, centro)
+            elif rel_id == 7:  # Relatório de indicadores (sem filtro)
+                dados = relatorio.gerar_relatorio(mes_atual)
+            elif rel_id == 8:  # Notas do consultor (sem filtro)
+                if analise_text:
+                    relatorio.salvar_analise(mes_atual, analise_text)
+                dados = relatorio.gerar_relatorio(mes_atual)
+            
+            relatorios_dados.append((rel_label, dados))
+        
+        # Nome do arquivo individual
+        filename = f"Relatorio_{slugify_filename(display_nome)}_{nome_mes_slug}_{ano}_CC_{slugify_filename(centro)}.pdf"
+        output_path = os.path.join("outputs", filename)
+        
+        # Renderizar PDF
+        engine = RenderingEngine()
+        pdf_path = engine.render_to_pdf(relatorios_dados, f"{display_nome} - {centro}", nome_mes, ano, output_path)
+        
+        # Ler o PDF em bytes
+        with open(pdf_path, 'rb') as pdf_file:
+            pdf_bytes = pdf_file.read()
+        
+        # Limpar arquivo temporário
+        try:
+            os.remove(pdf_path)
+        except:
+            pass
+        
+        return (filename, pdf_bytes)
+    
+    # Processar centros de custo em paralelo
+    pdfs_gerados = {}
+    max_workers = min(len(centros_custo), os.cpu_count() or 4)  # Limita ao número de CPUs disponíveis
+    
+    logging.info(f"Gerando {len(centros_custo)} PDFs em paralelo com {max_workers} workers...")
+    
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        # Submeter todas as tarefas
+        future_to_centro = {executor.submit(gerar_pdf_para_centro, centro): centro for centro in centros_custo}
+        
+        # Coletar resultados conforme vão sendo completados
+        for future in as_completed(future_to_centro):
+            centro = future_to_centro[future]
+            try:
+                filename, pdf_bytes = future.result()
+                pdfs_gerados[filename] = pdf_bytes
+                logging.info(f"PDF gerado com sucesso para centro: {centro}")
+            except Exception as e:
+                logging.error(f"Erro ao gerar PDF para centro {centro}: {str(e)}")
+                # Continua processando os outros mesmo se um falhar
+    
+    # Criar arquivo ZIP em memória com os PDFs gerados
     zip_buffer = io.BytesIO()
     
     with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
-        for centro in centros_custo:
-            # Criar instância de Indicadores para este centro de custo
-            indicadores = Indicadores(id_cliente, db)
-            
-            # Índice
-            ids_escolhidos = set(relatorios_ids)
-            indice_data = {
-                "fluxo_caixa": "Sim" if ids_escolhidos & {1, 2, 3, 4, 5} else "Não",
-                "dre_gerencial": "Sim" if 6 in ids_escolhidos else "Não",
-                "indicador": "Sim" if 7 in ids_escolhidos else "Não",
-                "nota_consultor": "Sim" if 8 in ids_escolhidos else "Não",
-                "cliente_nome": f"{display_nome} - {centro}",
-                "mes": nome_mes,
-                "ano": ano,
-                "nome": f"{display_nome} - {centro}",
-                "Periodo": f"{nome_mes} {ano}",
-                "marca": MARCA_PADRAO,
-            }
-            
-            relatorios_dados = [("Índice", indice_data)]
-            
-            # Gerar relatórios para este centro
-            for rel_id in relatorios_ids:
-                rel_label = RELATORIO_LABELS[rel_id]
-                rel_class = RELATORIO_CLASSES[rel_id]
-                relatorio = rel_class(indicadores, f"{display_nome} - {centro}")
-                
-                # Passar centro_custo/empresa para os métodos das classes de relatório
-                if rel_id in {1, 2, 3, 4, 5}:  # Relatórios de FC (aceita centro_custo)
-                    dados = relatorio.gerar_relatorio(mes_atual, mes_anterior, centro)
-                elif rel_id == 6:  # Relatório DRE (aceita empresa)
-                    dados = relatorio.gerar_relatorio(mes_atual, centro)
-                elif rel_id == 7:  # Relatório de indicadores (sem filtro)
-                    dados = relatorio.gerar_relatorio(mes_atual)
-                elif rel_id == 8:  # Notas do consultor (sem filtro)
-                    if analise_text:
-                        relatorio.salvar_analise(mes_atual, analise_text)
-                    dados = relatorio.gerar_relatorio(mes_atual)
-                
-                relatorios_dados.append((rel_label, dados))
-            
-            # Nome do arquivo individual
-            filename = f"Relatorio_{slugify_filename(display_nome)}_{nome_mes_slug}_{ano}_CC_{slugify_filename(centro)}.pdf"
-            output_path = os.path.join("outputs", filename)
-            
-            # Renderizar PDF
-            engine = RenderingEngine()
-            pdf_path = engine.render_to_pdf(relatorios_dados, f"{display_nome} - {centro}", nome_mes, ano, output_path)
-            
-            # Adicionar PDF ao ZIP
-            with open(pdf_path, 'rb') as pdf_file:
-                zip_file.writestr(filename, pdf_file.read())
-            
-            # Limpar arquivo temporário
-            try:
-                os.remove(pdf_path)
-            except:
-                pass
+        for filename, pdf_bytes in pdfs_gerados.items():
+            zip_file.writestr(filename, pdf_bytes)
     
     # Retornar ZIP
     zip_buffer.seek(0)
     zip_filename = f"Relatorios_{slugify_filename(display_nome)}_{nome_mes_slug}_{ano}_CentrosCusto.zip"
+    
+    logging.info(f"ZIP criado com {len(pdfs_gerados)} PDFs: {zip_filename}")
     
     return StreamingResponse(
         zip_buffer,
