@@ -11,12 +11,13 @@ class Relatorio4:
         self.indicadores = indicadores
         self.nome_cliente = nome_cliente
 
-    def gerar_relatorio(self, mes_atual: date, mes_anterior: Optional[date] = None) -> List[Dict[str, Any]]:
+    def gerar_relatorio(self, mes_atual: date, mes_anterior: Optional[date] = None, centro_custo: Optional[str] = None) -> List[Dict[str, Any]]:
         """Gera o relatório 4 com lucro líquido, entradas e resultados não operacionais.
 
         Args:
             mes_atual: Data do mês atual para o cálculo.
             mes_anterior: Data do mês anterior para análise horizontal (opcional).
+            centro_custo: Optional filter by cost center.
 
         Returns:
             Lista de dicionários contendo categorias e subcategorias, junto com notas.
@@ -26,14 +27,14 @@ class Relatorio4:
             mes_anterior = mes_atual - relativedelta(months=1)
 
         # Chamar funções de indicadores para o mês atual
-        lucro_liquido_resultado = self.indicadores.calcular_lucro_liquido_fc(mes_atual)
-        entradas_nao_operacionais_resultado = self.indicadores.calcular_entradas_nao_operacionais_fc(mes_atual)
-        resultados_nao_operacionais_resultado = self.indicadores.calcular_resultados_nao_operacionais_fc(mes_atual)
+        lucro_liquido_resultado = self.indicadores.calcular_lucro_liquido_fc(mes_atual, centro_custo)
+        entradas_nao_operacionais_resultado = self.indicadores.calcular_entradas_nao_operacionais_fc(mes_atual, centro_custo)
+        resultados_nao_operacionais_resultado = self.indicadores.calcular_resultados_nao_operacionais_fc(mes_atual, centro_custo)
 
         # Chamar funções de indicadores para o mês anterior
-        lucro_liquido_anterior_resultado = self.indicadores.calcular_lucro_liquido_fc(mes_anterior)
-        entradas_nao_operacionais_anterior_resultado = self.indicadores.calcular_entradas_nao_operacionais_fc(mes_anterior)
-        resultados_nao_operacionais_anterior_resultado = self.indicadores.calcular_resultados_nao_operacionais_fc(mes_anterior)
+        lucro_liquido_anterior_resultado = self.indicadores.calcular_lucro_liquido_fc(mes_anterior, centro_custo)
+        entradas_nao_operacionais_anterior_resultado = self.indicadores.calcular_entradas_nao_operacionais_fc(mes_anterior, centro_custo)
+        resultados_nao_operacionais_anterior_resultado = self.indicadores.calcular_resultados_nao_operacionais_fc(mes_anterior, centro_custo)
 
         # Extrair valores, tratando None e NaN
         def get_valor(categoria: str, resultado: List[Dict[str, Any]], default: float = 0.0) -> float:

@@ -10,12 +10,13 @@ class Relatorio3:
         self.indicadores = indicadores
         self.nome_cliente = nome_cliente
 
-    def gerar_relatorio(self, mes_atual: date, mes_anterior: Optional[date] = None) -> List[Dict[str, Any]]:
+    def gerar_relatorio(self, mes_atual: date, mes_anterior: Optional[date] = None, centro_custo: Optional[str] = None) -> List[Dict[str, Any]]:
         """Gera o relatório 3 com lucro operacional, investimentos e suas representatividades.
 
         Args:
             mes_atual: Data do mês atual para o cálculo.
             mes_anterior: Data do mês anterior para análise horizontal (opcional).
+            centro_custo: Optional filter by cost center.
 
         Returns:
             Lista de dicionários contendo categorias e subcategorias, junto com notas.
@@ -25,10 +26,10 @@ class Relatorio3:
             mes_anterior = mes_atual - relativedelta(months=1)
         
         # Chamar funções de indicadores
-        lucro_operacional_resultado = self.indicadores.calcular_lucro_operacional_fc(mes_atual, mes_anterior)
-        investimentos_resultado = self.indicadores.calcular_investimentos_fc(mes_atual, mes_anterior)
-        lucro_operacional_anterior_resultado = self.indicadores.calcular_lucro_operacional_fc(mes_anterior, None)
-        investimentos_anterior_resultado = self.indicadores.calcular_investimentos_fc(mes_anterior, None)
+        lucro_operacional_resultado = self.indicadores.calcular_lucro_operacional_fc(mes_atual, mes_anterior, centro_custo)
+        investimentos_resultado = self.indicadores.calcular_investimentos_fc(mes_atual, mes_anterior, centro_custo)
+        lucro_operacional_anterior_resultado = self.indicadores.calcular_lucro_operacional_fc(mes_anterior, None, centro_custo)
+        investimentos_anterior_resultado = self.indicadores.calcular_investimentos_fc(mes_anterior, None, centro_custo)
 
         # Extrair valores, tratando None explicitamente
         def get_valor(categoria: str, resultado: List[Dict[str, Any]], default: float = 0.0) -> float:
