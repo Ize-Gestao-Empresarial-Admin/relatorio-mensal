@@ -1,0 +1,35 @@
+# Dependências para API em produção (Cloud Run)
+# Versão otimizada apenas com o necessário para a API
+
+# Manipulação de dados
+pandas==2.1.4
+numpy==1.26.2
+scipy==1.11.4
+
+# Banco de dados
+psycopg2-binary==2.9.9
+SQLAlchemy==2.0.23
+
+# PDF processing
+reportlab==4.0.8
+pypdf==3.17.4
+PyPDF2==3.0.1
+pdfkit==1.0.0
+jinja2==3.1.2
+
+# Visualização (para gráficos nos relatórios)
+matplotlib==3.8.2
+
+# Utilitários
+pillow==10.1.0
+python-dotenv==1.0.0
+python-dateutil==2.8.2
+
+# API Framework
+fastapi==0.105.0
+uvicorn[standard]==0.25.0
+pydantic==2.5.3
+python-multipart==0.0.6
+
+# Dependências core
+markupsafe==2.1.3
