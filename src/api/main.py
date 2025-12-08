@@ -8,6 +8,7 @@ from datetime import date, timedelta
 import os
 import io
 import re
+import gc
 import zipfile
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dotenv import load_dotenv
@@ -21,6 +22,15 @@ from src.core.relatorios import (
     Relatorio1, Relatorio2, Relatorio3, Relatorio4, Relatorio5, Relatorio6, Relatorio7, Relatorio8
 )
 from src.rendering.engine import RenderingEngine
+
+# Google Cloud Storage para arquivos grandes
+try:
+    from google.cloud import storage
+    GCS_AVAILABLE = True
+    GCS_BUCKET_NAME = os.getenv("GCS_BUCKET_NAME", "ize-relatorios-temp")
+except ImportError:
+    GCS_AVAILABLE = False
+    logging.warning("google-cloud-storage não disponível. ZIPs grandes podem falhar.")
 
 # --- Mapas: ID numérico -> Classe e Nome de exibição ---
 RELATORIO_CLASSES = {
@@ -74,6 +84,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["Content-Disposition", "Content-Length"],  # Necessário para download
 )
 
 # ---------------------------
@@ -195,7 +206,12 @@ class RelatorioRequest(BaseModel):
 # ---------------------------
 @app.get("/v1/health", dependencies=[Depends(verify_api_key)])
 def health():
-    return {"status": "ok"}
+    """Health check endpoint - verifica se a API está funcionando."""
+    return {
+        "status": "ok",
+        "cpu_count": os.cpu_count(),
+        "max_workers_parallelism": 2
+    }
 
 @app.get("/v1/clientes", dependencies=[Depends(verify_api_key)])
 def listar_clientes():
@@ -317,10 +333,21 @@ def gerar_relatorio_unico(
     
     # Retornar arquivo
     pdf_bytes = open(pdf_path, "rb").read()
+    
+    # Limpar arquivo temporário
+    try:
+        os.remove(pdf_path)
+    except:
+        pass
+    
     return StreamingResponse(
         io.BytesIO(pdf_bytes),
         media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename=\"{filename}\"'}
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Access-Control-Expose-Headers": "Content-Disposition",
+            "Cache-Control": "no-cache"
+        }
     )
 
 
@@ -337,114 +364,227 @@ def gerar_multiplos_pdfs(
     mes: int
 ) -> StreamingResponse:
     """Gera múltiplos PDFs (um por centro de custo/empresa) e retorna como ZIP."""
+    import time
     
+    inicio_total = time.time()
     meses = obter_meses()
     nome_mes = next((nm for nm, n in meses if n == mes), str(mes))
     nome_mes_slug = slugify_filename(nome_mes)
     
-    def gerar_pdf_para_centro(centro: str) -> tuple[str, bytes]:
-        """
-        Função auxiliar para gerar PDF de um centro de custo específico.
-        Retorna tupla (filename, pdf_bytes) para ser adicionada ao ZIP.
-        """
-        # Criar instância de Indicadores para este centro de custo
-        indicadores = Indicadores(id_cliente, db)
-        
-        # Índice
-        ids_escolhidos = set(relatorios_ids)
-        indice_data = {
-            "fluxo_caixa": "Sim" if ids_escolhidos & {1, 2, 3, 4, 5} else "Não",
-            "dre_gerencial": "Sim" if 6 in ids_escolhidos else "Não",
-            "indicador": "Sim" if 7 in ids_escolhidos else "Não",
-            "nota_consultor": "Sim" if 8 in ids_escolhidos else "Não",
-            "cliente_nome": f"{display_nome} - {centro}",
-            "mes": nome_mes,
-            "ano": ano,
-            "nome": f"{display_nome} - {centro}",
-            "Periodo": f"{nome_mes} {ano}",
-            "marca": MARCA_PADRAO,
-        }
-        
-        relatorios_dados = [("Índice", indice_data)]
-        
-        # Gerar relatórios para este centro
-        for rel_id in relatorios_ids:
-            rel_label = RELATORIO_LABELS[rel_id]
-            rel_class = RELATORIO_CLASSES[rel_id]
-            relatorio = rel_class(indicadores, f"{display_nome} - {centro}")
-            
-            # Passar centro_custo/empresa para os métodos das classes de relatório
-            if rel_id in {1, 2, 3, 4, 5}:  # Relatórios de FC (aceita centro_custo)
-                dados = relatorio.gerar_relatorio(mes_atual, mes_anterior, centro)
-            elif rel_id == 6:  # Relatório DRE (aceita empresa)
-                dados = relatorio.gerar_relatorio(mes_atual, centro)
-            elif rel_id == 7:  # Relatório de indicadores (sem filtro)
-                dados = relatorio.gerar_relatorio(mes_atual)
-            elif rel_id == 8:  # Notas do consultor (sem filtro)
-                if analise_text:
-                    relatorio.salvar_analise(mes_atual, analise_text)
-                dados = relatorio.gerar_relatorio(mes_atual)
-            
-            relatorios_dados.append((rel_label, dados))
-        
-        # Nome do arquivo individual
-        filename = f"Relatorio_{slugify_filename(display_nome)}_{nome_mes_slug}_{ano}_CC_{slugify_filename(centro)}.pdf"
-        output_path = os.path.join("outputs", filename)
-        
-        # Renderizar PDF
-        engine = RenderingEngine()
-        pdf_path = engine.render_to_pdf(relatorios_dados, f"{display_nome} - {centro}", nome_mes, ano, output_path)
-        
-        # Ler o PDF em bytes
-        with open(pdf_path, 'rb') as pdf_file:
-            pdf_bytes = pdf_file.read()
-        
-        # Limpar arquivo temporário
-        try:
-            os.remove(pdf_path)
-        except:
-            pass
-        
-        return (filename, pdf_bytes)
+    # LIMITE DE SEGURANÇA: Máximo 15 PDFs para evitar timeout
+    MAX_PDFS = 15
+    if len(centros_custo) > MAX_PDFS:
+        logging.warning(f"⚠️ Limitando de {len(centros_custo)} para {MAX_PDFS} PDFs (timeout)")
+        centros_custo = centros_custo[:MAX_PDFS]
     
-    # Processar centros de custo em paralelo
+    # Processar centros de custo SEQUENCIALMENTE (sem threads)
     pdfs_gerados = {}
-    max_workers = min(len(centros_custo), os.cpu_count() or 4)  # Limita ao número de CPUs disponíveis
+    total_centros = len(centros_custo)
     
-    logging.info(f"Gerando {len(centros_custo)} PDFs em paralelo com {max_workers} workers...")
+    logging.info(f"Iniciando geração SEQUENCIAL de {total_centros} PDFs...")
+    logging.info(f"Tempo máximo estimado: {total_centros * 60}s (~{total_centros} min)")
     
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        # Submeter todas as tarefas
-        future_to_centro = {executor.submit(gerar_pdf_para_centro, centro): centro for centro in centros_custo}
-        
-        # Coletar resultados conforme vão sendo completados
-        for future in as_completed(future_to_centro):
-            centro = future_to_centro[future]
+    for idx, centro in enumerate(centros_custo, 1):
+        inicio_pdf = time.time()
+        try:
+            logging.info(f"[{idx}/{total_centros}] Gerando PDF para centro: {centro}")
+            
+            # Criar conexão nova para cada centro
+            db_centro = DatabaseConnection()
+            indicadores = Indicadores(id_cliente, db_centro)
+            
+            # Índice
+            ids_escolhidos = set(relatorios_ids)
+            indice_data = {
+                "fluxo_caixa": "Sim" if ids_escolhidos & {1, 2, 3, 4, 5} else "Não",
+                "dre_gerencial": "Sim" if 6 in ids_escolhidos else "Não",
+                "indicador": "Sim" if 7 in ids_escolhidos else "Não",
+                "nota_consultor": "Sim" if 8 in ids_escolhidos else "Não",
+                "cliente_nome": f"{display_nome} - {centro}",
+                "mes": nome_mes,
+                "ano": ano,
+                "nome": f"{display_nome} - {centro}",
+                "Periodo": f"{nome_mes} {ano}",
+                "marca": MARCA_PADRAO,
+            }
+            
+            relatorios_dados = [("Índice", indice_data)]
+            
+            # Gerar relatórios para este centro
+            for rel_id in relatorios_ids:
+                rel_label = RELATORIO_LABELS[rel_id]
+                rel_class = RELATORIO_CLASSES[rel_id]
+                relatorio = rel_class(indicadores, f"{display_nome} - {centro}")
+                
+                # Passar centro_custo/empresa para os métodos das classes de relatório
+                if rel_id in {1, 2, 3, 4, 5}:  # Relatórios de FC (aceita centro_custo)
+                    dados = relatorio.gerar_relatorio(mes_atual, mes_anterior, centro)
+                elif rel_id == 6:  # Relatório DRE (aceita empresa)
+                    dados = relatorio.gerar_relatorio(mes_atual, centro)
+                elif rel_id == 7:  # Relatório de indicadores (sem filtro)
+                    dados = relatorio.gerar_relatorio(mes_atual)
+                elif rel_id == 8:  # Notas do consultor (sem filtro)
+                    if analise_text:
+                        relatorio.salvar_analise(mes_atual, analise_text)
+                    dados = relatorio.gerar_relatorio(mes_atual)
+                
+                relatorios_dados.append((rel_label, dados))
+            
+            # Nome do arquivo individual
+            filename = f"Relatorio_{slugify_filename(display_nome)}_{nome_mes_slug}_{ano}_CC_{slugify_filename(centro)}.pdf"
+            output_path = os.path.join("outputs", filename)
+            
+            # Renderizar PDF
+            engine = RenderingEngine()
+            pdf_path = engine.render_to_pdf(relatorios_dados, f"{display_nome} - {centro}", nome_mes, ano, output_path)
+            
+            # Ler o PDF em bytes
+            with open(pdf_path, 'rb') as pdf_file:
+                pdf_bytes = pdf_file.read()
+            
+            # Adicionar ao dicionário
+            pdfs_gerados[filename] = pdf_bytes
+            
+            # Limpar arquivo temporário
             try:
-                filename, pdf_bytes = future.result()
-                pdfs_gerados[filename] = pdf_bytes
-                logging.info(f"PDF gerado com sucesso para centro: {centro}")
-            except Exception as e:
-                logging.error(f"Erro ao gerar PDF para centro {centro}: {str(e)}")
-                # Continua processando os outros mesmo se um falhar
+                os.remove(pdf_path)
+            except:
+                pass
+            
+            # Liberar memória
+            del relatorios_dados
+            del engine
+            del indicadores
+            del db_centro
+            gc.collect()
+            
+            tempo_pdf = time.time() - inicio_pdf
+            logging.info(f"✓ [{idx}/{total_centros}] PDF gerado: {centro} ({len(pdf_bytes):,} bytes) em {tempo_pdf:.1f}s")
+            
+            # Verificar se está próximo do timeout (800s = 13min de margem)
+            tempo_decorrido = time.time() - inicio_total
+            if tempo_decorrido > 800:  # 13 minutos
+                logging.warning(f"⚠️ Timeout iminente ({tempo_decorrido:.0f}s). Parando em {idx}/{total_centros} PDFs.")
+                break
+            
+        except Exception as e:
+            logging.error(f"✗ [{idx}/{total_centros}] Erro ao gerar PDF para {centro}: {str(e)}")
+            import traceback
+            logging.error(traceback.format_exc())
+            # Continua processando os outros
+    
+    if not pdfs_gerados:
+        raise HTTPException(
+            status_code=500,
+            detail="Nenhum PDF foi gerado com sucesso. Verifique os logs para mais detalhes."
+        )
     
     # Criar arquivo ZIP em memória com os PDFs gerados
+    logging.info(f"Criando ZIP com {len(pdfs_gerados)} PDFs...")
+    inicio_zip = time.time()
+    
     zip_buffer = io.BytesIO()
     
-    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
-        for filename, pdf_bytes in pdfs_gerados.items():
-            zip_file.writestr(filename, pdf_bytes)
+    try:
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED, compresslevel=6) as zip_file:
+            for idx, (filename, pdf_bytes) in enumerate(pdfs_gerados.items(), 1):
+                zip_file.writestr(filename, pdf_bytes)
+                logging.info(f"  [{idx}/{len(pdfs_gerados)}] Adicionado ao ZIP: {filename} ({len(pdf_bytes):,} bytes)")
+        
+        tempo_zip = time.time() - inicio_zip
+        logging.info(f"✓ ZIP compactado em {tempo_zip:.1f}s")
+    except Exception as e:
+        logging.error(f"✗ Erro ao criar ZIP: {str(e)}")
+        import traceback
+        logging.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Erro ao criar ZIP: {str(e)}")
+    
+    # Salvar contagem antes de limpar
+    num_pdfs = len(pdfs_gerados)
+    
+    # Liberar memória dos PDFs após criar ZIP
+    pdfs_gerados.clear()
+    gc.collect()
     
     # Retornar ZIP
+    zip_size = len(zip_buffer.getvalue())
     zip_buffer.seek(0)
     zip_filename = f"Relatorios_{slugify_filename(display_nome)}_{nome_mes_slug}_{ano}_CentrosCusto.zip"
     
-    logging.info(f"ZIP criado com {len(pdfs_gerados)} PDFs: {zip_filename}")
+    tempo_total = time.time() - inicio_total
+    logging.info(f"✓ ZIP criado com sucesso: {zip_filename} ({zip_size:,} bytes / {zip_size/1024/1024:.2f} MB)")
+    logging.info(f"⏱️ Tempo total: {tempo_total:.1f}s ({tempo_total/60:.1f} min) para {num_pdfs} PDFs")
+    logging.info(f"📊 Performance: {tempo_total/num_pdfs:.1f}s por PDF" if num_pdfs > 0 else "📊 Performance: N/A")
     
+    # SOLUÇÃO DEFINITIVA: Para arquivos > 50MB, usar Google Cloud Storage
+    if zip_size > 50 * 1024 * 1024 and GCS_AVAILABLE:  # 50 MB
+        try:
+            logging.info(f"📤 Arquivo grande ({zip_size/1024/1024:.2f} MB). Salvando no GCS...")
+            
+            # Upload para GCS
+            storage_client = storage.Client()
+            bucket = storage_client.bucket(GCS_BUCKET_NAME)
+            
+            # Nome único com timestamp para evitar conflitos
+            import uuid
+            unique_id = str(uuid.uuid4())[:8]
+            blob_name = f"temp-relatorios/{zip_filename.replace('.zip', '')}_{unique_id}.zip"
+            blob = bucket.blob(blob_name)
+            
+            zip_buffer.seek(0)
+            blob.upload_from_file(zip_buffer, content_type="application/zip")
+            
+            # URL pública (bucket já tem permissão allUsers:objectViewer)
+            # NÃO chamar make_public() porque bucket tem Uniform Bucket-Level Access
+            url_publica = blob.public_url
+            
+            logging.info(f"✅ Arquivo salvo no GCS: {blob_name}")
+            logging.info(f"🔗 URL pública: {url_publica}")
+            
+            # Liberar memória
+            del zip_buffer
+            gc.collect()
+            
+            # Retornar JSON com URL de download
+            return JSONResponse(
+                status_code=200,
+                content={
+                    "status": "success",
+                    "message": "Relatórios gerados com sucesso",
+                    "filename": zip_filename,
+                    "size_bytes": zip_size,
+                    "size_mb": round(zip_size / 1024 / 1024, 2),
+                    "num_pdfs": num_pdfs,
+                    "download_url": url_publica,
+                    "expires_in": "24 horas (arquivo será deletado automaticamente)",
+                    "note": "Arquivo muito grande para streaming. Use a URL para download."
+                }
+            )
+        except Exception as e:
+            logging.error(f"❌ Erro ao salvar no GCS: {str(e)}")
+            import traceback
+            logging.error(traceback.format_exc())
+            # Fallback: retornar erro explicativo em vez de tentar streaming
+            raise HTTPException(
+                status_code=500,
+                detail=f"Arquivo muito grande ({zip_size/1024/1024:.1f} MB) e erro ao salvar no GCS: {str(e)}"
+            )
+    
+    logging.info(f"🚀 Retornando StreamingResponse com {zip_size:,} bytes...")
+    
+    zip_buffer.seek(0)
+    
+    # CRÍTICO: Retornar BytesIO diretamente - FastAPI faz streaming automático
     return StreamingResponse(
         zip_buffer,
         media_type="application/zip",
-        headers={"Content-Disposition": f'attachment; filename=\"{zip_filename}\"'}
+        headers={
+            "Content-Disposition": f'attachment; filename="{zip_filename}"',
+            "Access-Control-Expose-Headers": "Content-Disposition",
+            "Cache-Control": "no-cache",
+            "Content-Length": str(zip_size),
+            "X-Content-Type-Options": "nosniff"
+        }
     )
 
 # ---------------------------
