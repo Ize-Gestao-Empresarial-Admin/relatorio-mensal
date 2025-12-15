@@ -17,7 +17,12 @@ class DatabaseConnection:
     def __init__(self):
         self.engine = create_engine(
             f"postgresql://{DB_CONFIG['user']}:{DB_CONFIG['password']}@"
-            f"{DB_CONFIG['host']}:{DB_CONFIG['port']}/{DB_CONFIG['dbname']}"
+            f"{DB_CONFIG['host']}:{DB_CONFIG['port']}/{DB_CONFIG['dbname']}",
+            pool_size=5,          # Máximo 5 conexões persistentes
+            max_overflow=2,       # +2 conexões extras em picos
+            pool_pre_ping=True,   # Verifica se conexão está viva antes de usar
+            pool_recycle=3600,    # Recicla conexões após 1 hora
+            echo=False            # Desabilita logs SQL verbosos
         )
 
     def execute_query(self, query: Union[str, text], params: Optional[Union[Dict, List, Tuple]] = None) -> pd.DataFrame:

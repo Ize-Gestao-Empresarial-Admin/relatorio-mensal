@@ -9,6 +9,7 @@ import os
 import io
 import re
 import gc
+import time
 import zipfile
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dotenv import load_dotenv
@@ -23,11 +24,16 @@ from src.core.relatorios import (
 )
 from src.rendering.engine import RenderingEngine
 
-# Google Cloud Storage para arquivos grandes
+# Google Cloud Storage para arquivos grandes (APENAS em produção)
 try:
     from google.cloud import storage
-    GCS_AVAILABLE = True
+    # Detectar se está em Cloud Run (produção) ou local
+    IS_CLOUD_RUN = os.getenv("K_SERVICE") is not None  # Variável presente apenas no Cloud Run
+    GCS_AVAILABLE = IS_CLOUD_RUN
     GCS_BUCKET_NAME = os.getenv("GCS_BUCKET_NAME", "ize-relatorios-temp")
+    
+    if not IS_CLOUD_RUN:
+        logging.info("🖥️ Executando LOCALMENTE - GCS desabilitado (streaming direto)")
 except ImportError:
     GCS_AVAILABLE = False
     logging.warning("google-cloud-storage não disponível. ZIPs grandes podem falhar.")
@@ -258,8 +264,13 @@ def gerar_relatorio_unico(
 ) -> StreamingResponse:
     """Gera um único relatório PDF (com ou sem filtro de centro de custo/empresa)."""
     
+    logging.info(f"📄 Iniciando geração de relatório único para {display_nome} - {mes}/{ano}")
+    logging.info(f"📋 Relatórios solicitados: {relatorios_ids}")
+    
     # Criar instância de Indicadores
     indicadores = Indicadores(id_cliente, db)
+    
+    logging.info(f"✅ Indicadores criados, validando dados...")
     
     # Validação de dados
     dados_validos, mensagem_erro = validar_dados_cliente(indicadores, mes_atual)
@@ -294,11 +305,18 @@ def gerar_relatorio_unico(
     
     relatorios_dados = [("Índice", indice_data)]
     
-    # Gerar relatórios
+    logging.info(f"🔄 Gerando {len(relatorios_ids)} relatórios (sequencial - otimizado para banco)...")
+    tempo_inicio_relatorios = time.time()
+    
+    # Gerar relatórios SEQUENCIALMENTE reusando a mesma conexão/indicadores
+    # CRÍTICO: Reduz conexões simultâneas ao banco de ~175 para ~10-25
     for rel_id in relatorios_ids:
+        tempo_inicio_rel = time.time()
         rel_label = RELATORIO_LABELS[rel_id]
         rel_class = RELATORIO_CLASSES[rel_id]
-        relatorio = rel_class(indicadores, display_nome)
+        relatorio = rel_class(indicadores, display_nome)  # Reusa indicadores existentes
+        
+        logging.info(f"  📊 [{rel_id}/{len(relatorios_ids)}] Gerando {rel_label}...")
         
         # Passar filtros para os métodos das classes de relatório
         if rel_id in {1, 2, 3, 4, 5}:  # Relatórios de FC (aceita centro_custo)
@@ -312,7 +330,14 @@ def gerar_relatorio_unico(
                 relatorio.salvar_analise(mes_atual, analise_text)
             dados = relatorio.gerar_relatorio(mes_atual)
         
+        tempo_rel = time.time() - tempo_inicio_rel
+        logging.info(f"  ✅ [{rel_id}/{len(relatorios_ids)}] {rel_label} concluído em {tempo_rel:.1f}s")
         relatorios_dados.append((rel_label, dados))
+    
+    tempo_total_relatorios = time.time() - tempo_inicio_relatorios
+    logging.info(f"⏱️  Total geração relatórios: {tempo_total_relatorios:.1f}s (média: {tempo_total_relatorios/len(relatorios_ids):.1f}s/relatório)")
+    
+    logging.info(f"🎨 Renderizando PDF final...")
     
     # Renderizar PDF
     engine = RenderingEngine()
@@ -334,11 +359,15 @@ def gerar_relatorio_unico(
     # Retornar arquivo
     pdf_bytes = open(pdf_path, "rb").read()
     
+    logging.info(f"✅ PDF gerado: {filename} ({len(pdf_bytes):,} bytes)")
+    
     # Limpar arquivo temporário
     try:
         os.remove(pdf_path)
     except:
         pass
+    
+    logging.info(f"📤 Retornando PDF via streaming...")
     
     return StreamingResponse(
         io.BytesIO(pdf_bytes),
@@ -592,33 +621,47 @@ def gerar_multiplos_pdfs(
 # ---------------------------
 @app.post("/v1/relatorios/pdf", dependencies=[Depends(verify_api_key)])
 def gerar_pdf(payload: RelatorioRequest):
+    logging.info(f"🚀 REQUISIÇÃO RECEBIDA: cliente={payload.id_cliente}, mes={payload.mes}, ano={payload.ano}, relatorios={payload.relatorios}, centro_custo={payload.centro_custo}")
+    
     # 1) Período
     mes = get_mes_numero(payload.mes)
     ano = default_ano(payload.ano)
     mes_atual = date(ano, mes, 1)
     mes_anterior = (mes_atual - timedelta(days=1)).replace(day=1)
+    
+    logging.info(f"📅 Período calculado: {mes_atual} (anterior: {mes_anterior})")
 
     # 2) Clientes
     id_cliente = payload.id_cliente  # SEMPRE lista (suporta consolidado)
     is_consolidado = len(id_cliente) > 1
+    
+    logging.info(f"👥 Processando cliente(s): {id_cliente} (consolidado: {is_consolidado})")
 
     # Nome exibido sempre derivado do banco (ou fallback para Cliente_<id>)
+    logging.info(f"🔍 Buscando informações do cliente no banco...")
     db_tmp = DatabaseConnection()
     all_cli = buscar_clientes(db_tmp) or []
+    logging.info(f"✅ Encontrados {len(all_cli)} clientes no banco")
     mapa = {c["id_cliente"]: c["nome"] for c in all_cli}
     base = mapa.get(id_cliente[0], f"Cliente_{id_cliente[0]}")
     display_nome = f"{base}_Consolidado" if is_consolidado else base
+    logging.info(f"📝 Nome do relatório: {display_nome}")
 
     # 3) Análise do consultor (se houver)
     analise_text = processar_html_parecer(payload.analise_text or "")
 
     # 4) Preparar geração
+    logging.info(f"🔧 Criando conexão com banco de dados...")
     db = DatabaseConnection()
     
     # 4.1) NOVO: Verificar se deve filtrar por centro de custo
     if payload.centro_custo:
+        logging.info(f"🔍 Buscando centros de custo disponíveis para cliente {id_cliente}, período {mes}/{ano}...")
+        
         # Buscar centros de custo disponíveis
         centros_custo = buscar_centros_custo_disponiveis(db, id_cliente, ano, mes)
+        
+        logging.info(f"✅ Encontrados {len(centros_custo)} centros de custo: {centros_custo[:5]}{'...' if len(centros_custo) > 5 else ''}")
         
         if not centros_custo:
             raise HTTPException(

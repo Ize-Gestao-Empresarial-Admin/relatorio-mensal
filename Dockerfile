@@ -13,13 +13,13 @@ RUN apt-get update && apt-get install -y \
     libxcb1 \
     libssl3 \
     ca-certificates \
+    xfonts-75dpi \
+    xfonts-base \
     && rm -rf /var/lib/apt/lists/*
 
 # Baixar e instalar wkhtmltopdf manualmente (versão compatível com Debian Bookworm)
 RUN wget -q https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6.1-3/wkhtmltox_0.12.6.1-3.bookworm_amd64.deb \
-    && dpkg -i wkhtmltox_0.12.6.1-3.bookworm_amd64.deb || true \
-    && apt-get update \
-    && apt-get install -f -y \
+    && dpkg -i wkhtmltox_0.12.6.1-3.bookworm_amd64.deb \
     && rm wkhtmltox_0.12.6.1-3.bookworm_amd64.deb \
     && rm -rf /var/lib/apt/lists/*
 
